@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.StatusAbsent
 import com.example.ui.theme.StatusPresent
+import com.example.ui.theme.glassmorphic
 import com.example.ui.viewmodel.TodayClassItem
 
 @Composable
@@ -67,6 +68,7 @@ fun TimetableCard(
     modifier = modifier
       .fillMaxWidth()
       .scale(scale)
+      .glassmorphic(shape = RoundedCornerShape(16.dp))
       .pointerInput(Unit) {
         awaitPointerEventScope {
           while (true) {
@@ -82,9 +84,8 @@ fun TimetableCard(
       }
       .testTag("dashboard_timetable_card"),
     shape = RoundedCornerShape(16.dp),
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surface
+      containerColor = Color.Transparent
     ),
     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
   ) {

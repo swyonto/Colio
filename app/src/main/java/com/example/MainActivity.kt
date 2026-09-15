@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.CampusApp
 import com.example.ui.theme.CampusOSTheme
 import com.example.ui.viewmodel.CampusViewModel
@@ -21,7 +23,13 @@ class MainActivity : ComponentActivity() {
     enableEdgeToEdge()
 
     setContent {
-      CampusOSTheme {
+      val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+      val glassAccent by viewModel.glassAccent.collectAsStateWithLifecycle()
+
+      CampusOSTheme(
+        themeMode = themeMode,
+        glassAccent = glassAccent
+      ) {
         CampusApp(viewModel = viewModel)
       }
     }

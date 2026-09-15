@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -20,6 +21,8 @@ import com.example.data.local.entity.TimetableEntryEntity
 import com.example.data.repository.AttendanceSummary
 import com.example.data.repository.CampusRepository
 import com.example.data.repository.SubjectAttendance
+import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.GlassAccent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,6 +71,33 @@ class CampusViewModel(application: Application) : AndroidViewModel(application) 
 
   private val database = AppDatabase.getInstance(application, viewModelScope)
   val repository = CampusRepository(database)
+
+  // Theme & Appearance Preferences
+  private val themePrefs = application.getSharedPreferences("campusos_theme_prefs", Context.MODE_PRIVATE)
+
+  private val _themeMode = MutableStateFlow(
+    try {
+      AppThemeMode.valueOf(themePrefs.getString("theme_mode", AppThemeMode.SYSTEM.name) ?: AppThemeMode.SYSTEM.name)
+    } catch (e: Exception) {
+      AppThemeMode.SYSTEM
+    }
+  )
+  val themeMode: StateFlow<AppThemeMode> = _themeMode
+
+  private val _glassAccent = MutableStateFlow(
+    GlassAccent.fromId(themePrefs.getString("glass_accent", GlassAccent.AURORA_INDIGO.id) ?: GlassAccent.AURORA_INDIGO.id)
+  )
+  val glassAccent: StateFlow<GlassAccent> = _glassAccent
+
+  fun setThemeMode(mode: AppThemeMode) {
+    _themeMode.value = mode
+    themePrefs.edit().putString("theme_mode", mode.name).apply()
+  }
+
+  fun setGlassAccent(accent: GlassAccent) {
+    _glassAccent.value = accent
+    themePrefs.edit().putString("glass_accent", accent.id).apply()
+  }
 
   // Navigation State
   private val _currentTab = MutableStateFlow(ScreenTab.HOME)

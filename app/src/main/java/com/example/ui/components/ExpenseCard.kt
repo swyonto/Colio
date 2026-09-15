@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.QuickExpenseEntity
+import com.example.ui.theme.glassmorphic
 
 @Composable
 fun ExpenseCard(
@@ -64,6 +65,7 @@ fun ExpenseCard(
     modifier = modifier
       .fillMaxWidth()
       .scale(scale)
+      .glassmorphic(shape = RoundedCornerShape(16.dp))
       .pointerInput(Unit) {
         awaitPointerEventScope {
           while (true) {
@@ -79,9 +81,8 @@ fun ExpenseCard(
       }
       .testTag("dashboard_expense_card"),
     shape = RoundedCornerShape(16.dp),
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surface
+      containerColor = Color.Transparent
     ),
     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
   ) {

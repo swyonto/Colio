@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.QuickExpenseEntity
+import com.example.ui.theme.glassmorphic
 import com.example.data.local.entity.TaskEntity
 import com.example.ui.components.AddExpenseDialog
 import com.example.ui.components.AddTaskDialog
@@ -127,11 +128,11 @@ fun HomeScreen(
       Card(
         modifier = Modifier
           .fillMaxWidth()
+          .glassmorphic(shape = RoundedCornerShape(16.dp))
           .clickable { viewModel.navigateToSubScreen(SubScreen.ADDONS) }
           .testTag("academic_summary_card"),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
       ) {
         Row(
@@ -200,10 +201,10 @@ fun HomeScreen(
         ) {
           Surface(
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            color = Color.Transparent,
             modifier = Modifier
               .weight(1f)
+              .glassmorphic(shape = RoundedCornerShape(12.dp))
               .clickable { showAddExpenseDialog = true }
               .testTag("quick_action_add_expense")
           ) {
@@ -219,10 +220,10 @@ fun HomeScreen(
 
           Surface(
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            color = Color.Transparent,
             modifier = Modifier
               .weight(1f)
+              .glassmorphic(shape = RoundedCornerShape(12.dp))
               .clickable { showAddTaskDialog = true }
               .testTag("quick_action_add_task")
           ) {

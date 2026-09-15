@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,8 @@ import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.SearchScreen
 import com.example.ui.screens.TasksScreen
 import com.example.ui.screens.TimetableScreen
+import com.example.ui.theme.AmbientGlassCanvas
+import com.example.ui.theme.glassmorphic
 import com.example.ui.viewmodel.CampusViewModel
 import com.example.ui.viewmodel.ScreenTab
 import com.example.ui.viewmodel.SubScreen
@@ -76,76 +79,79 @@ fun CampusApp(
     NavTabItem(ScreenTab.MORE, "More", Icons.Filled.Menu, Icons.Outlined.Menu)
   )
 
-  // When a sub-screen is active, render it directly
-  if (activeSubScreen != SubScreen.NONE) {
-    when (activeSubScreen) {
-      SubScreen.TASKS -> TasksScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      SubScreen.BOOKS -> BooksScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      SubScreen.NOTES -> NotesScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      SubScreen.PROFILE -> ProfileScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      SubScreen.ID_CARD -> IdCardViewerScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      SubScreen.ADDONS -> AddonsScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      SubScreen.HOLIDAYS -> HolidaysScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      SubScreen.SEARCH -> SearchScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
-      else -> Unit
-    }
-  } else {
-    Scaffold(
-      modifier = modifier.fillMaxSize(),
-      topBar = {
-        CampusHeader(
-          profile = profile,
-          onProfileClick = { viewModel.navigateToSubScreen(SubScreen.PROFILE) },
-          onSearchClick = { viewModel.navigateToSubScreen(SubScreen.SEARCH) }
-        )
-      },
-      bottomBar = {
-        NavigationBar(
-          tonalElevation = 6.dp,
-          containerColor = MaterialTheme.colorScheme.surface,
-          modifier = Modifier.testTag("bottom_navigation_bar")
-        ) {
-          navItems.forEach { item ->
-            val isSelected = currentTab == item.tab
-            NavigationBarItem(
-              selected = isSelected,
-              onClick = { viewModel.selectTab(item.tab) },
-              icon = {
-                Icon(
-                  imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                  contentDescription = item.label
-                )
-              },
-              label = {
-                Text(
-                  text = item.label,
-                  style = MaterialTheme.typography.labelSmall
-                )
-              },
-              colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                selectedTextColor = MaterialTheme.colorScheme.primary,
-                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-              ),
-              modifier = Modifier.testTag("nav_tab_${item.label.lowercase()}")
-            )
+  AmbientGlassCanvas(modifier = modifier.fillMaxSize()) {
+    // When a sub-screen is active, render it directly
+    if (activeSubScreen != SubScreen.NONE) {
+      when (activeSubScreen) {
+        SubScreen.TASKS -> TasksScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        SubScreen.BOOKS -> BooksScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        SubScreen.NOTES -> NotesScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        SubScreen.PROFILE -> ProfileScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        SubScreen.ID_CARD -> IdCardViewerScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        SubScreen.ADDONS -> AddonsScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        SubScreen.HOLIDAYS -> HolidaysScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        SubScreen.SEARCH -> SearchScreen(viewModel = viewModel, onBack = { viewModel.closeSubScreen() })
+        else -> Unit
+      }
+    } else {
+      Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Transparent,
+        topBar = {
+          CampusHeader(
+            profile = profile,
+            onProfileClick = { viewModel.navigateToSubScreen(SubScreen.PROFILE) },
+            onSearchClick = { viewModel.navigateToSubScreen(SubScreen.SEARCH) }
+          )
+        },
+        bottomBar = {
+          NavigationBar(
+            tonalElevation = 6.dp,
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+            modifier = Modifier.testTag("bottom_navigation_bar")
+          ) {
+            navItems.forEach { item ->
+              val isSelected = currentTab == item.tab
+              NavigationBarItem(
+                selected = isSelected,
+                onClick = { viewModel.selectTab(item.tab) },
+                icon = {
+                  Icon(
+                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                    contentDescription = item.label
+                  )
+                },
+                label = {
+                  Text(
+                    text = item.label,
+                    style = MaterialTheme.typography.labelSmall
+                  )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                  selectedIconColor = MaterialTheme.colorScheme.primary,
+                  selectedTextColor = MaterialTheme.colorScheme.primary,
+                  indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                  unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                  unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                modifier = Modifier.testTag("nav_tab_${item.label.lowercase()}")
+              )
+            }
           }
         }
-      }
-    ) { innerPadding ->
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(innerPadding)
-      ) {
-        when (currentTab) {
-          ScreenTab.HOME -> HomeScreen(viewModel = viewModel)
-          ScreenTab.ATTENDANCE -> AttendanceScreen(viewModel = viewModel)
-          ScreenTab.TIMETABLE -> TimetableScreen(viewModel = viewModel)
-          ScreenTab.EXPENSES -> ExpensesScreen(viewModel = viewModel)
-          ScreenTab.MORE -> MoreScreen(viewModel = viewModel)
+      ) { innerPadding ->
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+        ) {
+          when (currentTab) {
+            ScreenTab.HOME -> HomeScreen(viewModel = viewModel)
+            ScreenTab.ATTENDANCE -> AttendanceScreen(viewModel = viewModel)
+            ScreenTab.TIMETABLE -> TimetableScreen(viewModel = viewModel)
+            ScreenTab.EXPENSES -> ExpensesScreen(viewModel = viewModel)
+            ScreenTab.MORE -> MoreScreen(viewModel = viewModel)
+          }
         }
       }
     }

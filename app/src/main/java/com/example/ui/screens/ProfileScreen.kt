@@ -38,9 +38,13 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.School
@@ -63,6 +67,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,6 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -88,6 +94,9 @@ import coil.compose.AsyncImage
 import com.example.data.local.entity.StudentProfileEntity
 import com.example.ui.components.EditProfileDialog
 import com.example.ui.components.NotionSpinLoader
+import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.GlassAccent
+import com.example.ui.theme.glassmorphic
 import com.example.ui.viewmodel.CampusViewModel
 import com.example.ui.viewmodel.SubScreen
 import kotlinx.coroutines.delay
@@ -101,6 +110,8 @@ fun ProfileScreen(
   modifier: Modifier = Modifier
 ) {
   val profile by viewModel.profile.collectAsStateWithLifecycle()
+  val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+  val glassAccent by viewModel.glassAccent.collectAsStateWithLifecycle()
   var showEditProfileDialog by remember { mutableStateOf(false) }
   var showAvatarDialog by remember { mutableStateOf(false) }
 
@@ -115,6 +126,7 @@ fun ProfileScreen(
   Column(modifier = modifier.fillMaxSize()) {
     TopAppBar(
       title = { Text("Student Profile", fontWeight = FontWeight.Bold) },
+      colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
       navigationIcon = {
         IconButton(onClick = onBack) {
           Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -138,10 +150,11 @@ fun ProfileScreen(
       item {
         Card(
           shape = RoundedCornerShape(16.dp),
-          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          colors = CardDefaults.cardColors(containerColor = Color.Transparent),
           elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-          modifier = Modifier.fillMaxWidth()
+          modifier = Modifier
+            .fillMaxWidth()
+            .glassmorphic(shape = RoundedCornerShape(16.dp))
         ) {
           Column(
             modifier = Modifier
@@ -248,14 +261,323 @@ fun ProfileScreen(
         }
       }
 
-      // 2. Academic Profile Details
+      // 2. Theme & Glassmorphism Settings Card (User Requested)
       item {
         Card(
           shape = RoundedCornerShape(16.dp),
-          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          colors = CardDefaults.cardColors(containerColor = Color.Transparent),
           elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-          modifier = Modifier.fillMaxWidth()
+          modifier = Modifier
+            .fillMaxWidth()
+            .glassmorphic(shape = RoundedCornerShape(16.dp))
+            .testTag("theme_settings_card")
+        ) {
+          Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+          ) {
+            // Header Row
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                  modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                  contentAlignment = Alignment.Center
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.Palette,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                  )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                  Text(
+                    text = "Appearance & Glassmorphism",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                  )
+                  Text(
+                    text = "Subtle gradient glass effect for all cards",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                }
+              }
+
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                modifier = Modifier.padding(start = 4.dp)
+              ) {
+                Text(
+                  text = glassAccent.label,
+                  style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.primary,
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+              }
+            }
+
+            // Theme Mode Selector (System, Light Glass, Dark Glass)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              Text(
+                text = "Theme Mode",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+              )
+
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                val modes = listOf(
+                  Triple(AppThemeMode.SYSTEM, "System", Icons.Default.BrightnessMedium),
+                  Triple(AppThemeMode.LIGHT, "Light Glass", Icons.Default.LightMode),
+                  Triple(AppThemeMode.DARK, "Dark Glass", Icons.Default.DarkMode)
+                )
+
+                modes.forEach { (mode, label, icon) ->
+                  val isSelected = (themeMode == mode)
+                  Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = BorderStroke(
+                      1.dp,
+                      if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    modifier = Modifier
+                      .weight(1f)
+                      .clickable { viewModel.setThemeMode(mode) }
+                      .testTag("theme_mode_${mode.name.lowercase()}")
+                  ) {
+                    Column(
+                      modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
+                      horizontalAlignment = Alignment.CenterHorizontally,
+                      verticalArrangement = Arrangement.Center
+                    ) {
+                      Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                      )
+                      Spacer(modifier = Modifier.height(4.dp))
+                      Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        ),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                      )
+                    }
+                  }
+                }
+              }
+            }
+
+            // Glass Gradient Accents Selector
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Text(
+                  text = "Card Glass Accent (Subtle Gradient)",
+                  style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                  color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                  text = "6 Themes",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
+
+              val accents = GlassAccent.entries
+              val chunkedAccents = accents.chunked(2)
+
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                chunkedAccents.forEach { pair ->
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                  ) {
+                    pair.forEach { accent ->
+                      val isSelected = (glassAccent == accent)
+                      Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) {
+                          accent.primary.copy(alpha = 0.12f)
+                        } else {
+                          MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        },
+                        border = BorderStroke(
+                          if (isSelected) 1.5.dp else 1.dp,
+                          if (isSelected) accent.primary else MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        modifier = Modifier
+                          .weight(1f)
+                          .clickable { viewModel.setGlassAccent(accent) }
+                          .testTag("glass_accent_${accent.id}")
+                      ) {
+                        Row(
+                          modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                          verticalAlignment = Alignment.CenterVertically,
+                          horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                          Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                          ) {
+                            // Dual-color gradient dot
+                            Box(
+                              modifier = Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(
+                                  brush = Brush.linearGradient(
+                                    colors = listOf(accent.primary, accent.secondary)
+                                  )
+                                )
+                                .border(1.dp, Color.White.copy(alpha = 0.6f), CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                              text = accent.label,
+                              style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                              ),
+                              color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                              maxLines = 1
+                            )
+                          }
+
+                          if (isSelected) {
+                            Icon(
+                              imageVector = Icons.Default.Check,
+                              contentDescription = "Selected",
+                              tint = accent.primary,
+                              modifier = Modifier.size(16.dp)
+                            )
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // Live Card Preview
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+              Text(
+                text = "Live Glassmorphic Preview",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+
+              Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .glassmorphic(shape = RoundedCornerShape(14.dp))
+              ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                      Box(
+                        modifier = Modifier
+                          .size(10.dp)
+                          .clip(CircleShape)
+                          .background(glassAccent.primary)
+                      )
+                      Spacer(modifier = Modifier.width(6.dp))
+                      Text(
+                        text = "Frosted Glass Specimen",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                      )
+                    }
+
+                    Box(
+                      modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(glassAccent.primary.copy(alpha = 0.15f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                      Text(
+                        text = "Active Accent",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = glassAccent.primary
+                      )
+                    }
+                  }
+
+                  Spacer(modifier = Modifier.height(8.dp))
+
+                  Text(
+                    text = "Reflective frosted surface with soft ${glassAccent.label} tint and gradient rim shine.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+
+                  Spacer(modifier = Modifier.height(10.dp))
+
+                  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                      shape = RoundedCornerShape(6.dp),
+                      color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                      Text(
+                        "92% Attendance",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                      )
+                    }
+                    Surface(
+                      shape = RoundedCornerShape(6.dp),
+                      color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                      Text(
+                        "₹1,240 Spends",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Academic Profile Details
+      item {
+        Card(
+          shape = RoundedCornerShape(16.dp),
+          colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+          modifier = Modifier
+            .fillMaxWidth()
+            .glassmorphic(shape = RoundedCornerShape(16.dp))
         ) {
           Column(
             modifier = Modifier.padding(18.dp),

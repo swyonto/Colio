@@ -33,12 +33,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.AcademicDocumentEntity
+import com.example.ui.theme.glassmorphic
 
 @Composable
 fun BooksCard(
@@ -60,6 +62,7 @@ fun BooksCard(
     modifier = modifier
       .fillMaxWidth()
       .scale(scale)
+      .glassmorphic(shape = RoundedCornerShape(16.dp))
       .pointerInput(Unit) {
         awaitPointerEventScope {
           while (true) {
@@ -75,9 +78,8 @@ fun BooksCard(
       }
       .testTag("dashboard_books_card"),
     shape = RoundedCornerShape(16.dp),
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surface
+      containerColor = Color.Transparent
     ),
     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
   ) {

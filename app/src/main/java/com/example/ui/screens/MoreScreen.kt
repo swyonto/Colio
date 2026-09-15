@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.NoteAlt
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.theme.glassmorphic
 import com.example.ui.viewmodel.CampusViewModel
 import com.example.ui.viewmodel.SubScreen
 
@@ -66,6 +68,8 @@ fun MoreScreen(
   val documents by viewModel.documents.collectAsStateWithLifecycle()
   val notes by viewModel.notes.collectAsStateWithLifecycle()
   val profile by viewModel.profile.collectAsStateWithLifecycle()
+  val glassAccent by viewModel.glassAccent.collectAsStateWithLifecycle()
+  val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
 
   val items = listOf(
     MoreMenuItem(
@@ -101,7 +105,7 @@ fun MoreScreen(
     ),
     MoreMenuItem(
       subScreen = SubScreen.PROFILE,
-      title = "Student Profile",
+      title = "Student Profile & Theme",
       subtitle = "${profile?.name ?: "Student"} • ${profile?.course ?: "Course"}",
       icon = Icons.Default.Person,
       iconTint = Color(0xFF8B5CF6)
@@ -138,14 +142,77 @@ fun MoreScreen(
       )
     }
 
+    // Appearance & Glassmorphic Customization Quick Card
+    item {
+      Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .glassmorphic(shape = RoundedCornerShape(16.dp))
+          .clickable { viewModel.navigateToSubScreen(SubScreen.PROFILE) }
+          .testTag("more_item_appearance_theme")
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+          ) {
+            Box(
+              modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(glassAccent.primary.copy(alpha = 0.18f)),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Palette,
+                contentDescription = null,
+                tint = glassAccent.primary,
+                modifier = Modifier.size(22.dp)
+              )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column {
+              Text(
+                text = "Theme & Glassmorphic Style",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+              )
+              Text(
+                text = "${themeMode.name.lowercase().replaceFirstChar { it.uppercase() }} • ${glassAccent.label}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          }
+
+          Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            modifier = Modifier.size(18.dp)
+          )
+        }
+      }
+    }
+
     items.forEach { item ->
       item {
         Card(
           shape = RoundedCornerShape(16.dp),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+          colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
           modifier = Modifier
             .fillMaxWidth()
+            .glassmorphic(shape = RoundedCornerShape(16.dp))
             .clickable { viewModel.navigateToSubScreen(item.subScreen) }
             .testTag("more_item_${item.title.lowercase().replace(" ", "_")}")
         ) {

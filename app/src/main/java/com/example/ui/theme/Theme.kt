@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
@@ -53,11 +54,17 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun CampusOSTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
-  dynamicColor: Boolean = false, // Keep clean Notion / shadcn aesthetic
+  themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+  glassAccent: GlassAccent = GlassAccent.AURORA_INDIGO,
+  darkTheme: Boolean = when (themeMode) {
+    AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+    AppThemeMode.LIGHT -> false
+    AppThemeMode.DARK -> true
+  },
+  dynamicColor: Boolean = false,
   content: @Composable () -> Unit
 ) {
-  val colorScheme = when {
+  val baseColorScheme = when {
     dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
       val context = LocalContext.current
       if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -66,9 +73,23 @@ fun CampusOSTheme(
     else -> LightColorScheme
   }
 
-  MaterialTheme(
-    colorScheme = colorScheme,
-    typography = Typography,
-    content = content
+  // Accent-tuned palette with subtle accent tinting
+  val colorScheme = baseColorScheme.copy(
+    primary = if (darkTheme) glassAccent.highlight else glassAccent.primary,
+    secondary = glassAccent.secondary,
+    primaryContainer = if (darkTheme) glassAccent.primary.copy(alpha = 0.25f) else glassAccent.primary.copy(alpha = 0.12f),
+    onPrimaryContainer = if (darkTheme) Color.White else glassAccent.primary
   )
+
+  CompositionLocalProvider(
+    LocalThemeMode provides themeMode,
+    LocalGlassAccent provides glassAccent
+  ) {
+    MaterialTheme(
+      colorScheme = colorScheme,
+      typography = Typography,
+      content = content
+    )
+  }
 }
+
