@@ -1,0 +1,7 @@
+{
+  "name": "CampusOS",
+  "description": "Personal college companion and operating system for attendance, timetable, expenses, tasks, books, notes, and student tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
