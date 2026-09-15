@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,8 +101,9 @@ fun TasksScreen(
         filters.forEach { filter ->
           val isSelected = selectedFilter == filter
           Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(10.dp),
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
             modifier = Modifier
               .clickable { selectedFilter = filter }
               .testTag("filter_$filter")
@@ -109,7 +111,7 @@ fun TasksScreen(
             Text(
               text = filter,
               style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-              color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+              color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
               modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
             )
           }
@@ -132,7 +134,7 @@ fun TasksScreen(
               contentAlignment = Alignment.Center
             ) {
               Text(
-                text = "No tasks found in $selectedFilter 🎉",
+                text = "No tasks found in $selectedFilter",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
@@ -144,8 +146,9 @@ fun TasksScreen(
 
             Card(
               shape = RoundedCornerShape(14.dp),
+              border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
               colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-              elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+              elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
               modifier = Modifier.fillMaxWidth()
             ) {
               Row(

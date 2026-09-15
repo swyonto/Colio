@@ -1,7 +1,13 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,19 +25,22 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,42 +56,57 @@ fun TimetableCard(
   onQuickMarkAttendance: (subjectId: Long, timeSlot: String, status: String) -> Unit,
   modifier: Modifier = Modifier
 ) {
+  var isPressed by remember { mutableStateOf(false) }
+  val scale by animateFloatAsState(
+    targetValue = if (isPressed) 0.98f else 1.0f,
+    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+    label = "timetableCardScale"
+  )
+
   Card(
     modifier = modifier
       .fillMaxWidth()
+      .scale(scale)
+      .pointerInput(Unit) {
+        awaitPointerEventScope {
+          while (true) {
+            awaitFirstDown(requireUnconsumed = false)
+            isPressed = true
+            val up = waitForUpOrCancellation()
+            isPressed = false
+            if (up != null) {
+              onViewMoreClick()
+            }
+          }
+        }
+      }
       .testTag("dashboard_timetable_card"),
-    shape = RoundedCornerShape(20.dp),
+    shape = RoundedCornerShape(16.dp),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surface
     ),
-    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
   ) {
     Column(
-      modifier = Modifier.padding(20.dp)
+      modifier = Modifier.padding(18.dp)
     ) {
+      // Top Row: Title on Left, View Action ON TOP
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier = Modifier
-              .size(32.dp)
-              .clip(RoundedCornerShape(8.dp))
-              .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.CalendarMonth,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.primary,
-              modifier = Modifier.size(18.dp)
-            )
-          }
+          Icon(
+            imageVector = Icons.Default.CalendarMonth,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+          )
           Spacer(modifier = Modifier.width(8.dp))
           Text(
-            text = "Today's Timetable",
+            text = "Today's Classes",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface
           )
@@ -95,39 +119,39 @@ fun TimetableCard(
             .testTag("view_timetable_link")
         ) {
           Text(
-            text = "View More",
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            text = "View Schedule",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.primary
           )
           Spacer(modifier = Modifier.width(4.dp))
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(15.dp),
             tint = MaterialTheme.colorScheme.primary
           )
         }
       }
 
-      Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(14.dp))
 
       if (todayClasses.isEmpty()) {
         Box(
           modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(16.dp),
+            .padding(14.dp),
           contentAlignment = Alignment.Center
         ) {
           Text(
-            text = "No classes scheduled for today 🎉",
+            text = "No classes scheduled for today",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       } else {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
           todayClasses.forEach { item ->
             val parsedColor = try {
               Color(android.graphics.Color.parseColor(item.colorHex))
@@ -135,19 +159,18 @@ fun TimetableCard(
               MaterialTheme.colorScheme.primary
             }
 
-            val isHighlighted = item.isCurrent || item.isNext
             val cardBg = when {
-              item.isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-              item.isNext -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+              item.isCurrent -> MaterialTheme.colorScheme.primaryContainer
+              item.isNext -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
               else -> MaterialTheme.colorScheme.surfaceVariant
             }
 
             Box(
               modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(cardBg)
-                .padding(14.dp)
+                .padding(12.dp)
             ) {
               Column {
                 Row(
@@ -165,45 +188,31 @@ fun TimetableCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                       text = "${item.entry.startTime} – ${item.entry.endTime}",
-                      style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                       color = MaterialTheme.colorScheme.onSurface
                     )
                   }
 
                   if (item.isCurrent) {
-                    Box(
-                      modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.primary)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                      Text(
-                        text = "CURRENT CLASS",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
-                      )
-                    }
+                    Text(
+                      text = "NOW",
+                      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                      color = MaterialTheme.colorScheme.primary
+                    )
                   } else if (item.isNext) {
-                    Box(
-                      modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.secondary)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                      Text(
-                        text = "NEXT CLASS",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
-                      )
-                    }
+                    Text(
+                      text = "NEXT",
+                      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                   }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                   text = item.subjectName,
-                  style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                  style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                   color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -218,12 +227,11 @@ fun TimetableCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                   )
 
-                  // Attendance status or quick mark buttons for today
                   val timeSlot = "${item.entry.startTime} - ${item.entry.endTime}"
                   if (item.todaySession != null) {
                     val statusBg = when (item.todaySession.status) {
-                      "PRESENT" -> Color(0xFFDCFCE7)
-                      "ABSENT" -> Color(0xFFFEE2E2)
+                      "PRESENT" -> StatusPresent.copy(alpha = 0.15f)
+                      "ABSENT" -> StatusAbsent.copy(alpha = 0.15f)
                       else -> Color(0xFFFFEDD5)
                     }
                     val statusColor = when (item.todaySession.status) {
@@ -233,9 +241,9 @@ fun TimetableCard(
                     }
                     Box(
                       modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .background(statusBg)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                       Text(
                         text = item.todaySession.status,
@@ -248,28 +256,48 @@ fun TimetableCard(
                       Box(
                         modifier = Modifier
                           .clip(RoundedCornerShape(6.dp))
-                          .background(Color(0xFFDCFCE7))
+                          .background(StatusPresent.copy(alpha = 0.15f))
                           .clickable { onQuickMarkAttendance(item.entry.subjectId, timeSlot, "PRESENT") }
-                          .padding(horizontal = 8.dp, vertical = 3.dp)
+                          .padding(horizontal = 8.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
                       ) {
-                        Text(
-                          text = "✓ Present",
-                          style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                          color = StatusPresent
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                          Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = StatusPresent,
+                            modifier = Modifier.size(12.dp)
+                          )
+                          Spacer(modifier = Modifier.width(3.dp))
+                          Text(
+                            text = "Present",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = StatusPresent
+                          )
+                        }
                       }
                       Box(
                         modifier = Modifier
                           .clip(RoundedCornerShape(6.dp))
-                          .background(Color(0xFFFEE2E2))
+                          .background(StatusAbsent.copy(alpha = 0.15f))
                           .clickable { onQuickMarkAttendance(item.entry.subjectId, timeSlot, "ABSENT") }
-                          .padding(horizontal = 8.dp, vertical = 3.dp)
+                          .padding(horizontal = 8.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
                       ) {
-                        Text(
-                          text = "✕ Absent",
-                          style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                          color = StatusAbsent
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                          Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = StatusAbsent,
+                            modifier = Modifier.size(12.dp)
+                          )
+                          Spacer(modifier = Modifier.width(3.dp))
+                          Text(
+                            text = "Absent",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = StatusAbsent
+                          )
+                        }
                       }
                     }
                   }

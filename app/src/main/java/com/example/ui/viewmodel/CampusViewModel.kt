@@ -480,6 +480,32 @@ class CampusViewModel(application: Application) : AndroidViewModel(application) 
     }
   }
 
+  fun updateAvatar(avatarUri: String?, avatarPreset: String = "scholar") {
+    viewModelScope.launch {
+      val cur = profile.value ?: StudentProfileEntity()
+      repository.updateProfile(
+        cur.copy(
+          avatarUri = avatarUri,
+          avatarPreset = avatarPreset,
+          updatedAt = System.currentTimeMillis()
+        )
+      )
+    }
+  }
+
+  fun updateIdCardImages(frontUri: String?, backUri: String?) {
+    viewModelScope.launch {
+      val cur = profile.value ?: StudentProfileEntity()
+      repository.updateProfile(
+        cur.copy(
+          idCardUri = if (frontUri != null) frontUri else cur.idCardUri,
+          idCardBackUri = if (backUri != null) backUri else cur.idCardBackUri,
+          updatedAt = System.currentTimeMillis()
+        )
+      )
+    }
+  }
+
   // Addon Actions
   fun toggleAddon(id: String, enabled: Boolean) {
     viewModelScope.launch {

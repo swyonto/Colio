@@ -1,9 +1,13 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,9 +26,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,42 +49,57 @@ fun BooksCard(
   val bookCount = documents.count { it.docType == "BOOK" }
   val docCount = documents.count { it.docType != "BOOK" }
 
+  var isPressed by remember { mutableStateOf(false) }
+  val scale by animateFloatAsState(
+    targetValue = if (isPressed) 0.98f else 1.0f,
+    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+    label = "booksCardScale"
+  )
+
   Card(
     modifier = modifier
       .fillMaxWidth()
+      .scale(scale)
+      .pointerInput(Unit) {
+        awaitPointerEventScope {
+          while (true) {
+            awaitFirstDown(requireUnconsumed = false)
+            isPressed = true
+            val up = waitForUpOrCancellation()
+            isPressed = false
+            if (up != null) {
+              onViewBooksClick()
+            }
+          }
+        }
+      }
       .testTag("dashboard_books_card"),
-    shape = RoundedCornerShape(20.dp),
+    shape = RoundedCornerShape(16.dp),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surface
     ),
-    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
   ) {
     Column(
-      modifier = Modifier.padding(20.dp)
+      modifier = Modifier.padding(18.dp)
     ) {
+      // Top Row: Title on Left, View Action ON TOP
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier = Modifier
-              .size(32.dp)
-              .clip(RoundedCornerShape(8.dp))
-              .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.MenuBook,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.primary,
-              modifier = Modifier.size(18.dp)
-            )
-          }
+          Icon(
+            imageVector = Icons.Default.MenuBook,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+          )
           Spacer(modifier = Modifier.width(8.dp))
           Text(
-            text = "Books & Documents",
+            text = "Books & Library",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface
           )
@@ -89,14 +113,14 @@ fun BooksCard(
         ) {
           Text(
             text = "View Books",
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.primary
           )
           Spacer(modifier = Modifier.width(4.dp))
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(15.dp),
             tint = MaterialTheme.colorScheme.primary
           )
         }
@@ -106,49 +130,33 @@ fun BooksCard(
 
       Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
       ) {
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(14.dp)
-        ) {
-          Column {
-            Text(
-              text = "$bookCount books",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-              color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-              text = "Academic Textbooks",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          }
+        Row(verticalAlignment = Alignment.Bottom) {
+          Text(
+            text = "${documents.size}",
+            style = MaterialTheme.typography.displayMedium.copy(
+              fontWeight = FontWeight.Bold,
+              letterSpacing = (-1).sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "Total Files",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp)
+          )
         }
 
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(14.dp)
-        ) {
-          Column {
-            Text(
-              text = "$docCount documents",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-              color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-              text = "Notes, Lab & Files",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          }
-        }
+        Text(
+          text = "$bookCount Books  •  $docCount Notes",
+          style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.padding(bottom = 6.dp)
+        )
       }
     }
   }

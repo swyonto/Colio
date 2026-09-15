@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -128,9 +129,10 @@ fun HomeScreen(
           .fillMaxWidth()
           .clickable { viewModel.navigateToSubScreen(SubScreen.ADDONS) }
           .testTag("academic_summary_card"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
       ) {
         Row(
           modifier = Modifier
@@ -199,7 +201,7 @@ fun HomeScreen(
           Surface(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 1.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier
               .weight(1f)
               .clickable { showAddExpenseDialog = true }
@@ -218,7 +220,7 @@ fun HomeScreen(
           Surface(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 1.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier
               .weight(1f)
               .clickable { showAddTaskDialog = true }

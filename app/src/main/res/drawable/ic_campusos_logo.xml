@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Notion / shadcn Slate Background Container -->
+    <path
+        android:fillColor="#09090B"
+        android:pathData="M20,6 L88,6 A14,14 0 0,1 102,20 L102,88 A14,14 0 0,1 88,102 L20,102 A14,14 0 0,1 6,88 L6,20 A14,14 0 0,1 20,6 Z" />
+
+    <!-- 1px Subtle Border Ring -->
+    <path
+        android:strokeColor="#27272A"
+        android:strokeWidth="1.5"
+        android:pathData="M20,6 L88,6 A14,14 0 0,1 102,20 L102,88 A14,14 0 0,1 88,102 L20,102 A14,14 0 0,1 6,88 L6,20 A14,14 0 0,1 20,6 Z" />
+
+    <!-- Sleek CampusOS Monoline Geometric Emblem -->
+    <!-- Minimalist Academic Diamond / Mortarboard Roof -->
+    <path
+        android:strokeColor="#FAFAFA"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,26 L84,40 L54,54 L24,40 Z" />
+
+    <!-- Inner Core Nexus / Open Book Pages -->
+    <path
+        android:strokeColor="#E4E4E7"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M30,55 L30,68 C42,66 48,68 54,72 C60,68 66,66 78,68 L78,55" />
+
+    <!-- Center Spine Spine Line -->
+    <path
+        android:strokeColor="#A1A1AA"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,54 L54,78" />
+
+    <!-- Clean Tassel Accent Point -->
+    <path
+        android:fillColor="#E4E4E7"
+        android:pathData="M84,40m-2.5,0a2.5,2.5 0 1,1 5,0a2.5,2.5 0 1,1 -5,0" />
+    <path
+        android:strokeColor="#A1A1AA"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M84,42.5 L84,54" />
+</vector>

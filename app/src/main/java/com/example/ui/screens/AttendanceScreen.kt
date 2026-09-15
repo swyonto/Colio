@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,9 +22,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BeachAccess
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -80,9 +86,10 @@ fun AttendanceScreen(
       // Overall Attendance Summary & Prediction Banner (PRD Section 10 & 17)
       item {
         Card(
-          shape = RoundedCornerShape(20.dp),
+          shape = RoundedCornerShape(16.dp),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
           Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -96,29 +103,22 @@ fun AttendanceScreen(
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
+              verticalAlignment = Alignment.Bottom
             ) {
               Text(
                 text = "${String.format("%.1f", summary.overallPercentage)}%",
                 style = MaterialTheme.typography.displayMedium.copy(
-                  fontWeight = FontWeight.ExtraBold,
+                  fontWeight = FontWeight.Bold,
                   letterSpacing = (-1).sp
                 ),
                 color = MaterialTheme.colorScheme.onSurface
               )
 
-              Box(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(12.dp))
-                  .background(if (summary.overallPercentage >= 75f) Color(0xFFDCFCE7) else Color(0xFFFEE2E2))
-                  .padding(horizontal = 12.dp, vertical = 6.dp)
-              ) {
-                Text(
-                  text = if (summary.overallPercentage >= 75f) "Safe (≥75%)" else "Attention Needed (<75%)",
-                  style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                  color = if (summary.overallPercentage >= 75f) Color(0xFF15803D) else Color(0xFFB91C1C)
-                )
-              }
+              Text(
+                text = if (summary.overallPercentage >= 75f) "Target: 75% • Met" else "Target: 75% • Below",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                color = if (summary.overallPercentage >= 75f) StatusPresent else StatusAbsent
+              )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -127,17 +127,17 @@ fun AttendanceScreen(
               progress = { (summary.overallPercentage / 100f).coerceIn(0f, 1f) },
               modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
               color = if (summary.overallPercentage >= 75f) StatusPresent else StatusAbsent,
               trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Prediction Notice (PRD Section 17)
+            // Prediction Notice
             Surface(
-              shape = RoundedCornerShape(12.dp),
+              shape = RoundedCornerShape(10.dp),
               color = MaterialTheme.colorScheme.surfaceVariant
             ) {
               Row(
@@ -146,11 +146,18 @@ fun AttendanceScreen(
                   .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
               ) {
+                Icon(
+                  imageVector = if (summary.overallPercentage >= 75f) Icons.Default.CheckCircle else Icons.Default.Warning,
+                  contentDescription = null,
+                  tint = if (summary.overallPercentage >= 75f) StatusPresent else StatusAbsent,
+                  modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                   text = if (summary.overallPercentage >= 75f) {
-                    "🎯 You can miss ${summary.classesCanMiss} more class${if (summary.classesCanMiss > 1) "es" else ""} before falling below 75%."
+                    "You can miss ${summary.classesCanMiss} more class${if (summary.classesCanMiss > 1) "es" else ""} before falling below 75%."
                   } else {
-                    "⚠️ You must attend ${summary.classesNeededForTarget} consecutive classes to reach 75%."
+                    "You must attend ${summary.classesNeededForTarget} consecutive classes to reach 75%."
                   },
                   style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                   color = MaterialTheme.colorScheme.onSurface
@@ -197,8 +204,9 @@ fun AttendanceScreen(
 
         Card(
           shape = RoundedCornerShape(16.dp),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
           modifier = Modifier.fillMaxWidth()
         ) {
           Column(modifier = Modifier.padding(16.dp)) {
@@ -279,57 +287,78 @@ fun AttendanceScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Quick Mark Attendance (PRD Section 18: [✓ Present] [✕ Absent] [Holiday])
+            // Quick Mark Attendance
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              Box(
+              Surface(
                 modifier = Modifier
                   .weight(1f)
-                  .clip(RoundedCornerShape(8.dp))
-                  .background(Color(0xFFDCFCE7))
-                  .clickable { viewModel.markQuickAttendance(item.subject.id, "09:00 - 10:00", "PRESENT") }
-                  .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
+                  .clickable { viewModel.markQuickAttendance(item.subject.id, "09:00 - 10:00", "PRESENT") },
+                shape = RoundedCornerShape(8.dp),
+                color = StatusPresent.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, StatusPresent.copy(alpha = 0.3f))
               ) {
-                Text(
-                  text = "✓ Present",
-                  style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                  color = StatusPresent
-                )
+                Row(
+                  modifier = Modifier.padding(vertical = 8.dp),
+                  horizontalArrangement = Arrangement.Center,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(Icons.Default.Check, contentDescription = null, tint = StatusPresent, modifier = Modifier.size(15.dp))
+                  Spacer(modifier = Modifier.width(4.dp))
+                  Text(
+                    text = "Present",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = StatusPresent
+                  )
+                }
               }
 
-              Box(
+              Surface(
                 modifier = Modifier
                   .weight(1f)
-                  .clip(RoundedCornerShape(8.dp))
-                  .background(Color(0xFFFEE2E2))
-                  .clickable { viewModel.markQuickAttendance(item.subject.id, "09:00 - 10:00", "ABSENT") }
-                  .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
+                  .clickable { viewModel.markQuickAttendance(item.subject.id, "09:00 - 10:00", "ABSENT") },
+                shape = RoundedCornerShape(8.dp),
+                color = StatusAbsent.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, StatusAbsent.copy(alpha = 0.3f))
               ) {
-                Text(
-                  text = "✕ Absent",
-                  style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                  color = StatusAbsent
-                )
+                Row(
+                  modifier = Modifier.padding(vertical = 8.dp),
+                  horizontalArrangement = Arrangement.Center,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(Icons.Default.Close, contentDescription = null, tint = StatusAbsent, modifier = Modifier.size(15.dp))
+                  Spacer(modifier = Modifier.width(4.dp))
+                  Text(
+                    text = "Absent",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = StatusAbsent
+                  )
+                }
               }
 
-              Box(
+              Surface(
                 modifier = Modifier
                   .weight(1f)
-                  .clip(RoundedCornerShape(8.dp))
-                  .background(Color(0xFFFFEDD5))
-                  .clickable { viewModel.markQuickAttendance(item.subject.id, "09:00 - 10:00", "HOLIDAY") }
-                  .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
+                  .clickable { viewModel.markQuickAttendance(item.subject.id, "09:00 - 10:00", "HOLIDAY") },
+                shape = RoundedCornerShape(8.dp),
+                color = StatusHoliday.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, StatusHoliday.copy(alpha = 0.3f))
               ) {
-                Text(
-                  text = "Holiday",
-                  style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                  color = StatusHoliday
-                )
+                Row(
+                  modifier = Modifier.padding(vertical = 8.dp),
+                  horizontalArrangement = Arrangement.Center,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = StatusHoliday, modifier = Modifier.size(15.dp))
+                  Spacer(modifier = Modifier.width(4.dp))
+                  Text(
+                    text = "Holiday",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = StatusHoliday
+                  )
+                }
               }
             }
 

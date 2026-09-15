@@ -13,32 +13,34 @@ import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
   primary = DarkPrimary,
-  onPrimary = Color(0xFF0F172A),
-  primaryContainer = Color(0xFF312E81),
-  onPrimaryContainer = Color(0xFFE0E7FF),
+  onPrimary = Color(0xFF09090B),
+  primaryContainer = Color(0xFF27272A),
+  onPrimaryContainer = Color(0xFFFAFAFA),
   secondary = DarkSecondary,
-  onSecondary = Color(0xFF042F2E),
-  secondaryContainer = Color(0xFF134E4A),
-  onSecondaryContainer = Color(0xFFCCFBF1),
+  onSecondary = Color(0xFF09090B),
+  secondaryContainer = Color(0xFF18181B),
+  onSecondaryContainer = Color(0xFFE4E4E7),
   tertiary = DarkTertiary,
   background = DarkBackground,
   surface = DarkSurface,
   surfaceVariant = DarkSurfaceVariant,
-  onBackground = Color(0xFFF8FAFC),
-  onSurface = Color(0xFFF8FAFC),
-  outline = Color(0xFF374151)
+  onBackground = Color(0xFFFAFAFA),
+  onSurface = Color(0xFFFAFAFA),
+  onSurfaceVariant = Color(0xFFA1A1AA),
+  outline = DarkOutline,
+  outlineVariant = Color(0xFF3F3F46)
 )
 
 private val LightColorScheme = lightColorScheme(
-  primary = IndigoPrimary,
-  onPrimary = Color.White,
-  primaryContainer = IndigoContainer,
-  onPrimaryContainer = OnIndigoContainer,
-  secondary = TealSecondary,
+  primary = ShadcnPrimary,
+  onPrimary = ShadcnOnPrimary,
+  primaryContainer = ShadcnPrimaryContainer,
+  onPrimaryContainer = ShadcnOnPrimaryContainer,
+  secondary = ShadcnSecondary,
   onSecondary = Color.White,
-  secondaryContainer = TealContainer,
-  onSecondaryContainer = OnTealContainer,
-  tertiary = AmberTertiary,
+  secondaryContainer = ShadcnSecondaryContainer,
+  onSecondaryContainer = ShadcnOnSecondaryContainer,
+  tertiary = ShadcnTertiary,
   background = CampusBackground,
   surface = CampusSurface,
   surfaceVariant = CampusSurfaceVariant,
@@ -52,7 +54,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun CampusOSTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  dynamicColor: Boolean = false, // Use intentional CampusOS branding by default
+  dynamicColor: Boolean = false, // Keep clean Notion / shadcn aesthetic
   content: @Composable () -> Unit
 ) {
   val colorScheme = when {

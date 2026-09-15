@@ -13,7 +13,9 @@ data class StudentProfileEntity(
   val rollNumber: String = "2024CS042",
   val branch: String = "CSE",
   val avatarUri: String? = null,
-  val idCardUri: String? = null,
+  val avatarPreset: String = "scholar",
+  val idCardUri: String? = null, // Front side URI
+  val idCardBackUri: String? = null, // Back side URI
   val validThru: String = "2027-06-30",
   val targetAttendance: Float = 75.0f,
   val updatedAt: Long = System.currentTimeMillis()

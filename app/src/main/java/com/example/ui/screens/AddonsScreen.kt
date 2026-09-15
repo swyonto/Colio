@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -115,9 +116,10 @@ fun AddonsScreen(
       // 1. Pomodoro Focus Timer Tool (PRD Section 45)
       item {
         Card(
-          shape = RoundedCornerShape(20.dp),
+          shape = RoundedCornerShape(16.dp),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
           modifier = Modifier.fillMaxWidth().testTag("pomodoro_tool_card")
         ) {
           Column(
@@ -200,9 +202,10 @@ fun AddonsScreen(
       // 2. CGPA / SGPA Academic Calculator (PRD Section 45)
       item {
         Card(
-          shape = RoundedCornerShape(20.dp),
+          shape = RoundedCornerShape(16.dp),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
           modifier = Modifier.fillMaxWidth().testTag("cgpa_calculator_card")
         ) {
           Column(modifier = Modifier.padding(20.dp)) {
@@ -288,8 +291,9 @@ fun AddonsScreen(
       items(addons, key = { it.id }) { addon ->
         Card(
           shape = RoundedCornerShape(14.dp),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
           modifier = Modifier.fillMaxWidth()
         ) {
           Row(

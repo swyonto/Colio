@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.AddExpenseDialog
 import com.example.ui.components.AddQuickExpensePresetDialog
+import com.example.ui.components.AppIcons
 import com.example.ui.viewmodel.CampusViewModel
 
 @Composable
@@ -78,9 +80,10 @@ fun ExpensesScreen(
       // 1. Monthly Total Card (PRD Section 19)
       item {
         Card(
-          shape = RoundedCornerShape(20.dp),
+          shape = RoundedCornerShape(16.dp),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
           Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -181,9 +184,9 @@ fun ExpensesScreen(
           ) {
             quickExpenses.forEach { quick ->
               Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier
                   .clickable { viewModel.logQuickExpense(quick) }
                   .testTag("expenses_quick_${quick.id}")
@@ -192,7 +195,12 @@ fun ExpensesScreen(
                   modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                   verticalAlignment = Alignment.CenterVertically
                 ) {
-                  Text(text = quick.icon, fontSize = 20.sp)
+                  Icon(
+                    imageVector = AppIcons.getQuickExpenseIcon(quick.icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                  )
                   Spacer(modifier = Modifier.width(8.dp))
                   Column {
                     Text(
@@ -225,8 +233,9 @@ fun ExpensesScreen(
       items(allExpenses, key = { it.id }) { expense ->
         Card(
           shape = RoundedCornerShape(14.dp),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+          elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
           modifier = Modifier.fillMaxWidth()
         ) {
           Row(
@@ -239,21 +248,16 @@ fun ExpensesScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
               Box(
                 modifier = Modifier
-                  .size(40.dp)
+                  .size(38.dp)
                   .clip(CircleShape)
                   .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
               ) {
-                Text(
-                  text = when (expense.category) {
-                    "Food" -> "🍔"
-                    "Transport" -> "🚇"
-                    "Books" -> "📚"
-                    "College" -> "🏫"
-                    "Shopping" -> "🛍️"
-                    else -> "💰"
-                  },
-                  fontSize = 18.sp
+                Icon(
+                  imageVector = AppIcons.getExpenseCategoryIcon(expense.category),
+                  contentDescription = null,
+                  modifier = Modifier.size(20.dp),
+                  tint = MaterialTheme.colorScheme.primary
                 )
               }
 

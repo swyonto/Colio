@@ -49,7 +49,7 @@ import kotlinx.coroutines.launch
     SyncQueueEntity::class,
     AddonEntity::class
   ],
-  version = 1,
+  version = 2,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -128,11 +128,11 @@ suspend fun seedInitialData(db: AppDatabase) {
 
   // 3. Quick Expenses
   val quickList = listOf(
-    QuickExpenseEntity(id = 1, name = "Ticket", amount = 30.0, category = "Transport", icon = "🎫"),
-    QuickExpenseEntity(id = 2, name = "Tea", amount = 20.0, category = "Food", icon = "☕"),
-    QuickExpenseEntity(id = 3, name = "Metro", amount = 40.0, category = "Transport", icon = "🚇"),
-    QuickExpenseEntity(id = 4, name = "Lunch", amount = 80.0, category = "Food", icon = "🍛"),
-    QuickExpenseEntity(id = 5, name = "Printout", amount = 10.0, category = "College", icon = "🖨️")
+    QuickExpenseEntity(id = 1, name = "Ticket", amount = 30.0, category = "Transport", icon = "ticket"),
+    QuickExpenseEntity(id = 2, name = "Tea", amount = 20.0, category = "Food", icon = "tea"),
+    QuickExpenseEntity(id = 3, name = "Metro", amount = 40.0, category = "Transport", icon = "train"),
+    QuickExpenseEntity(id = 4, name = "Lunch", amount = 80.0, category = "Food", icon = "food"),
+    QuickExpenseEntity(id = 5, name = "Printout", amount = 10.0, category = "College", icon = "print")
   )
   db.quickExpenseDao().insertAll(quickList)
 
@@ -252,11 +252,11 @@ suspend fun seedInitialData(db: AppDatabase) {
 
   // 11. Add-ons configuration
   val defaultAddons = listOf(
-    AddonEntity(id = "cgpa_calc", name = "CGPA Calculator", description = "Calculate cumulative GPA across semesters with credit weighting", icon = "📊", category = "ACADEMIC", isEnabled = true),
-    AddonEntity(id = "attendance_calc", name = "Attendance Goal Calculator", description = "Find out how many consecutive classes you need to attend or can safely skip", icon = "🎯", category = "ACADEMIC", isEnabled = true),
-    AddonEntity(id = "pomodoro_timer", name = "Study Timer & Pomodoro", description = "Focused 25-minute academic sprints with break intervals", icon = "⏱️", category = "PRODUCTIVITY", isEnabled = true),
-    AddonEntity(id = "sgpa_calc", name = "SGPA Subject Calculator", description = "Calculate semester GPA from grades (O, A+, A, B, etc.) and credits", icon = "📝", category = "ACADEMIC", isEnabled = true),
-    AddonEntity(id = "date_calc", name = "Academic Calendar Countdown", description = "Days left until end-sem examinations and project submissions", icon = "⏳", category = "UTILITY", isEnabled = true)
+    AddonEntity(id = "cgpa_calc", name = "CGPA Calculator", description = "Calculate cumulative GPA across semesters with credit weighting", icon = "calculate", category = "ACADEMIC", isEnabled = true),
+    AddonEntity(id = "attendance_calc", name = "Attendance Goal Calculator", description = "Find out how many consecutive classes you need to attend or can safely skip", icon = "goal", category = "ACADEMIC", isEnabled = true),
+    AddonEntity(id = "pomodoro_timer", name = "Study Timer & Pomodoro", description = "Focused 25-minute academic sprints with break intervals", icon = "timer", category = "PRODUCTIVITY", isEnabled = true),
+    AddonEntity(id = "sgpa_calc", name = "SGPA Subject Calculator", description = "Calculate semester GPA from grades (O, A+, A, B, etc.) and credits", icon = "grade", category = "ACADEMIC", isEnabled = true),
+    AddonEntity(id = "date_calc", name = "Academic Calendar Countdown", description = "Days left until end-sem examinations and project submissions", icon = "calendar", category = "UTILITY", isEnabled = true)
   )
   db.addonDao().insertAll(defaultAddons)
 }

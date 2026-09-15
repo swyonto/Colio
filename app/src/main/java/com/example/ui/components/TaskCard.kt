@@ -1,7 +1,12 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,12 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -26,10 +29,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -47,42 +55,57 @@ fun TaskCard(
   onViewTasksClick: () -> Unit,
   modifier: Modifier = Modifier
 ) {
+  var isPressed by remember { mutableStateOf(false) }
+  val scale by animateFloatAsState(
+    targetValue = if (isPressed) 0.98f else 1.0f,
+    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+    label = "taskCardScale"
+  )
+
   Card(
     modifier = modifier
       .fillMaxWidth()
+      .scale(scale)
+      .pointerInput(Unit) {
+        awaitPointerEventScope {
+          while (true) {
+            awaitFirstDown(requireUnconsumed = false)
+            isPressed = true
+            val up = waitForUpOrCancellation()
+            isPressed = false
+            if (up != null) {
+              onViewTasksClick()
+            }
+          }
+        }
+      }
       .testTag("dashboard_task_card"),
-    shape = RoundedCornerShape(20.dp),
+    shape = RoundedCornerShape(16.dp),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surface
     ),
-    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
   ) {
     Column(
-      modifier = Modifier.padding(20.dp)
+      modifier = Modifier.padding(18.dp)
     ) {
+      // Top Row: Title on Left, View Action ON TOP
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier = Modifier
-              .size(32.dp)
-              .clip(RoundedCornerShape(8.dp))
-              .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.Assignment,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.secondary,
-              modifier = Modifier.size(18.dp)
-            )
-          }
+          Icon(
+            imageVector = Icons.Default.Assignment,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+          )
           Spacer(modifier = Modifier.width(8.dp))
           Text(
-            text = "Tasks",
+            text = "Tasks & Deadlines",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface
           )
@@ -96,14 +119,14 @@ fun TaskCard(
         ) {
           Text(
             text = "View Tasks",
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.primary
           )
           Spacer(modifier = Modifier.width(4.dp))
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(15.dp),
             tint = MaterialTheme.colorScheme.primary
           )
         }
@@ -111,87 +134,78 @@ fun TaskCard(
 
       Spacer(modifier = Modifier.height(14.dp))
 
+      // Stats summary
       Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
       ) {
-        // Remaining stat box
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(14.dp)
-        ) {
-          Column {
-            Text(
-              text = "$remainingCount",
-              style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-              color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-              text = "Remaining",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          }
+        Row(verticalAlignment = Alignment.Bottom) {
+          Text(
+            text = "$remainingCount",
+            style = MaterialTheme.typography.displayMedium.copy(
+              fontWeight = FontWeight.Bold,
+              letterSpacing = (-1).sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "Pending",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp)
+          )
         }
 
-        // Due today stat box
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (dueTodayCount > 0) Color(0xFFFEF3C7) else MaterialTheme.colorScheme.surfaceVariant)
-            .padding(14.dp)
-        ) {
-          Column {
-            Text(
-              text = "$dueTodayCount",
-              style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-              color = if (dueTodayCount > 0) Color(0xFFB45309) else MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-              text = "Due Today",
-              style = MaterialTheme.typography.bodySmall,
-              color = if (dueTodayCount > 0) Color(0xFF92400E) else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          }
+        if (dueTodayCount > 0) {
+          Text(
+            text = "$dueTodayCount due today",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 6.dp)
+          )
         }
       }
 
-      if (pendingTasksPreview.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(14.dp))
+      Spacer(modifier = Modifier.height(12.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      // Task Items Preview
+      if (pendingTasksPreview.isEmpty()) {
+        Text(
+          text = "All assignments caught up",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      } else {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
           pendingTasksPreview.take(3).forEach { task ->
             Row(
               modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .clickable { onTaskToggle(task) }
-                .padding(vertical = 4.dp),
+                .clickable { onTaskToggle(task) },
               verticalAlignment = Alignment.CenterVertically
             ) {
               Checkbox(
                 checked = task.completed,
                 onCheckedChange = { onTaskToggle(task) },
-                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
+                colors = CheckboxDefaults.colors(
+                  checkedColor = MaterialTheme.colorScheme.primary,
+                  uncheckedColor = MaterialTheme.colorScheme.outline
+                ),
                 modifier = Modifier.size(24.dp)
               )
-              Spacer(modifier = Modifier.width(10.dp))
-              Column(modifier = Modifier.weight(1f)) {
-                Text(
-                  text = task.title,
-                  style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.Medium,
-                    textDecoration = if (task.completed) TextDecoration.LineThrough else null
-                  ),
-                  color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                  maxLines = 1,
-                  overflow = TextOverflow.Ellipsis
-                )
-              }
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = task.title,
+                style = MaterialTheme.typography.bodySmall.copy(
+                  textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+              )
             }
           }
         }

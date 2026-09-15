@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -103,14 +104,15 @@ fun BooksScreen(
         filters.take(3).forEach { filter ->
           val isSelected = selectedFilter == filter
           Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(10.dp),
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
             modifier = Modifier.clickable { selectedFilter = filter }
           ) {
             Text(
               text = filter,
               style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-              color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+              color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
               modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
           }
@@ -129,8 +131,9 @@ fun BooksScreen(
 
           Card(
             shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = Modifier
               .fillMaxWidth()
               .clickable { viewingDoc = doc }
