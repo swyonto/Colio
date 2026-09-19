@@ -1,0 +1,36 @@
+export const Spacing = {
+  space1: 4,
+  space2: 8,
+  space3: 12,
+  space4: 16,
+  space5: 20,
+  space6: 24,
+  space8: 32,
+  space10: 40,
+  
+  cardRadius: 18,
+  miniCardRadius: 16,
+  chipRadius: 8,
+  buttonRadius: 12,
+  dialogRadius: 20,
+  navBarRadius: 0,
+};
+
+export const Typography = {
+  displayXl: { fontSize: 48, fontWeight: '800' as const, letterSpacing: -1.2 },
+  displayLg: { fontSize: 36, fontWeight: '700' as const, letterSpacing: -0.8 },
+  displayMd: { fontSize: 28, fontWeight: '700' as const, letterSpacing: -0.4 },
+  headlineLg: { fontSize: 24, fontWeight: '600' as const, letterSpacing: -0.2 },
+  headlineMd: { fontSize: 20, fontWeight: '600' as const },
+  headlineSm: { fontSize: 18, fontWeight: '600' as const },
+  titleLg: { fontSize: 18, fontWeight: '700' as const },
+  titleMd: { fontSize: 16, fontWeight: '600' as const },
+  titleSm: { fontSize: 14, fontWeight: '600' as const },
+  bodyLg: { fontSize: 16, fontWeight: '400' as const },
+  bodyMd: { fontSize: 14, fontWeight: '400' as const },
+  bodySm: { fontSize: 12, fontWeight: '400' as const },
+  labelLg: { fontSize: 14, fontWeight: '600' as const },
+  labelMd: { fontSize: 12, fontWeight: '500' as const },
+  labelSm: { fontSize: 11, fontWeight: '500' as const },
+  overline: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 1.2, textTransform: 'uppercase' as const },
+};
