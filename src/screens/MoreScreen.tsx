@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { Colors } from '../theme/colors';
@@ -12,11 +12,11 @@ interface MoreScreenProps {
 }
 
 export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenProfile }) => {
-  const { profile, documents, holidays, pendingTasksCount } = useCampus();
+  const { profile, documents, holidays, pendingTasksCount, currentTheme } = useCampus();
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: currentTheme.bgBase }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
@@ -24,14 +24,18 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
       <EmeraldGlassCard onPress={onOpenProfile}>
         <View style={styles.profileRow}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
-              {profile.name
-                .split(' ')
-                .map((n) => n[0])
-                .slice(0, 2)
-                .join('')
-                .toUpperCase() || 'ST'}
-            </Text>
+            {profile.avatarUri ? (
+              <Image source={{ uri: profile.avatarUri }} style={{ width: '100%', height: '100%', borderRadius: 24 }} />
+            ) : (
+              <Text style={[styles.avatarText, { color: currentTheme.primary }]}>
+                {profile.name
+                  .split(' ')
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase() || 'ST'}
+              </Text>
+            )}
           </View>
 
           <View style={{ flex: 1, gap: 2 }}>

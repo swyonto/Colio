@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../common/EmeraldGlassCard';
-import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useCampus } from '../../context/CampusContext';
-import { QuickExpensePreset } from '../../types/campus';
+import { QuickExpensePreset, Expense } from '../../types/campus';
 import { triggerHapticFeedback } from '../../utils/haptics';
 
 interface ExpenseSummaryCardProps {
@@ -13,16 +12,19 @@ interface ExpenseSummaryCardProps {
 }
 
 export const ExpenseSummaryCard: React.FC<ExpenseSummaryCardProps> = ({ onNavigateToExpenses }) => {
-  const { currentMonthTotal, momChangePercent, presets, addExpense, expenses } = useCampus();
+  const { currentMonthTotal, momChangePercent, presets, addExpense, expenses, currentTheme } = useCampus();
 
   const handleQuickLog = (preset: QuickExpensePreset) => {
     triggerHapticFeedback('success');
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     addExpense({
       title: preset.title,
       amount: preset.amount,
       category: preset.category,
       timeOfDay: 'Afternoon',
-      date: new Date().toISOString().split('T')[0],
+      time: formattedTime,
+      date: now.toISOString().split('T')[0],
       icon: preset.icon,
     });
   };
@@ -30,6 +32,22 @@ export const ExpenseSummaryCard: React.FC<ExpenseSummaryCardProps> = ({ onNaviga
   const isMoMIncrease = momChangePercent > 0;
   // Get last 3 expenses
   const recentExpenses = expenses.slice(0, 3);
+
+  const formatExpenseTime = (item: Expense): string => {
+    if (item.time) return item.time;
+    switch (item.timeOfDay) {
+      case 'Morning':
+        return '09:30 AM';
+      case 'Afternoon':
+        return '01:15 PM';
+      case 'Evening':
+        return '05:45 PM';
+      case 'Night':
+        return '09:20 PM';
+      default:
+        return '12:30 PM';
+    }
+  };
 
   const getCategoryIcon = (cat: string): keyof typeof Feather.glyphMap => {
     switch (cat) {
@@ -51,124 +69,159 @@ export const ExpenseSummaryCard: React.FC<ExpenseSummaryCardProps> = ({ onNaviga
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.titleGroup}>
-          <View style={styles.iconCircle}>
-            <Feather name="credit-card" size={17} color={Colors.emeraldPrimary} />
+          <View style={[styles.iconCircle, { backgroundColor: currentTheme.primary + '18' }]}>
+            <Feather name="credit-card" size={17} color={currentTheme.primary} />
           </View>
-          <Text style={[Typography.titleMd, styles.cardTitle]}>Monthly Expenses</Text>
+          <Text style={[Typography.titleMd, { color: currentTheme.textPrimary }]}>Monthly Expenses</Text>
         </View>
 
-        <View style={styles.arrowCircle}>
-          <Feather name="arrow-up-right" size={16} color={Colors.emeraldPrimary} />
+        <View style={[styles.arrowCircle, { backgroundColor: currentTheme.primary + '14' }]}>
+          <Feather name="arrow-up-right" size={16} color={currentTheme.primary} />
         </View>
       </View>
 
-      {/* 1. Total Expense Display & 2. Clear Indicator Badge */}
+      {/* Main Stats Row */}
       <View style={styles.statsContainer}>
         <View style={styles.totalRow}>
-          <Text style={[Typography.displayLg, styles.amountText]}>
-            ₹{currentMonthTotal.toLocaleString('en-IN')}
-          </Text>
+          <View>
+            <Text style={[Typography.displayLg, styles.amountText, { color: currentTheme.textPrimary }]}>
+              ₹{currentMonthTotal.toLocaleString('en-IN')}
+            </Text>
+            <Text style={[styles.monthLabel, { color: currentTheme.textMuted }]}>
+              Spent this month (September 2026)
+            </Text>
+          </View>
 
-          {/* Clear Indicator Badge */}
+          {/* MoM Change Pill */}
           <View
             style={[
               styles.indicatorBadge,
               {
-                backgroundColor: isMoMIncrease ? Colors.statusPendingBg : Colors.statusPresentBg,
-                borderColor: isMoMIncrease ? 'rgba(255, 171, 64, 0.40)' : 'rgba(0, 230, 118, 0.40)',
+                backgroundColor: isMoMIncrease ? 'rgba(255, 82, 82, 0.12)' : currentTheme.statusPresentBg,
+                borderColor: isMoMIncrease ? 'rgba(255, 82, 82, 0.3)' : currentTheme.primary + '35',
               },
             ]}
           >
             <Feather
-              name={isMoMIncrease ? 'alert-circle' : 'check-circle'}
+              name={isMoMIncrease ? 'trending-up' : 'trending-down'}
               size={12}
-              color={isMoMIncrease ? Colors.statusPending : Colors.statusPresent}
+              color={isMoMIncrease ? '#FF5252' : currentTheme.primary}
             />
             <Text
               style={[
                 styles.indicatorText,
-                { color: isMoMIncrease ? Colors.statusPending : Colors.statusPresent },
+                { color: isMoMIncrease ? '#FF5252' : currentTheme.primary },
               ]}
             >
-              {isMoMIncrease ? `+${momChangePercent}% vs Aug` : `${momChangePercent}% On Track`}
+              {Math.abs(momChangePercent)}% MoM
             </Text>
           </View>
         </View>
-
-        <Text style={[Typography.bodySm, styles.monthLabel]}>
-          September 2026 total spend • Budget under control
-        </Text>
       </View>
 
-      {/* 3. Expense Action Buttons (Flex in Row - No offset issues) */}
-      <View style={styles.buttonActionRow}>
-        {presets.slice(0, 3).map((preset) => (
+      {/* Horizontal Quick Expense Preset Buttons */}
+      <View style={styles.quickPresetsSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickScrollContent}
+        >
+          {presets.slice(0, 4).map((preset) => (
+            <TouchableOpacity
+              key={preset.id}
+              style={[
+                styles.actionRowBtn,
+                {
+                  backgroundColor: currentTheme.bgInner,
+                  borderColor: currentTheme.borderGlass,
+                },
+              ]}
+              onPress={() => handleQuickLog(preset)}
+              activeOpacity={0.8}
+            >
+              <Feather name={getCategoryIcon(preset.category)} size={13} color={currentTheme.primary} />
+              <Text style={[styles.actionBtnLabel, { color: currentTheme.primary }]}>
+                {preset.title}
+              </Text>
+              <Text style={[styles.actionBtnSubtext, { color: currentTheme.textMuted }]}>
+                ₹{preset.amount}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Direct Log Button */}
           <TouchableOpacity
-            key={preset.id}
-            style={styles.actionRowBtn}
-            onPress={() => handleQuickLog(preset)}
-            activeOpacity={0.8}
+            style={[
+              styles.actionPrimaryBtn,
+              { backgroundColor: currentTheme.primary },
+            ]}
+            onPress={onNavigateToExpenses}
+            activeOpacity={0.85}
           >
-            <Feather name={getCategoryIcon(preset.category)} size={12} color={Colors.emeraldPrimary} />
-            <Text style={styles.actionBtnLabel} numberOfLines={1}>
-              +₹{preset.amount}
-            </Text>
-            <Text style={styles.actionBtnSubtext} numberOfLines={1}>
-              {preset.title.split(' ')[0]}
+            <Feather name="plus" size={13} color={currentTheme.isDark ? '#050907' : '#FFFFFF'} />
+            <Text
+              style={[
+                styles.actionPrimaryBtnText,
+                { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
+              ]}
+            >
+              Log
             </Text>
           </TouchableOpacity>
-        ))}
-
-        {/* Custom Add Expense Button */}
-        <TouchableOpacity
-          style={styles.actionPrimaryBtn}
-          onPress={onNavigateToExpenses}
-          activeOpacity={0.8}
-        >
-          <Feather name="plus" size={13} color="#050907" />
-          <Text style={styles.actionPrimaryBtnText}>Log</Text>
-        </TouchableOpacity>
+        </ScrollView>
       </View>
 
-      {/* 4. Last 3 Expense History (Type, Time, Amount) */}
-      <View style={styles.historyContainer}>
+      {/* Recent Activity List Preview */}
+      <View style={[styles.historyContainer, { borderTopColor: currentTheme.borderGlass }]}>
         <View style={styles.historyHeaderRow}>
-          <Text style={[Typography.overline, styles.historyHeaderText]}>RECENT ACTIVITY</Text>
-          <Text style={styles.historyCountText}>Last 3 transactions</Text>
+          <Text style={[Typography.overline, styles.historyHeaderText, { color: currentTheme.textMuted }]}>
+            RECENT TRANSACTIONS
+          </Text>
+          <Text style={[styles.historyCountText, { color: currentTheme.textMuted }]}>
+            Showing {recentExpenses.length} of {expenses.length}
+          </Text>
         </View>
 
         {recentExpenses.length === 0 ? (
-          <Text style={styles.emptyHistoryText}>No expenses logged yet.</Text>
+          <Text style={[styles.emptyHistoryText, { color: currentTheme.textMuted }]}>
+            No expenses logged yet this month.
+          </Text>
         ) : (
           <View style={styles.historyList}>
             {recentExpenses.map((item) => (
-              <View key={item.id} style={styles.historyItemRow}>
-                {/* Left: Category Icon Box */}
-                <View style={styles.itemIconBox}>
-                  <Feather name={getCategoryIcon(item.category)} size={13} color={Colors.emeraldHighlight} />
+              <View
+                key={item.id}
+                style={[
+                  styles.historyItemRow,
+                  {
+                    backgroundColor: currentTheme.bgInner,
+                    borderColor: currentTheme.borderGlass,
+                  },
+                ]}
+              >
+                <View style={[styles.itemIconBox, { backgroundColor: currentTheme.primary + '16' }]}>
+                  <Feather name={getCategoryIcon(item.category)} size={13} color={currentTheme.primary} />
                 </View>
 
-                {/* Middle: Title, Category Type & Time */}
                 <View style={styles.itemDetails}>
-                  <Text style={[Typography.bodySm, styles.itemTitle]} numberOfLines={1}>
+                  <Text style={[Typography.bodySm, styles.itemTitle, { color: currentTheme.textPrimary }]} numberOfLines={1}>
                     {item.title}
                   </Text>
                   <View style={styles.itemMetaRow}>
-                    <View style={styles.categoryPill}>
-                      <Text style={styles.categoryPillText}>{item.category}</Text>
+                    <View style={[styles.categoryPill, { backgroundColor: currentTheme.bgCardSecondary }]}>
+                      <Text style={[styles.categoryPillText, { color: currentTheme.textMuted }]}>
+                        {item.category}
+                      </Text>
                     </View>
-                    <Text style={styles.metaDot}>•</Text>
-                    <Text style={styles.itemTimeText}>
-                      {item.timeOfDay || 'Daytime'}
+                    <Text style={[styles.metaDot, { color: currentTheme.textMuted }]}>•</Text>
+                    <Text style={[styles.itemTimeText, { color: currentTheme.textMuted }]}>
+                      {formatExpenseTime(item)}
                     </Text>
                   </View>
                 </View>
 
-                {/* Right: Amount */}
                 <View style={styles.itemAmountBox}>
-                  <Text style={[Typography.labelMd, styles.itemAmountText]}>
-                    -₹{item.amount}
-                  </Text>
+                  <Text style={styles.itemAmountText}>-₹{item.amount}</Text>
                 </View>
               </View>
             ))}
@@ -195,18 +248,13 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  cardTitle: {
-    color: Colors.textPrimary,
   },
   arrowCircle: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: 'rgba(0, 230, 118, 0.10)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -218,11 +266,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  amountText: {
-    color: Colors.textPrimary,
-  },
+  amountText: {},
   monthLabel: {
-    color: Colors.textMuted,
     marginTop: 2,
   },
   indicatorBadge: {
@@ -238,32 +283,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  buttonActionRow: {
+  quickPresetsSection: {
+    marginBottom: 14,
+  },
+  quickScrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 14,
+    paddingRight: 4,
   },
   actionRowBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: '#111512',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 0.7,
-    borderColor: 'rgba(0, 230, 118, 0.25)',
   },
   actionBtnLabel: {
-    color: Colors.emeraldPrimary,
     fontSize: 11,
     fontWeight: '700',
   },
   actionBtnSubtext: {
-    color: Colors.textSecondary,
     fontSize: 10,
   },
   actionPrimaryBtn: {
@@ -271,19 +314,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    backgroundColor: Colors.emeraldPrimary,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
   actionPrimaryBtnText: {
-    color: '#050907',
     fontSize: 11,
     fontWeight: '700',
   },
   historyContainer: {
     borderTopWidth: 0.6,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: 10,
   },
   historyHeaderRow: {
@@ -292,15 +332,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  historyHeaderText: {
-    color: Colors.textMuted,
-  },
+  historyHeaderText: {},
   historyCountText: {
     fontSize: 10,
-    color: Colors.textDisabled,
   },
   emptyHistoryText: {
-    color: Colors.textMuted,
     fontSize: 12,
     fontStyle: 'italic',
   },
@@ -311,18 +347,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#0A0D0B',
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   itemIconBox: {
     width: 28,
     height: 28,
     borderRadius: 7,
-    backgroundColor: 'rgba(0, 230, 118, 0.10)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -331,7 +364,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   itemTitle: {
-    color: Colors.textPrimary,
     fontWeight: '600',
   },
   itemMetaRow: {
@@ -340,23 +372,19 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   categoryPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
   },
   categoryPillText: {
     fontSize: 9,
-    color: Colors.textSecondary,
     fontWeight: '600',
   },
   metaDot: {
     fontSize: 10,
-    color: Colors.textDisabled,
   },
   itemTimeText: {
     fontSize: 10,
-    color: Colors.textMuted,
   },
   itemAmountBox: {
     alignItems: 'flex-end',

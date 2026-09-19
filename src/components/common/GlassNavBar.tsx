@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Platform } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
-import { Colors } from '../../theme/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabKey } from '../../types/campus';
 import { useCampus } from '../../context/CampusContext';
 
@@ -21,7 +21,8 @@ const TABS: TabConfig[] = [
 ];
 
 export const GlassNavBar: React.FC = () => {
-  const { activeTab, setActiveTab } = useCampus();
+  const { activeTab, setActiveTab, currentTheme } = useCampus();
+  const insets = useSafeAreaInsets();
   const screenWidth = Dimensions.get('window').width;
   const tabWidth = screenWidth / TABS.length;
 
@@ -38,28 +39,39 @@ export const GlassNavBar: React.FC = () => {
   }, [activeIndex, tabWidth]);
 
   return (
-    <View style={styles.container}>
-      {/* Top Border Line */}
-      <View style={styles.topBorder} />
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: currentTheme.bgSurface,
+          borderTopColor: currentTheme.borderGlass,
+          paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 12) : 10,
+        },
+      ]}
+    >
+      {/* Top Border Accent Line */}
+      <View style={[styles.topBorder, { backgroundColor: currentTheme.primary + '35' }]} />
 
-      {/* Animated Sliding Pill Indicator */}
+      {/* Animated Sliding Pill Indicator (+10px taller for ergonomic reach) */}
       <Animated.View
         style={[
           styles.activePillIndicator,
           {
-            width: tabWidth - 14,
+            width: tabWidth - 10,
             transform: [{ translateX: slideAnim }],
-            left: 7,
+            left: 5,
+            backgroundColor: currentTheme.navPillBg,
+            borderColor: currentTheme.navPillBorder,
           },
         ]}
       />
 
-      {/* Tab Buttons Row */}
+      {/* Tab Buttons Row (+10px taller) */}
       <View style={styles.tabsRow}>
         {TABS.map((tab) => {
           const isSelected = tab.key === activeTab;
-          const iconColor = isSelected ? Colors.navSelectedIcon : Colors.navUnselectedIcon;
-          const labelColor = isSelected ? Colors.navSelectedLabel : Colors.navUnselectedLabel;
+          const iconColor = isSelected ? currentTheme.navSelectedIcon : currentTheme.navUnselectedIcon;
+          const labelColor = isSelected ? currentTheme.navSelectedLabel : currentTheme.navUnselectedLabel;
 
           return (
             <TouchableOpacity
@@ -70,9 +82,9 @@ export const GlassNavBar: React.FC = () => {
             >
               <View style={styles.iconContainer}>
                 {tab.iconType === 'feather' ? (
-                  <Feather name={tab.icon as any} size={20} color={iconColor} />
+                  <Feather name={tab.icon as any} size={19} color={iconColor} />
                 ) : (
-                  <MaterialIcons name={tab.icon as any} size={21} color={iconColor} />
+                  <MaterialIcons name={tab.icon as any} size={20} color={iconColor} />
                 )}
               </View>
               <Text
@@ -101,28 +113,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#090D0B',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-    paddingTop: 8,
-    borderTopWidth: 0.6,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingTop: 6,
+    borderTopWidth: 0.8,
   },
   topBorder: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 0.5,
-    backgroundColor: 'rgba(0, 230, 118, 0.20)',
+    height: 1,
   },
   activePillIndicator: {
     position: 'absolute',
-    top: 8,
+    top: 6,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: Colors.navPillBg,
-    borderWidth: 0.8,
-    borderColor: Colors.navPillBorder,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   tabsRow: {
     flexDirection: 'row',
@@ -135,12 +141,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   iconContainer: {
-    height: 24,
+    height: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 2,
     letterSpacing: 0.1,
   },

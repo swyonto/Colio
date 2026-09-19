@@ -10,7 +10,7 @@ import { useCampus } from '../context/CampusContext';
 import { Priority, Task } from '../types/campus';
 
 export const TasksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const { tasks, toggleTask, addTask, deleteTask } = useCampus();
+  const { tasks, toggleTask, addTask, deleteTask, currentTheme } = useCampus();
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -35,7 +35,7 @@ export const TasksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
       {/* Top Header */}
       <View style={styles.headerBar}>
         {onBack && (

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { CircularProgress } from '../components/common/CircularProgress';
@@ -11,6 +12,10 @@ import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { Subject } from '../types/campus';
+import { triggerHapticFeedback } from '../utils/haptics';
+import { AttendanceSkeleton } from '../components/common/SkeletonLoader';
+
+const STORAGE_KEY_CANCELLED_SUBJECTS = '@colio_cancelled_attendance_subjects_v1';
 
 const DAYS = [
   { id: 'all', label: 'All Subjects', fullLabel: 'All Subjects' },
@@ -25,7 +30,6 @@ const DAYS = [
 export const AttendanceScreen: React.FC = () => {
   const {
     subjects,
-    timetable,
     adjustSubjectAttendance,
     setSubjectAttendance,
     overallAttendance,
@@ -34,7 +38,11 @@ export const AttendanceScreen: React.FC = () => {
     classesCanMiss,
     classesNeeded,
     attendanceCriteria = 68,
+    timetable,
+    currentTheme,
   } = useCampus();
+
+  const totalAbsent = subjects.reduce((sum, s) => sum + s.absent, 0);
 
   // Auto detect current day: 1 = Mon, ..., 6 = Sat. If Sunday (0), fallback to Mon '1'
   const currentDayIndex = new Date().getDay();
@@ -44,6 +52,26 @@ export const AttendanceScreen: React.FC = () => {
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [editPresentInput, setEditPresentInput] = useState('');
   const [editAbsentInput, setEditAbsentInput] = useState('');
+  const [cancelledSubjectIds, setCancelledSubjectIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY_CANCELLED_SUBJECTS).then((val) => {
+      if (val) {
+        try {
+          setCancelledSubjectIds(JSON.parse(val));
+        } catch {}
+      }
+    });
+  }, []);
+
+  const toggleCancelSubject = (subjId: string) => {
+    triggerHapticFeedback('medium');
+    setCancelledSubjectIds((prev) => {
+      const updated = prev.includes(subjId) ? prev.filter((id) => id !== subjId) : [...prev, subjId];
+      AsyncStorage.setItem(STORAGE_KEY_CANCELLED_SUBJECTS, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
 
   const isCriteriaMet = overallAttendance >= attendanceCriteria;
   const activeDay = DAYS.find((d) => d.id === selectedDayTab);
@@ -78,7 +106,7 @@ export const AttendanceScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
       {/* Day Selector Tabs with auto-detected day active */}
       <View style={styles.tabsWrapper}>
         <ScrollView
@@ -120,7 +148,7 @@ export const AttendanceScreen: React.FC = () => {
       >
         {/* Redesigned Attendance Card with 68% Criteria & Circular Gauge */}
         <EmeraldGlassCard statusVariant={isCriteriaMet ? 'emerald' : 'rose'}>
-          {/* Top Row: Attendance Card title & 87% + Circular Progress Bar */}
+          {/* Top Row: Attendance Card title & 87% with Target Met Chip (No circular gauge) */}
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
               <View style={styles.cardTitleRow}>
@@ -130,64 +158,52 @@ export const AttendanceScreen: React.FC = () => {
                 <Text style={[Typography.titleMd, styles.mainCardTitle]}>Attendance Card</Text>
               </View>
 
-              {/* 87% + Status Badge */}
+              {/* 87% + Left-Aligned Goal Badge with Mini Dynamic Circular Progress */}
               <View style={styles.percentageAndBadgeRow}>
                 <Text style={[Typography.displayLg, styles.overallPercentageText]}>
                   {overallAttendance}%
                 </Text>
-                <View
-                  style={[
-                    styles.criteriaStatusPill,
-                    {
-                      backgroundColor: isCriteriaMet ? Colors.statusPresentBg : Colors.statusAbsentBg,
-                      borderColor: isCriteriaMet ? 'rgba(0, 230, 118, 0.35)' : 'rgba(255, 82, 82, 0.35)',
-                    },
-                  ]}
-                >
+
+                <View style={styles.goalBadge}>
+                  {/* 1. Verified Tick Mark Icon (starburst with tick) */}
                   <MaterialIcons
                     name={isCriteriaMet ? 'verified' : 'error-outline'}
-                    size={13}
-                    color={isCriteriaMet ? Colors.statusPresent : Colors.statusAbsent}
+                    size={14}
+                    color={
+                      overallAttendance < attendanceCriteria
+                        ? Colors.statusAbsent
+                        : overallAttendance < attendanceCriteria + 8
+                        ? '#FFC107'
+                        : Colors.statusPresent
+                    }
                   />
-                  <Text
-                    style={[
-                      styles.criteriaStatusText,
-                      { color: isCriteriaMet ? Colors.statusPresent : Colors.statusAbsent },
-                    ]}
-                  >
-                    {isCriteriaMet ? `${attendanceCriteria}% Criteria Met` : `Below ${attendanceCriteria}% Criteria`}
-                  </Text>
+
+                  {/* 2. Goal Text */}
+                  <Text style={styles.goalBadgeText}>Goal {attendanceCriteria}%</Text>
+
+                  {/* 3. Small Circular Progress Bar */}
+                  <CircularProgress
+                    percentage={overallAttendance}
+                    size={18}
+                    strokeWidth={2.5}
+                    criteria={attendanceCriteria}
+                    showLabel={false}
+                  />
                 </View>
               </View>
             </View>
-
-            {/* Right: Circular Progress Bar with Red-Yellow-Green according to closeness to criteria */}
-            <View style={styles.circleProgressWrapper}>
-              <CircularProgress
-                percentage={overallAttendance}
-                size={82}
-                strokeWidth={7.5}
-                criteria={attendanceCriteria}
-              />
-            </View>
           </View>
 
-          {/* Full-width Horizontal Progress Bar with Target at 68% */}
+          {/* Full-width Horizontal Progress Bar (clean, without repetitive target text) */}
           <View style={styles.linearProgressContainer}>
             <ProgressBar percentage={overallAttendance} height={7} target={attendanceCriteria} />
-            <View style={styles.criteriaMarkerContainer}>
-              <Text style={styles.criteriaMarkerText}>Target Criteria: {attendanceCriteria}%</Text>
-              <Text style={styles.progressStatusHint}>
-                {isCriteriaMet ? 'Safe from shortage ✓' : 'Shortage caution'}
-              </Text>
-            </View>
           </View>
 
-          {/* Bottom Row: Classes Attended | Total Classes | Can be Missed */}
-          <View style={styles.statsThreeColRow}>
+          {/* Bottom Row: 4-Column Centered Layout (Attended | Absent | Total | Can Miss) */}
+          <View style={styles.statsFourColRow}>
             {/* 1. Classes Attended */}
             <View style={styles.metricColumn}>
-              <Text style={styles.metricColumnLabel}>CLASSES ATTENDED</Text>
+              <Text style={styles.metricColumnLabel}>ATTENDED</Text>
               <Text style={[styles.metricColumnValue, { color: Colors.emeraldPrimary }]}>
                 {totalPresent}
               </Text>
@@ -195,9 +211,19 @@ export const AttendanceScreen: React.FC = () => {
 
             <View style={styles.metricDivider} />
 
-            {/* 2. Total Classes */}
+            {/* 2. Classes Absent */}
             <View style={styles.metricColumn}>
-              <Text style={styles.metricColumnLabel}>TOTAL CLASSES</Text>
+              <Text style={styles.metricColumnLabel}>ABSENT</Text>
+              <Text style={[styles.metricColumnValue, { color: Colors.statusAbsent }]}>
+                {totalAbsent}
+              </Text>
+            </View>
+
+            <View style={styles.metricDivider} />
+
+            {/* 3. Total Classes */}
+            <View style={styles.metricColumn}>
+              <Text style={styles.metricColumnLabel}>TOTAL</Text>
               <Text style={[styles.metricColumnValue, { color: Colors.textPrimary }]}>
                 {totalClasses}
               </Text>
@@ -205,10 +231,10 @@ export const AttendanceScreen: React.FC = () => {
 
             <View style={styles.metricDivider} />
 
-            {/* 3. Can be Missed / Needed */}
+            {/* 4. Can be Missed / Needed */}
             <View style={styles.metricColumn}>
               <Text style={styles.metricColumnLabel}>
-                {isCriteriaMet ? 'CAN BE MISSED' : 'CLASSES NEEDED'}
+                {isCriteriaMet ? 'CAN MISS' : 'NEEDED'}
               </Text>
               <Text
                 style={[
@@ -230,33 +256,15 @@ export const AttendanceScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Emphasized Scheduled Subjects Section Heading */}
-        <View style={styles.scheduledHeaderCard}>
-          <View style={styles.scheduledHeaderLeft}>
-            <View style={[styles.dayIconCircle, isTodaySelected && styles.dayIconCircleActive]}>
-              <Feather
-                name="calendar"
-                size={17}
-                color={isTodaySelected ? Colors.emeraldPrimary : Colors.textSecondary}
-              />
-            </View>
-            <View style={styles.headingTextGroup}>
-              <View style={styles.headingTitleRow}>
-                <Text style={styles.scheduledDayTitle}>
-                  {selectedDayTab === 'all'
-                    ? 'All Subjects'
-                    : `Scheduled Subjects for ${activeDay?.fullLabel || activeDay?.label}`}
-                </Text>
-                {isTodaySelected && (
-                  <View style={styles.todayPillBadge}>
-                    <View style={styles.todayPulseDot} />
-                    <Text style={styles.todayPillText}>TODAY</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.scheduledDaySubtitle}>
-                {filteredSubjects.length} {filteredSubjects.length === 1 ? 'subject' : 'subjects'} on timetable • Mark attendance below
-              </Text>
+        {/* Seamless Scheduled Subjects Section Header (blends directly with cards) */}
+        <View style={styles.scheduledSectionHeader}>
+          <View style={styles.sectionHeaderLeft}>
+            <View style={styles.sectionAccentBar} />
+            <Text style={styles.sectionTitleText}>
+              {selectedDayTab === 'all' ? 'All Subjects' : 'Scheduled Subjects'}
+            </Text>
+            <View style={styles.subjectCountPill}>
+              <Text style={styles.subjectCountPillText}>{filteredSubjects.length}</Text>
             </View>
           </View>
         </View>
@@ -281,22 +289,36 @@ export const AttendanceScreen: React.FC = () => {
               const subjTotal = subj.present + subj.absent;
               const subjPct = subjTotal > 0 ? Math.round((subj.present / subjTotal) * 100) : 100;
               const isSubjSafe = subjPct >= attendanceCriteria;
+              const isCancelled = cancelledSubjectIds.includes(subj.id);
               const subjCanMiss = Math.max(
                 0,
                 Math.floor((subj.present - (attendanceCriteria / 100) * subjTotal) / (attendanceCriteria / 100))
               );
 
               return (
-                <View key={subj.id} style={styles.subjectCard}>
+                <View
+                  key={subj.id}
+                  style={[
+                    styles.subjectCard,
+                    isCancelled && styles.subjectCardCancelled,
+                  ]}
+                >
                   {/* Top Bar: Gradient Color Ring + Code + Name + Edit Button */}
                   <View style={styles.subjHeaderRow}>
                     <View style={styles.subjTitleGroup}>
-                      <View style={[styles.gradientDonutOuter, { borderColor: subj.color }]}>
-                        <View style={[styles.gradientDonutInner, { backgroundColor: subj.color }]} />
+                      <View style={[styles.gradientDonutOuter, { borderColor: isCancelled ? Colors.textDisabled : subj.color }]}>
+                        <View style={[styles.gradientDonutInner, { backgroundColor: isCancelled ? Colors.textDisabled : subj.color }]} />
                       </View>
 
                       <View style={{ flex: 1 }}>
-                        <Text style={[Typography.titleSm, styles.subjName]} numberOfLines={1}>
+                        <Text
+                          style={[
+                            Typography.titleSm,
+                            styles.subjName,
+                            isCancelled && styles.textCancelledStriked,
+                          ]}
+                          numberOfLines={1}
+                        >
                           {subj.name}
                         </Text>
                         <Text style={styles.subjCodeTeacher}>
@@ -320,7 +342,7 @@ export const AttendanceScreen: React.FC = () => {
                       <Text
                         style={[
                           Typography.headlineSm,
-                          { color: isSubjSafe ? Colors.textPrimary : Colors.statusAbsent },
+                          { color: isCancelled ? Colors.textMuted : isSubjSafe ? Colors.textPrimary : Colors.statusAbsent },
                         ]}
                       >
                         {subjPct}%
@@ -334,42 +356,88 @@ export const AttendanceScreen: React.FC = () => {
                       style={[
                         styles.subjStatusBadge,
                         {
-                          backgroundColor: isSubjSafe ? Colors.statusPresentBg : Colors.statusAbsentBg,
-                          borderColor: isSubjSafe ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 82, 82, 0.3)',
+                          backgroundColor: isCancelled
+                            ? 'rgba(255, 255, 255, 0.06)'
+                            : isSubjSafe
+                            ? Colors.statusPresentBg
+                            : Colors.statusAbsentBg,
+                          borderColor: isCancelled
+                            ? 'rgba(255, 255, 255, 0.12)'
+                            : isSubjSafe
+                            ? 'rgba(0, 230, 118, 0.3)'
+                            : 'rgba(255, 82, 82, 0.3)',
                         },
                       ]}
                     >
                       <Text
                         style={[
                           styles.subjStatusText,
-                          { color: isSubjSafe ? Colors.statusPresent : Colors.statusAbsent },
+                          {
+                            color: isCancelled
+                              ? Colors.textMuted
+                              : isSubjSafe
+                              ? Colors.statusPresent
+                              : Colors.statusAbsent,
+                          },
                         ]}
                       >
-                        {isSubjSafe ? `Safe (+${subjCanMiss})` : 'Critical'}
+                        {isCancelled ? 'Cancelled' : isSubjSafe ? `Safe (+${subjCanMiss})` : 'Critical'}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Progress Bar with 68% target */}
-                  <ProgressBar percentage={subjPct} height={6} target={attendanceCriteria} />
+                  {/* Slim Indicator Progress Bar (4px) with distinct subject color */}
+                  <ProgressBar
+                    percentage={subjPct}
+                    height={4}
+                    color={isCancelled ? Colors.textDisabled : isSubjSafe ? subj.color : Colors.statusAbsent}
+                    target={attendanceCriteria}
+                  />
 
-                  {/* Quick Attendance Action Buttons */}
+                  {/* Attendance Actions: Present | Absent | Cancel Class */}
                   <View style={styles.subjActionsRow}>
-                    <TouchableOpacity
-                      style={styles.presentActionBtn}
-                      onPress={() => adjustSubjectAttendance(subj.id, 1, 0)}
-                    >
-                      <MaterialIcons name="check" size={16} color={Colors.statusPresent} />
-                      <Text style={styles.presentActionText}>+ Present</Text>
-                    </TouchableOpacity>
+                    {isCancelled ? (
+                      <View style={styles.cancelledStatusRow}>
+                        <View style={styles.cancelledNoticePill}>
+                          <Feather name="slash" size={11} color={Colors.statusAbsent} />
+                          <Text style={styles.cancelledNoticeText}>Cancelled today (No penalty)</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.restoreClassBtn}
+                          onPress={() => toggleCancelSubject(subj.id)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Feather name="rotate-ccw" size={11} color={Colors.textSecondary} />
+                          <Text style={styles.restoreClassText}>Restore</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <>
+                        <TouchableOpacity
+                          style={styles.presentActionBtn}
+                          onPress={() => adjustSubjectAttendance(subj.id, 1, 0)}
+                        >
+                          <MaterialIcons name="check" size={15} color={Colors.statusPresent} />
+                          <Text style={styles.presentActionText}>Present</Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.absentActionBtn}
-                      onPress={() => adjustSubjectAttendance(subj.id, 0, 1)}
-                    >
-                      <MaterialIcons name="close" size={16} color={Colors.statusAbsent} />
-                      <Text style={styles.absentActionText}>+ Absent</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.absentActionBtn}
+                          onPress={() => adjustSubjectAttendance(subj.id, 0, 1)}
+                        >
+                          <MaterialIcons name="close" size={15} color={Colors.statusAbsent} />
+                          <Text style={styles.absentActionText}>Absent</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.cancelClassActionBtn}
+                          onPress={() => toggleCancelSubject(subj.id)}
+                        >
+                          <Feather name="slash" size={13} color={Colors.textMuted} />
+                          <Text style={styles.cancelClassActionText}>Cancel Class</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
                   </View>
                 </View>
               );
@@ -502,146 +570,101 @@ const styles = StyleSheet.create({
   percentageAndBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 2,
+    justifyContent: 'space-between',
+    marginTop: 4,
   },
   overallPercentageText: {
     color: Colors.textPrimary,
     fontSize: 34,
   },
-  criteriaStatusPill: {
+  goalBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    borderWidth: 0.6,
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 0.8,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  criteriaStatusText: {
+  goalBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-  },
-  circleProgressWrapper: {
-    marginLeft: 12,
+    color: Colors.textPrimary,
   },
   linearProgressContainer: {
-    marginVertical: 10,
-    gap: 5,
+    marginVertical: 12,
   },
-  criteriaMarkerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  criteriaMarkerText: {
-    fontSize: 10,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  progressStatusHint: {
-    fontSize: 10,
-    color: Colors.emeraldHighlight,
-    fontWeight: '600',
-  },
-  statsThreeColRow: {
+  statsFourColRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#090D0A',
     borderRadius: 10,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     borderWidth: 0.6,
     borderColor: 'rgba(255, 255, 255, 0.05)',
-    marginTop: 4,
+    marginTop: 2,
   },
   metricColumn: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
+    gap: 3,
   },
   metricColumnLabel: {
     fontSize: 9,
     fontWeight: '700',
     color: Colors.textMuted,
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   metricColumnValue: {
     fontSize: 16,
     fontWeight: '800',
+    textAlign: 'center',
   },
   metricDivider: {
     width: 0.6,
-    height: 24,
+    height: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  scheduledHeaderCard: {
-    backgroundColor: '#0E1310',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 0.8,
-    borderColor: 'rgba(0, 230, 118, 0.25)',
+  scheduledSectionHeader: {
+    marginTop: 6,
+    marginBottom: 2,
+    paddingHorizontal: 2,
   },
-  scheduledHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  dayIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#161C18',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  dayIconCircleActive: {
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
-    borderColor: Colors.emeraldPrimary,
-  },
-  headingTextGroup: {
-    flex: 1,
-    gap: 2,
-  },
-  headingTitleRow: {
+  sectionHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  scheduledDayTitle: {
+  sectionAccentBar: {
+    width: 3.5,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: Colors.emeraldPrimary,
+  },
+  sectionTitleText: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.textPrimary,
+    letterSpacing: 0.2,
   },
-  todayPillBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0, 230, 118, 0.22)',
-    borderWidth: 0.6,
-    borderColor: Colors.emeraldPrimary,
-    paddingHorizontal: 6,
+  subjectCountPill: {
+    paddingHorizontal: 7,
     paddingVertical: 1.5,
-    borderRadius: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 230, 118, 0.12)',
+    borderWidth: 0.6,
+    borderColor: 'rgba(0, 230, 118, 0.25)',
   },
-  todayPulseDot: {
-    width: 4.5,
-    height: 4.5,
-    borderRadius: 2.25,
-    backgroundColor: Colors.emeraldPrimary,
-  },
-  todayPillText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: Colors.emeraldPrimary,
-    letterSpacing: 0.5,
-  },
-  scheduledDaySubtitle: {
+  subjectCountPillText: {
     fontSize: 11,
-    color: Colors.textMuted,
+    fontWeight: '700',
+    color: Colors.emeraldPrimary,
   },
   viewAllPillBtn: {
     marginTop: 10,
@@ -758,12 +781,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: Colors.statusPresentBg,
     borderRadius: 8,
     borderWidth: 0.7,
     borderColor: 'rgba(0, 230, 118, 0.35)',
-    paddingVertical: 8,
+    paddingVertical: 7.5,
   },
   presentActionText: {
     color: Colors.statusPresent,
@@ -775,17 +798,80 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: Colors.statusAbsentBg,
     borderRadius: 8,
     borderWidth: 0.7,
     borderColor: 'rgba(255, 82, 82, 0.35)',
-    paddingVertical: 8,
+    paddingVertical: 7.5,
   },
   absentActionText: {
     color: Colors.statusAbsent,
     fontWeight: '700',
     fontSize: 12,
+  },
+  cancelClassActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    borderWidth: 0.7,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    paddingHorizontal: 10,
+    paddingVertical: 7.5,
+  },
+  cancelClassActionText: {
+    color: Colors.textMuted,
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  subjectCardCancelled: {
+    opacity: 0.65,
+    borderColor: 'rgba(255, 82, 82, 0.20)',
+    backgroundColor: '#0B0E0C',
+  },
+  textCancelledStriked: {
+    textDecorationLine: 'line-through',
+    color: Colors.textDisabled,
+  },
+  cancelledStatusRow: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 82, 82, 0.08)',
+    borderWidth: 0.6,
+    borderColor: 'rgba(255, 82, 82, 0.25)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  cancelledNoticePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flex: 1,
+  },
+  cancelledNoticeText: {
+    color: Colors.statusAbsent,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  restoreClassBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  restoreClassText: {
+    color: Colors.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
   },
   emptyDayBox: {
     paddingVertical: 24,

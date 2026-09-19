@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { CampusProvider, useCampus } from './src/context/CampusContext';
 import { GlassHeader } from './src/components/common/GlassHeader';
 import { GlassNavBar } from './src/components/common/GlassNavBar';
@@ -15,16 +15,20 @@ import { IdCardScreen } from './src/screens/IdCardScreen';
 import { HolidaysScreen } from './src/screens/HolidaysScreen';
 import { CgpaScreen } from './src/screens/CgpaScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ProfileDialog } from './src/screens/ProfileDialog';
 import { Colors } from './src/theme/colors';
 
 const MainAppContent: React.FC = () => {
-  const { activeTab, setActiveTab } = useCampus();
+  const { activeTab, setActiveTab, currentTheme } = useCampus();
   const [activeSubScreen, setActiveSubScreen] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const renderContent = () => {
     // Sub-screens overlay (Back button returns to previous view)
+    if (activeSubScreen === 'profile') {
+      return <ProfileScreen onBack={() => setActiveSubScreen(null)} />;
+    }
     if (activeSubScreen === 'books') {
       return <BooksScreen onBack={() => setActiveSubScreen(null)} />;
     }
@@ -53,7 +57,7 @@ const MainAppContent: React.FC = () => {
         return (
           <MoreScreen
             onOpenSection={(sec) => setActiveSubScreen(sec)}
-            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenProfile={() => setActiveSubScreen('profile')}
           />
         );
       case 'home':
@@ -65,23 +69,23 @@ const MainAppContent: React.FC = () => {
               setActiveTab(tab);
             }}
             onOpenMoreSection={(sec) => setActiveSubScreen(sec)}
-            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenProfile={() => setActiveSubScreen('profile')}
           />
         );
     }
   };
 
   return (
-    <SafeAreaView style={styles.rootContainer}>
-      <StatusBar style="light" />
+    <SafeAreaView style={[styles.rootContainer, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
+      <StatusBar style={currentTheme.isDark ? 'light' : 'dark'} />
 
       {/* Header Bar (Shown when not in sub-screens with their own header) */}
       {!activeSubScreen && (
-        <GlassHeader onPressProfile={() => setIsProfileOpen(true)} />
+        <GlassHeader onPressProfile={() => setActiveSubScreen('profile')} />
       )}
 
       {/* Screen Body */}
-      <View style={styles.bodyContainer}>{renderContent()}</View>
+      <View style={[styles.bodyContainer, { backgroundColor: currentTheme.bgBase }]}>{renderContent()}</View>
 
       {/* Bottom Navigation Bar (Shown on 5 primary tabs) */}
       {!activeSubScreen && <GlassNavBar />}

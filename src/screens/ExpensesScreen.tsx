@@ -13,10 +13,10 @@ import { Expense, ExpenseCategory, QuickExpensePreset, TimeOfDay } from '../type
 
 const TIME_FILTERS: { id: string; label: string }[] = [
   { id: 'all', label: 'All Day' },
-  { id: 'Morning', label: 'Morning 🌅' },
-  { id: 'Afternoon', label: 'Afternoon ☀️' },
-  { id: 'Evening', label: 'Evening 🌆' },
-  { id: 'Night', label: 'Night 🌙' },
+  { id: 'Morning', label: 'Morning' },
+  { id: 'Afternoon', label: 'Afternoon' },
+  { id: 'Evening', label: 'Evening' },
+  { id: 'Night', label: 'Night' },
 ];
 
 const CATEGORIES: ExpenseCategory[] = ['Food', 'Transport', 'Books', 'College', 'Other'];
@@ -34,6 +34,7 @@ export const ExpensesScreen: React.FC = () => {
     currentMonthTotal,
     prevMonthTotal,
     momChangePercent,
+    currentTheme,
   } = useCampus();
 
   // Multi-Month Selector Carousel (Section 9.4)
@@ -146,7 +147,7 @@ export const ExpensesScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
       {/* Month Carousel Header (Section 9.4) */}
       <View style={styles.monthCarouselBar}>
         <TouchableOpacity
@@ -378,7 +379,7 @@ export const ExpensesScreen: React.FC = () => {
                       {exp.title}
                     </Text>
                     <Text style={styles.expItemMeta}>
-                      {exp.date} • {exp.timeOfDay} • {exp.category}
+                      {exp.date} • {exp.time || (exp.timeOfDay === 'Morning' ? '09:30 AM' : exp.timeOfDay === 'Afternoon' ? '01:15 PM' : exp.timeOfDay === 'Evening' ? '05:45 PM' : '09:20 PM')} • {exp.category}
                     </Text>
                   </View>
                 </View>

@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { Spacing } from '../../theme/spacing';
+import { useCampus } from '../../context/CampusContext';
 
 interface StatMiniCardProps {
   icon: keyof typeof MaterialIcons.glyphMap | keyof typeof Feather.glyphMap;
@@ -21,7 +22,7 @@ interface StatMiniCardProps {
 export const StatMiniCard: React.FC<StatMiniCardProps> = ({
   icon,
   iconType = 'material',
-  iconColor = Colors.emeraldHighlight,
+  iconColor,
   value,
   label,
   badgeText,
@@ -29,6 +30,10 @@ export const StatMiniCard: React.FC<StatMiniCardProps> = ({
   onPress,
   onLongPress,
 }) => {
+  const { currentTheme } = useCampus();
+
+  const effectiveIconColor = iconColor || currentTheme.primary;
+
   const getBadgeColors = () => {
     switch (badgeVariant) {
       case 'amber':
@@ -36,10 +41,18 @@ export const StatMiniCard: React.FC<StatMiniCardProps> = ({
       case 'rose':
         return { bg: Colors.statusAbsentBg, text: Colors.statusAbsent, border: 'rgba(255, 82, 82, 0.25)' };
       case 'muted':
-        return { bg: 'rgba(255, 255, 255, 0.05)', text: Colors.textMuted, border: 'rgba(255, 255, 255, 0.10)' };
+        return {
+          bg: currentTheme.isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+          text: currentTheme.textMuted,
+          border: currentTheme.borderGlass,
+        };
       case 'emerald':
       default:
-        return { bg: Colors.statusPresentBg, text: Colors.statusPresent, border: 'rgba(0, 230, 118, 0.25)' };
+        return {
+          bg: currentTheme.statusPresentBg,
+          text: currentTheme.statusPresent,
+          border: currentTheme.primary + '40',
+        };
     }
   };
 
@@ -53,10 +66,10 @@ export const StatMiniCard: React.FC<StatMiniCardProps> = ({
       delayLongPress={350}
       style={styles.wrapper}
     >
-      <View style={styles.cardContainer}>
-        {/* Pure Charcoal Base */}
+      <View style={[styles.cardContainer, { backgroundColor: currentTheme.bgCard }]}>
+        {/* Dynamic Card Surface Base */}
         <LinearGradient
-          colors={[Colors.bgCard, '#121312', Colors.bgCardSecondary]}
+          colors={[currentTheme.bgCard, currentTheme.bgCardSecondary, currentTheme.bgCard]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -64,42 +77,54 @@ export const StatMiniCard: React.FC<StatMiniCardProps> = ({
 
         {/* Ambient Corner Glow */}
         <LinearGradient
-          colors={['transparent', 'transparent', 'rgba(0, 230, 118, 0.08)']}
+          colors={['transparent', 'transparent', currentTheme.glowColor]}
           start={{ x: 0.3, y: 0.3 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
 
         {/* Card Border */}
-        <View style={styles.border} />
+        <View style={[styles.border, { borderColor: currentTheme.borderGlass }]} />
 
-        {/* Inner Content - Uniform 14dp Padding */}
+        {/* Inner Content */}
         <View style={styles.content}>
-          {/* Top Row: Icon Box (34dp) on left, Diagonal ↗ Arrow on right */}
+          {/* Top Row: Icon Box on left, Diagonal ↗ Arrow on right */}
           <View style={styles.topRow}>
-            <View style={[styles.iconBox, { borderColor: `${iconColor}33`, backgroundColor: `${iconColor}15` }]}>
+            <View
+              style={[
+                styles.iconBox,
+                {
+                  borderColor: `${effectiveIconColor}33`,
+                  backgroundColor: `${effectiveIconColor}15`,
+                },
+              ]}
+            >
               {iconType === 'feather' ? (
-                <Feather name={icon as any} size={17} color={iconColor} />
+                <Feather name={icon as any} size={17} color={effectiveIconColor} />
               ) : (
-                <MaterialIcons name={icon as any} size={18} color={iconColor} />
+                <MaterialIcons name={icon as any} size={18} color={effectiveIconColor} />
               )}
             </View>
 
             <View style={styles.arrowBox}>
-              <Feather name="arrow-up-right" size={17} color={Colors.textMuted} />
+              <Feather name="arrow-up-right" size={17} color={currentTheme.textMuted} />
             </View>
           </View>
 
           {/* Middle Row: Centered Optical Large Value */}
           <View style={styles.valueRow}>
-            <Text style={[Typography.displayMd, styles.valueText]} numberOfLines={1} adjustsFontSizeToFit>
+            <Text
+              style={[Typography.displayMd, styles.valueText, { color: currentTheme.textPrimary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {value}
             </Text>
           </View>
 
           {/* Bottom Row: Uppercase Micro-Label + Sub-Badge */}
           <View style={styles.bottomRow}>
-            <Text style={[Typography.overline, styles.labelText]} numberOfLines={1}>
+            <Text style={[Typography.overline, styles.labelText, { color: currentTheme.textMuted }]} numberOfLines={1}>
               {label}
             </Text>
             {badgeText && (
@@ -126,7 +151,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     height: 148,
-    backgroundColor: Colors.bgCard,
   },
   border: {
     position: 'absolute',
@@ -135,8 +159,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: Spacing.miniCardRadius,
-    borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 0.8,
   },
   content: {
     flex: 1,
@@ -152,7 +175,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 9,
-    borderWidth: 0.7,
+    borderWidth: 0.8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -167,7 +190,6 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   valueText: {
-    color: Colors.textPrimary,
     fontWeight: '700',
   },
   bottomRow: {
@@ -177,7 +199,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   labelText: {
-    color: Colors.textMuted,
     flex: 1,
   },
   badgePill: {
@@ -188,6 +209,6 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

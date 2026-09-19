@@ -1,38 +1,156 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Modal,
+  Alert,
+  Dimensions,
+} from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
-import { EmeraldButton } from '../components/common/Buttons';
-import { Colors } from '../theme/colors';
+import { EmeraldButton, GlassButton } from '../components/common/Buttons';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
+import { triggerHapticFeedback } from '../utils/haptics';
 
 export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const { profile } = useCampus();
+  const { profile, updateProfile, currentTheme } = useCampus();
   const [isLandscape, setIsLandscape] = useState(false);
   const [isBackSide, setIsBackSide] = useState(false);
+  const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
+  const [fullscreenOrientation, setFullscreenOrientation] = useState<'portrait' | 'landscape'>('portrait');
+
+  const currentImageUri = isBackSide ? profile.idCardBackUri : profile.idCardFrontUri;
+
+  const pickCardImage = async (side: 'front' | 'back', source: 'gallery' | 'camera') => {
+    try {
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Camera Permission Required', 'Please enable camera permissions to photograph your ID card.');
+          return;
+        }
+        const result = await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [16, 10],
+          quality: 0.9,
+        });
+        if (!result.canceled && result.assets && result.assets[0]?.uri) {
+          const uri = result.assets[0].uri;
+          if (side === 'front') {
+            updateProfile({ idCardFrontUri: uri });
+          } else {
+            updateProfile({ idCardBackUri: uri });
+          }
+          triggerHapticFeedback('success');
+        }
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Required', 'Please enable gallery permissions to upload your ID card.');
+          return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [16, 10],
+          quality: 0.9,
+        });
+        if (!result.canceled && result.assets && result.assets[0]?.uri) {
+          const uri = result.assets[0].uri;
+          if (side === 'front') {
+            updateProfile({ idCardFrontUri: uri });
+          } else {
+            updateProfile({ idCardBackUri: uri });
+          }
+          triggerHapticFeedback('success');
+        }
+      }
+    } catch (err) {
+      console.warn('ID card upload error:', err);
+    }
+  };
+
+  const promptUploadOptions = (side: 'front' | 'back') => {
+    Alert.alert(
+      `Upload ${side === 'front' ? 'Front' : 'Back'} ID Card`,
+      'Choose source to upload your physical ID card photo:',
+      [
+        {
+          text: 'Choose from Gallery',
+          onPress: () => pickCardImage(side, 'gallery'),
+        },
+        {
+          text: 'Take Photo with Camera',
+          onPress: () => pickCardImage(side, 'camera'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const removeCardImage = (side: 'front' | 'back') => {
+    triggerHapticFeedback('warning');
+    if (side === 'front') {
+      updateProfile({ idCardFrontUri: '' });
+    } else {
+      updateProfile({ idCardBackUri: '' });
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.headerBar}>
+    <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
+      {/* Top Header Bar */}
+      <View style={[styles.headerBar, { backgroundColor: currentTheme.bgSurface, borderBottomColor: currentTheme.borderGlass }]}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <Feather name="arrow-left" size={20} color={Colors.textPrimary} />
+          <TouchableOpacity onPress={onBack} style={[styles.backBtn, { backgroundColor: currentTheme.bgCardSecondary }]}>
+            <Feather name="arrow-left" size={20} color={currentTheme.textPrimary} />
           </TouchableOpacity>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={[Typography.titleLg, styles.headerTitle]}>Digital ID Card</Text>
-          <Text style={styles.headerSubtitle}>Official Student Credentials</Text>
+          <Text style={[Typography.titleLg, { color: currentTheme.textPrimary }]}>Student ID Card</Text>
+          <Text style={[styles.headerSubtitle, { color: currentTheme.textMuted }]}>
+            {isLandscape ? 'Landscape Mode' : 'Portrait Mode'} • Official Credentials
+          </Text>
         </View>
 
-        {/* Landscape Mode Toggle (Section 11.2) */}
+        {/* Orientation Toggle Button */}
         <TouchableOpacity
-          onPress={() => setIsLandscape(!isLandscape)}
-          style={[styles.toggleBtn, isLandscape && styles.toggleBtnActive]}
+          onPress={() => {
+            triggerHapticFeedback('selection');
+            setIsLandscape(!isLandscape);
+          }}
+          style={[
+            styles.toggleBtn,
+            {
+              backgroundColor: isLandscape ? currentTheme.primary + '22' : currentTheme.bgCardSecondary,
+              borderColor: isLandscape ? currentTheme.primary : currentTheme.borderGlass,
+            },
+          ]}
+          activeOpacity={0.8}
         >
-          <Feather name="rotate-cw" size={16} color={isLandscape ? Colors.emeraldPrimary : Colors.textMuted} />
+          <Feather
+            name="rotate-cw"
+            size={16}
+            color={isLandscape ? currentTheme.primary : currentTheme.textMuted}
+          />
+          <Text
+            style={[
+              styles.toggleBtnLabel,
+              { color: isLandscape ? currentTheme.primary : currentTheme.textMuted },
+            ]}
+          >
+            {isLandscape ? 'Landscape' : 'Portrait'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -41,149 +159,397 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Toggle Front / Back Card */}
-        <View style={styles.tabPillRow}>
+        {/* Toggle Front / Back Card Tab Pills */}
+        <View style={[styles.tabPillRow, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.borderGlass }]}>
           <TouchableOpacity
-            style={[styles.tabPill, !isBackSide && styles.tabPillActive]}
-            onPress={() => setIsBackSide(false)}
+            style={[
+              styles.tabPill,
+              !isBackSide && [styles.tabPillActive, { backgroundColor: currentTheme.primary + '25' }],
+            ]}
+            onPress={() => {
+              triggerHapticFeedback('selection');
+              setIsBackSide(false);
+            }}
           >
-            <Text style={[styles.tabPillText, !isBackSide && styles.tabPillTextActive]}>
-              Front Side
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: !isBackSide ? currentTheme.primary : currentTheme.textMuted },
+                !isBackSide && styles.tabPillTextActive,
+              ]}
+            >
+              Front Side {profile.idCardFrontUri ? '✓' : ''}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabPill, isBackSide && styles.tabPillActive]}
-            onPress={() => setIsBackSide(true)}
+            style={[
+              styles.tabPill,
+              isBackSide && [styles.tabPillActive, { backgroundColor: currentTheme.primary + '25' }],
+            ]}
+            onPress={() => {
+              triggerHapticFeedback('selection');
+              setIsBackSide(true);
+            }}
           >
-            <Text style={[styles.tabPillText, isBackSide && styles.tabPillTextActive]}>
-              Back Side
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: isBackSide ? currentTheme.primary : currentTheme.textMuted },
+                isBackSide && styles.tabPillTextActive,
+              ]}
+            >
+              Back Side {profile.idCardBackUri ? '✓' : ''}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Digital ID Card Physical Simulation */}
-        <View style={[styles.cardOuter, isLandscape && styles.cardOuterLandscape]}>
-          <LinearGradient
-            colors={['#101512', '#0A0E0C', '#141A16']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          {/* Subtle Emerald Watermark Glow */}
-          <LinearGradient
-            colors={['rgba(0, 230, 118, 0.15)', 'transparent']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0.8, y: 0.8 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.cardBorder} />
+        {/* CARD CONTAINER (Renders Uploaded Photo OR Digital Simulated Card) */}
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={() => {
+            triggerHapticFeedback('selection');
+            setFullscreenOrientation(isLandscape ? 'landscape' : 'portrait');
+            setIsFullscreenPreview(true);
+          }}
+        >
+          <View
+            style={[
+              styles.cardOuter,
+              { borderColor: currentTheme.primary + '50' },
+              isLandscape && styles.cardOuterLandscape,
+            ]}
+          >
+            {/* Background Gradient */}
+            <LinearGradient
+              colors={[currentTheme.bgCard, currentTheme.bgCardSecondary, currentTheme.bgElevated]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
 
-          {!isBackSide ? (
-            /* FRONT OF ID CARD */
-            <View style={styles.cardInnerFront}>
-              {/* Institution Header */}
-              <View style={styles.idCardHeader}>
-                <View style={styles.idLogoGroup}>
-                  <View style={styles.idGradCapCircle}>
-                    <MaterialIcons name="school" size={18} color="#FFFFFF" />
-                  </View>
-                  <View>
-                    <Text style={styles.collegeName}>{profile.college || 'National Institute of Technology'}</Text>
-                    <Text style={styles.appNicknameTag}>{profile.appNickname || 'CampusHub'} Student Card</Text>
-                  </View>
-                </View>
-
-                <View style={styles.validityBadge}>
-                  <Text style={styles.validityText}>VALID 2023–2027</Text>
-                </View>
-              </View>
-
-              {/* Student Profile Row */}
-              <View style={styles.studentDetailsRow}>
-                {/* Photo Placeholder */}
-                <View style={styles.photoContainer}>
-                  <LinearGradient colors={['#1C2420', '#121815']} style={styles.photoInner}>
-                    <Feather name="user" size={36} color={Colors.emeraldPrimary} />
-                  </LinearGradient>
-                  <View style={styles.photoActiveDot} />
-                </View>
-
-                {/* Info Column */}
-                <View style={styles.infoCol}>
-                  <Text style={[Typography.titleMd, styles.studentNameText]}>
-                    {profile.name || 'Aarav Sharma'}
+            {/* If User Has Uploaded an ID Card Image for this side */}
+            {currentImageUri ? (
+              <View style={styles.uploadedCardContainer}>
+                <Image
+                  source={{ uri: currentImageUri }}
+                  style={styles.uploadedCardImage}
+                  resizeMode="contain"
+                />
+                <View style={[styles.uploadedBadge, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.primary }]}>
+                  <Feather name="check-circle" size={12} color={currentTheme.primary} />
+                  <Text style={[styles.uploadedBadgeText, { color: currentTheme.textPrimary }]}>
+                    Uploaded {isBackSide ? 'Back' : 'Front'} Photo • Tap to Expand
                   </Text>
-                  <Text style={styles.rollNumberText}>
-                    Roll No: <Text style={{ color: Colors.emeraldHighlight, fontWeight: '700' }}>{profile.rollNumber || '23BCSE042'}</Text>
-                  </Text>
-
-                  <View style={styles.detailPair}>
-                    <Text style={styles.detailLabel}>Course:</Text>
-                    <Text style={styles.detailVal}>{profile.course || 'B.Tech Computer Science'}</Text>
+                </View>
+              </View>
+            ) : !isBackSide ? (
+              /* DIGITAL SIMULATED FRONT OF ID CARD */
+              <View style={[styles.cardInnerFront, isLandscape && styles.cardInnerFrontLandscape]}>
+                {/* Institution Header */}
+                <View style={styles.idCardHeader}>
+                  <View style={styles.idLogoGroup}>
+                    <View style={[styles.idGradCapCircle, { backgroundColor: currentTheme.primary + '30', borderColor: currentTheme.primary }]}>
+                      <MaterialIcons name="school" size={18} color="#FFFFFF" />
+                    </View>
+                    <View>
+                      <Text style={[styles.collegeName, { color: currentTheme.textPrimary }]}>
+                        {profile.college || 'National Institute of Technology'}
+                      </Text>
+                      <Text style={[styles.appNicknameTag, { color: currentTheme.primary }]}>
+                        {profile.appNickname || 'CampusHub'} Student Card
+                      </Text>
+                    </View>
                   </View>
 
-                  <View style={styles.detailPair}>
-                    <Text style={styles.detailLabel}>Branch:</Text>
-                    <Text style={styles.detailVal}>{profile.branch || 'CSE - Core'}</Text>
+                  <View style={[styles.validityBadge, { backgroundColor: currentTheme.primary + '20', borderColor: currentTheme.primary }]}>
+                    <Text style={[styles.validityText, { color: currentTheme.primary }]}>VALID 2023–2027</Text>
+                  </View>
+                </View>
+
+                {/* Student Profile Row */}
+                <View style={[styles.studentDetailsRow, isLandscape && styles.studentDetailsRowLandscape]}>
+                  {/* Student Photo */}
+                  <View style={[styles.photoContainer, { borderColor: currentTheme.primary + '60' }]}>
+                    {profile.avatarUri ? (
+                      <Image source={{ uri: profile.avatarUri }} style={styles.photoAvatar} />
+                    ) : (
+                      <LinearGradient colors={[currentTheme.bgCardSecondary, currentTheme.bgSurface]} style={styles.photoInner}>
+                        <Feather name="user" size={36} color={currentTheme.primary} />
+                      </LinearGradient>
+                    )}
+                    <View style={[styles.photoActiveDot, { backgroundColor: currentTheme.primary }]} />
                   </View>
 
-                  <View style={styles.detailPair}>
-                    <Text style={styles.detailLabel}>Semester:</Text>
-                    <Text style={styles.detailVal}>{profile.semester || 'Semester 5'}</Text>
+                  {/* Info Column */}
+                  <View style={styles.infoCol}>
+                    <Text style={[Typography.titleMd, { color: currentTheme.textPrimary }]}>
+                      {profile.name || 'Student Name'}
+                    </Text>
+                    <Text style={[styles.rollNumberText, { color: currentTheme.textSecondary }]}>
+                      Roll No: <Text style={{ color: currentTheme.primary, fontWeight: '700' }}>{profile.rollNumber || '23BCSE042'}</Text>
+                    </Text>
+
+                    <View style={styles.detailPair}>
+                      <Text style={[styles.detailLabel, { color: currentTheme.textMuted }]}>Course:</Text>
+                      <Text style={[styles.detailVal, { color: currentTheme.textPrimary }]}>{profile.course || 'B.Tech Computer Science'}</Text>
+                    </View>
+
+                    <View style={styles.detailPair}>
+                      <Text style={[styles.detailLabel, { color: currentTheme.textMuted }]}>Branch:</Text>
+                      <Text style={[styles.detailVal, { color: currentTheme.textPrimary }]}>{profile.branch || 'CSE - Core'}</Text>
+                    </View>
+
+                    <View style={styles.detailPair}>
+                      <Text style={[styles.detailLabel, { color: currentTheme.textMuted }]}>Semester:</Text>
+                      <Text style={[styles.detailVal, { color: currentTheme.textPrimary }]}>{profile.semester || 'Semester 5'}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Card Footer with Hologram & Barcode */}
+                <View style={[styles.idCardFooter, { borderTopColor: currentTheme.borderGlass }]}>
+                  <View style={styles.barcodeBox}>
+                    <Text style={[styles.barcodeLines, { color: currentTheme.textSecondary }]}>||| | |||| | ||| ||||| || |||| |||</Text>
+                    <Text style={[styles.barcodeId, { color: currentTheme.textMuted }]}>{profile.rollNumber || '23BCSE042'}</Text>
+                  </View>
+                  <View style={[styles.hologramStamp, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary }]}>
+                    <Feather name="shield" size={14} color={currentTheme.primary} />
+                    <Text style={[styles.hologramText, { color: currentTheme.primary }]}>AUTHENTIC</Text>
                   </View>
                 </View>
               </View>
+            ) : (
+              /* DIGITAL SIMULATED BACK OF ID CARD */
+              <View style={styles.cardInnerBack}>
+                <Text style={[Typography.overline, { color: currentTheme.primary }]}>TERMS & INSTRUCTIONS</Text>
+                <Text style={[styles.backClauseText, { color: currentTheme.textSecondary }]}>
+                  1. This card is non-transferable and must be presented on demand by college security and library staff.
+                </Text>
+                <Text style={[styles.backClauseText, { color: currentTheme.textSecondary }]}>
+                  2. If found, please return to NIT Academic Cell, Student Affairs Office.
+                </Text>
+                <Text style={[styles.backClauseText, { color: currentTheme.textSecondary }]}>
+                  3. Emergency Contact: +91 98765 43210 (Campus Security)
+                </Text>
 
-              {/* Card Footer with Hologram & Barcode */}
-              <View style={styles.idCardFooter}>
-                <View style={styles.barcodeBox}>
-                  <Text style={styles.barcodeLines}>||| | |||| | ||| ||||| || |||| |||</Text>
-                  <Text style={styles.barcodeId}>{profile.rollNumber || '23BCSE042'}</Text>
-                </View>
-                <View style={styles.hologramStamp}>
-                  <Feather name="shield" size={14} color={Colors.emeraldPrimary} />
-                  <Text style={styles.hologramText}>AUTHENTIC</Text>
+                <View style={[styles.qrCodeBox, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.primary + '40' }]}>
+                  <Feather name="grid" size={42} color={currentTheme.textPrimary} />
+                  <Text style={[styles.qrCodeHint, { color: currentTheme.textMuted }]}>Scan for Digital Verification</Text>
                 </View>
               </View>
+            )}
+          </View>
+        </TouchableOpacity>
+
+        {/* Action Buttons: Fullscreen Preview + Upload Options */}
+        <View style={styles.cardActionsRow}>
+          <TouchableOpacity
+            style={[styles.previewActionBtn, { backgroundColor: currentTheme.primary + '20', borderColor: currentTheme.primary }]}
+            onPress={() => {
+              triggerHapticFeedback('selection');
+              setFullscreenOrientation(isLandscape ? 'landscape' : 'portrait');
+              setIsFullscreenPreview(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="maximize-2" size={15} color={currentTheme.primary} />
+            <Text style={[styles.previewActionBtnText, { color: currentTheme.primary }]}>
+              Fullscreen Preview
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.previewActionBtn, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.borderGlass }]}
+            onPress={() => {
+              triggerHapticFeedback('selection');
+              setIsLandscape(!isLandscape);
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="rotate-cw" size={15} color={currentTheme.textPrimary} />
+            <Text style={[styles.previewActionBtnText, { color: currentTheme.textPrimary }]}>
+              {isLandscape ? 'Switch to Portrait' : 'Switch to Landscape'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Upload Physical Card Section */}
+        <View style={[styles.uploadSectionCard, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.borderGlass }]}>
+          <View style={styles.uploadSectionHeader}>
+            <Feather name="upload-cloud" size={16} color={currentTheme.primary} />
+            <Text style={[styles.uploadSectionTitle, { color: currentTheme.textPrimary }]}>
+              Upload Physical ID Card Photo
+            </Text>
+          </View>
+          <Text style={[styles.uploadSectionSub, { color: currentTheme.textMuted }]}>
+            Upload photos of your real college ID card to preview either side anytime:
+          </Text>
+
+          {/* Front Side Upload Row */}
+          <View style={[styles.uploadRow, { borderBottomColor: currentTheme.borderGlass }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.uploadLabel, { color: currentTheme.textPrimary }]}>
+                Front Side Photo
+              </Text>
+              <Text style={[styles.uploadStatus, { color: profile.idCardFrontUri ? currentTheme.primary : currentTheme.textMuted }]}>
+                {profile.idCardFrontUri ? '✓ Front Card Uploaded' : 'Not uploaded yet (using digital card)'}
+              </Text>
             </View>
-          ) : (
-            /* BACK OF ID CARD */
-            <View style={styles.cardInnerBack}>
-              <Text style={[Typography.overline, { color: Colors.emeraldHighlight }]}>TERMS & INSTRUCTIONS</Text>
-              <Text style={styles.backClauseText}>
-                1. This card is non-transferable and must be presented on demand by college security and library staff.
-              </Text>
-              <Text style={styles.backClauseText}>
-                2. If found, please return to NIT Academic Cell, Student Affairs Office.
-              </Text>
-              <Text style={styles.backClauseText}>
-                3. Emergency Contact: +91 98765 43210 (Campus Security)
-              </Text>
 
-              <View style={styles.qrCodeBox}>
-                <Feather name="grid" size={42} color={Colors.textPrimary} />
-                <Text style={styles.qrCodeHint}>Scan for Digital Verification</Text>
-              </View>
+            <View style={styles.uploadBtnGroup}>
+              <TouchableOpacity
+                style={[styles.uploadBtn, { backgroundColor: currentTheme.primary }]}
+                onPress={() => promptUploadOptions('front')}
+                activeOpacity={0.8}
+              >
+                <Feather name="camera" size={13} color="#050907" />
+                <Text style={styles.uploadBtnText}>
+                  {profile.idCardFrontUri ? 'Change' : 'Upload'}
+                </Text>
+              </TouchableOpacity>
+
+              {profile.idCardFrontUri ? (
+                <TouchableOpacity
+                  style={[styles.deleteBtn, { backgroundColor: 'rgba(255, 82, 82, 0.15)' }]}
+                  onPress={() => removeCardImage('front')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="trash-2" size={14} color="#FF5252" />
+                </TouchableOpacity>
+              ) : null}
             </View>
-          )}
+          </View>
+
+          {/* Back Side Upload Row */}
+          <View style={styles.uploadRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.uploadLabel, { color: currentTheme.textPrimary }]}>
+                Back Side Photo
+              </Text>
+              <Text style={[styles.uploadStatus, { color: profile.idCardBackUri ? currentTheme.primary : currentTheme.textMuted }]}>
+                {profile.idCardBackUri ? '✓ Back Card Uploaded' : 'Not uploaded yet (using digital card)'}
+              </Text>
+            </View>
+
+            <View style={styles.uploadBtnGroup}>
+              <TouchableOpacity
+                style={[styles.uploadBtn, { backgroundColor: currentTheme.primary }]}
+                onPress={() => promptUploadOptions('back')}
+                activeOpacity={0.8}
+              >
+                <Feather name="camera" size={13} color="#050907" />
+                <Text style={styles.uploadBtnText}>
+                  {profile.idCardBackUri ? 'Change' : 'Upload'}
+                </Text>
+              </TouchableOpacity>
+
+              {profile.idCardBackUri ? (
+                <TouchableOpacity
+                  style={[styles.deleteBtn, { backgroundColor: 'rgba(255, 82, 82, 0.15)' }]}
+                  onPress={() => removeCardImage('back')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="trash-2" size={14} color="#FF5252" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
         </View>
 
         {/* Security & Access Notice */}
         <EmeraldGlassCard>
           <View style={styles.secureNoticeRow}>
-            <Feather name="lock" size={18} color={Colors.emeraldPrimary} />
+            <Feather name="lock" size={18} color={currentTheme.primary} />
             <View style={{ flex: 1 }}>
-              <Text style={[Typography.titleSm, { color: Colors.textPrimary }]}>
+              <Text style={[Typography.titleSm, { color: currentTheme.textPrimary }]}>
                 Offline Cryptographic Stamp
               </Text>
-              <Text style={[Typography.bodySm, { color: Colors.textMuted, marginTop: 2 }]}>
-                Digital credentials are stored locally on your device for fast gate pass verification.
+              <Text style={[Typography.bodySm, { color: currentTheme.textMuted, marginTop: 2 }]}>
+                Credentials and photos are securely cached locally on your device for rapid gate pass verification.
               </Text>
             </View>
           </View>
         </EmeraldGlassCard>
       </ScrollView>
+
+      {/* FULLSCREEN PREVIEW MODAL (With Portrait / Landscape & Front / Back Controls) */}
+      <Modal visible={isFullscreenPreview} transparent animationType="fade">
+        <View style={styles.fullscreenModalOverlay}>
+          {/* Header Controls */}
+          <View style={styles.fullscreenHeaderRow}>
+            <TouchableOpacity
+              style={styles.fullscreenControlBtn}
+              onPress={() => setIsFullscreenPreview(false)}
+            >
+              <Feather name="x" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.fullscreenControlsGroup}>
+              {/* Flip Side */}
+              <TouchableOpacity
+                style={styles.fullscreenControlPill}
+                onPress={() => {
+                  triggerHapticFeedback('selection');
+                  setIsBackSide(!isBackSide);
+                }}
+              >
+                <Feather name="repeat" size={14} color="#FFFFFF" />
+                <Text style={styles.fullscreenControlText}>
+                  {isBackSide ? 'Back' : 'Front'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Toggle Portrait / Landscape */}
+              <TouchableOpacity
+                style={styles.fullscreenControlPill}
+                onPress={() => {
+                  triggerHapticFeedback('selection');
+                  setFullscreenOrientation(fullscreenOrientation === 'portrait' ? 'landscape' : 'portrait');
+                }}
+              >
+                <Feather name="rotate-cw" size={14} color="#FFFFFF" />
+                <Text style={styles.fullscreenControlText}>
+                  {fullscreenOrientation === 'landscape' ? 'Landscape' : 'Portrait'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Fullscreen Card Container */}
+          <View style={styles.fullscreenCardWrapper}>
+            <View
+              style={[
+                styles.fullscreenCardInner,
+                fullscreenOrientation === 'landscape' && styles.fullscreenCardLandscape,
+              ]}
+            >
+              {currentImageUri ? (
+                <Image
+                  source={{ uri: currentImageUri }}
+                  style={styles.fullscreenCardImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.fullscreenFallbackNotice}>
+                  <Text style={[styles.collegeName, { color: '#FFFFFF', fontSize: 16 }]}>
+                    {profile.college || 'National Institute of Technology'}
+                  </Text>
+                  <Text style={{ color: currentTheme.primary, fontSize: 14, fontWeight: '700', marginTop: 4 }}>
+                    {profile.name} • {profile.rollNumber}
+                  </Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
+                    {profile.course} • {profile.semester}
+                  </Text>
+                  <Text style={{ color: '#64748B', fontSize: 11, marginTop: 12 }}>
+                    {isBackSide ? 'Back Side • Scan for Verification' : 'Front Side • Student Identity'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -191,7 +557,6 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgBase,
   },
   headerBar: {
     flexDirection: 'row',
@@ -199,39 +564,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 42,
     paddingBottom: 12,
-    backgroundColor: '#0A0E0C',
     borderBottomWidth: 0.6,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     gap: 12,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#131714',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    color: Colors.textPrimary,
-  },
   headerSubtitle: {
-    color: Colors.textMuted,
     fontSize: 11,
   },
   toggleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#121614',
-    borderWidth: 0.8,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 0.8,
   },
-  toggleBtnActive: {
-    borderColor: Colors.emeraldPrimary,
-    backgroundColor: 'rgba(0, 230, 118, 0.15)',
+  toggleBtnLabel: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   scrollArea: {
     flex: 1,
@@ -243,11 +600,9 @@ const styles = StyleSheet.create({
   },
   tabPillRow: {
     flexDirection: 'row',
-    backgroundColor: '#0F1210',
     borderRadius: 12,
     padding: 4,
     borderWidth: 0.6,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   tabPill: {
     flex: 1,
@@ -255,41 +610,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  tabPillActive: {
-    backgroundColor: 'rgba(0, 230, 118, 0.18)',
-  },
+  tabPillActive: {},
   tabPillText: {
-    color: Colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   tabPillTextActive: {
-    color: Colors.textPrimary,
     fontWeight: '700',
   },
   cardOuter: {
     borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#0B0F0D',
     minHeight: 280,
+    borderWidth: 1.2,
   },
   cardOuterLandscape: {
-    minHeight: 230,
+    minHeight: 220,
+    aspectRatio: 1.586,
   },
-  cardBorder: {
+  uploadedCardContainer: {
+    flex: 1,
+    minHeight: 260,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  uploadedCardImage: {
+    width: '100%',
+    height: '100%',
+    minHeight: 260,
+  },
+  uploadedBadge: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 230, 118, 0.35)',
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 0.8,
+  },
+  uploadedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   cardInnerFront: {
     padding: 18,
     gap: 16,
+  },
+  cardInnerFrontLandscape: {
+    padding: 14,
+    gap: 10,
   },
   cardInnerBack: {
     padding: 20,
@@ -311,32 +684,25 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(0, 230, 118, 0.25)',
     borderWidth: 1,
-    borderColor: Colors.emeraldPrimary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   collegeName: {
-    color: Colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   appNicknameTag: {
-    color: Colors.emeraldHighlight,
     fontSize: 10,
     fontWeight: '600',
   },
   validityBadge: {
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 4,
     borderWidth: 0.5,
-    borderColor: Colors.emeraldPrimary,
   },
   validityText: {
-    color: Colors.emeraldPrimary,
     fontSize: 9,
     fontWeight: '800',
   },
@@ -345,14 +711,20 @@ const styles = StyleSheet.create({
     gap: 14,
     alignItems: 'center',
   },
+  studentDetailsRowLandscape: {
+    gap: 10,
+  },
   photoContainer: {
     width: 78,
     height: 94,
     borderRadius: 10,
     borderWidth: 1.2,
-    borderColor: 'rgba(0, 230, 118, 0.45)',
     overflow: 'hidden',
     position: 'relative',
+  },
+  photoAvatar: {
+    width: '100%',
+    height: '100%',
   },
   photoInner: {
     flex: 1,
@@ -366,17 +738,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.emeraldPrimary,
   },
   infoCol: {
     flex: 1,
     gap: 3,
   },
-  studentNameText: {
-    color: Colors.textPrimary,
-  },
   rollNumberText: {
-    color: Colors.textSecondary,
     fontSize: 12,
   },
   detailPair: {
@@ -384,12 +751,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   detailLabel: {
-    color: Colors.textMuted,
     fontSize: 11,
     width: 60,
   },
   detailVal: {
-    color: Colors.textPrimary,
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
@@ -399,40 +764,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 0.6,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: 10,
   },
   barcodeBox: {
     gap: 2,
   },
   barcodeLines: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     fontSize: 13,
     fontWeight: '900',
   },
   barcodeId: {
-    color: Colors.textMuted,
     fontSize: 9,
   },
   hologramStamp: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 0.6,
-    borderColor: Colors.emeraldPrimary,
   },
   hologramText: {
-    color: Colors.emeraldPrimary,
     fontSize: 9,
     fontWeight: '800',
   },
   backClauseText: {
-    color: Colors.textSecondary,
     fontSize: 11,
     lineHeight: 16,
     textAlign: 'center',
@@ -441,19 +799,162 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 8,
-    backgroundColor: '#121614',
     padding: 12,
     borderRadius: 10,
     borderWidth: 0.6,
-    borderColor: 'rgba(0, 230, 118, 0.25)',
   },
   qrCodeHint: {
-    color: Colors.textMuted,
     fontSize: 10,
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  previewActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 0.8,
+  },
+  previewActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  uploadSectionCard: {
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 0.8,
+    gap: 10,
+  },
+  uploadSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  uploadSectionSub: {
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  uploadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 0.6,
+  },
+  uploadLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  uploadStatus: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  uploadBtnGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  uploadBtnText: {
+    color: '#050907',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   secureNoticeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  fullscreenModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.94)',
+    padding: 16,
+    justifyContent: 'center',
+  },
+  fullscreenHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 36,
+    paddingBottom: 20,
+  },
+  fullscreenControlBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenControlsGroup: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  fullscreenControlPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  fullscreenControlText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  fullscreenCardWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenCardInner: {
+    width: '100%',
+    aspectRatio: 1,
+    maxWidth: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenCardLandscape: {
+    width: '100%',
+    aspectRatio: 1.586,
+    transform: [{ rotate: '0deg' }],
+  },
+  fullscreenCardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  fullscreenFallbackNotice: {
+    padding: 24,
+    backgroundColor: '#0F1511',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    width: '90%',
   },
 });

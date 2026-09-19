@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '../../theme/colors';
 import { Spacing } from '../../theme/spacing';
+import { useCampus } from '../../context/CampusContext';
 
 interface EmeraldGlassCardProps {
   children: React.ReactNode;
@@ -21,25 +21,33 @@ export const EmeraldGlassCard: React.FC<EmeraldGlassCardProps> = ({
   statusVariant = 'emerald',
   noPadding = false,
 }) => {
+  const { currentTheme } = useCampus();
+
   const getGlowColor = () => {
     switch (statusVariant) {
       case 'rose':
-        return 'rgba(255, 82, 82, 0.12)';
+        return 'rgba(255, 82, 82, 0.14)';
       case 'amber':
-        return 'rgba(255, 171, 64, 0.10)';
+        return 'rgba(255, 171, 64, 0.12)';
       case 'neutral':
-        return 'rgba(255, 255, 255, 0.04)';
+        return currentTheme.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)';
       case 'emerald':
       default:
-        return 'rgba(0, 230, 118, 0.10)';
+        return currentTheme.glowColor;
     }
   };
 
   const content = (
-    <View style={[styles.cardContainer, style]}>
-      {/* Base Dark Charcoal Gradient - Zero Green base tint */}
+    <View
+      style={[
+        styles.cardContainer,
+        { backgroundColor: currentTheme.bgCard },
+        style,
+      ]}
+    >
+      {/* Theme Card Surface Gradient */}
       <LinearGradient
-        colors={[Colors.bgCard, Colors.bgCardSecondary, Colors.bgCard]}
+        colors={[currentTheme.bgCard, currentTheme.bgCardSecondary, currentTheme.bgCard]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -53,8 +61,8 @@ export const EmeraldGlassCard: React.FC<EmeraldGlassCardProps> = ({
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Subtle Border Overlay */}
-      <View style={styles.borderOverlay} />
+      {/* Theme Glass Border Overlay */}
+      <View style={[styles.borderOverlay, { borderColor: currentTheme.borderGlass }]} />
 
       {/* Inner Content */}
       <View style={[styles.innerContent, noPadding && styles.zeroPadding]}>
@@ -84,7 +92,6 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.cardRadius,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: Colors.bgCard,
   },
   borderOverlay: {
     position: 'absolute',
@@ -93,8 +100,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: Spacing.cardRadius,
-    borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 0.8,
   },
   innerContent: {
     padding: Spacing.space4,

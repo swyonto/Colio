@@ -21,12 +21,15 @@ import {
   initialHolidays,
   initialProfile,
 } from '../data/initialData';
+import { LayoutAnimation } from 'react-native';
 import { triggerHapticFeedback } from '../utils/haptics';
+import { AppThemeKey, Themes, ThemeColors, applyTheme } from '../theme/colors';
 
 interface CampusContextType {
   // Tabs & Navigation
   activeTab: TabKey;
   setActiveTab: (tab: TabKey) => void;
+  isLoading: boolean;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   isSearchExpanded: boolean;
@@ -42,6 +45,7 @@ interface CampusContextType {
   classesCanMiss: number;
   classesNeeded: number;
   attendanceCriteria: number;
+  setAttendanceCriteria: (criteria: number) => void;
 
   // Timetable
   timetable: TimetableSlot[];
@@ -79,9 +83,16 @@ interface CampusContextType {
   addHoliday: (name: string, date: string, type: 'HOLIDAY' | 'DUTY_LEAVE') => void;
   deleteHoliday: (id: string) => void;
 
-  // Profile
+  // Profile & Preferences
   profile: StudentProfile;
   updateProfile: (profile: Partial<StudentProfile>) => void;
+  appTheme: AppThemeKey;
+  setAppTheme: (theme: AppThemeKey) => void;
+  currentTheme: ThemeColors;
+  classRemindersEnabled: boolean;
+  setClassRemindersEnabled: (enabled: boolean) => void;
+  hapticsEnabled: boolean;
+  setHapticsEnabled: (enabled: boolean) => void;
 }
 
 const CampusContext = createContext<CampusContextType | undefined>(undefined);
@@ -95,10 +106,15 @@ const STORAGE_KEYS = {
   PROFILE: '@campusos_profile_v2',
   DOCUMENTS: '@campusos_documents_v2',
   HOLIDAYS: '@campusos_holidays_v2',
+  ATTENDANCE_CRITERIA: '@campusos_attendance_criteria_v2',
+  APP_THEME: '@campusos_app_theme_v2',
+  CLASS_REMINDERS: '@campusos_class_reminders_v2',
+  HAPTICS: '@campusos_haptics_v2',
 };
 
 export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTabState] = useState<TabKey>('home');
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
@@ -112,21 +128,70 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [profile, setProfile] = useState<StudentProfile>(initialProfile);
 
+  // Dynamic Preferences
+  const [attendanceCriteria, setAttendanceCriteriaState] = useState<number>(68);
+  const [appTheme, setAppThemeState] = useState<AppThemeKey>('dark-emerald');
+  const [classRemindersEnabled, setClassRemindersEnabledState] = useState(true);
+  const [hapticsEnabled, setHapticsEnabledState] = useState(true);
+
+  const currentTheme = Themes[appTheme] || Themes['dark-emerald'];
+
+  const setAttendanceCriteria = (criteria: number) => {
+    triggerHapticFeedback('selection');
+    setAttendanceCriteriaState(criteria);
+    AsyncStorage.setItem(STORAGE_KEYS.ATTENDANCE_CRITERIA, String(criteria)).catch(() => {});
+  };
+
+  const setAppTheme = (theme: AppThemeKey) => {
+    triggerHapticFeedback('selection');
+    applyTheme(theme);
+    setAppThemeState(theme);
+    AsyncStorage.setItem(STORAGE_KEYS.APP_THEME, theme).catch(() => {});
+  };
+
+  const setClassRemindersEnabled = (enabled: boolean) => {
+    triggerHapticFeedback('selection');
+    setClassRemindersEnabledState(enabled);
+    AsyncStorage.setItem(STORAGE_KEYS.CLASS_REMINDERS, String(enabled)).catch(() => {});
+  };
+
+  const setHapticsEnabled = (enabled: boolean) => {
+    triggerHapticFeedback('selection');
+    setHapticsEnabledState(enabled);
+    AsyncStorage.setItem(STORAGE_KEYS.HAPTICS, String(enabled)).catch(() => {});
+  };
+
   // Load persisted data on mount
   useEffect(() => {
     (async () => {
       try {
-        const [savedSubjects, savedTasks, savedExpenses, savedPresets, savedMode, savedProfile, savedDocs, savedHols] =
-          await Promise.all([
-            AsyncStorage.getItem(STORAGE_KEYS.SUBJECTS),
-            AsyncStorage.getItem(STORAGE_KEYS.TASKS),
-            AsyncStorage.getItem(STORAGE_KEYS.EXPENSES),
-            AsyncStorage.getItem(STORAGE_KEYS.PRESETS),
-            AsyncStorage.getItem(STORAGE_KEYS.TIMETABLE_MODE),
-            AsyncStorage.getItem(STORAGE_KEYS.PROFILE),
-            AsyncStorage.getItem(STORAGE_KEYS.DOCUMENTS),
-            AsyncStorage.getItem(STORAGE_KEYS.HOLIDAYS),
-          ]);
+        const [
+          savedSubjects,
+          savedTasks,
+          savedExpenses,
+          savedPresets,
+          savedMode,
+          savedProfile,
+          savedDocs,
+          savedHols,
+          savedCriteria,
+          savedTheme,
+          savedReminders,
+          savedHaptics,
+        ] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.SUBJECTS),
+          AsyncStorage.getItem(STORAGE_KEYS.TASKS),
+          AsyncStorage.getItem(STORAGE_KEYS.EXPENSES),
+          AsyncStorage.getItem(STORAGE_KEYS.PRESETS),
+          AsyncStorage.getItem(STORAGE_KEYS.TIMETABLE_MODE),
+          AsyncStorage.getItem(STORAGE_KEYS.PROFILE),
+          AsyncStorage.getItem(STORAGE_KEYS.DOCUMENTS),
+          AsyncStorage.getItem(STORAGE_KEYS.HOLIDAYS),
+          AsyncStorage.getItem(STORAGE_KEYS.ATTENDANCE_CRITERIA),
+          AsyncStorage.getItem(STORAGE_KEYS.APP_THEME),
+          AsyncStorage.getItem(STORAGE_KEYS.CLASS_REMINDERS),
+          AsyncStorage.getItem(STORAGE_KEYS.HAPTICS),
+        ]);
 
         if (savedSubjects) setSubjects(JSON.parse(savedSubjects));
         if (savedTasks) setTasks(JSON.parse(savedTasks));
@@ -136,8 +201,19 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (savedProfile) setProfile(JSON.parse(savedProfile));
         if (savedDocs) setDocuments(JSON.parse(savedDocs));
         if (savedHols) setHolidays(JSON.parse(savedHols));
+        if (savedCriteria) setAttendanceCriteriaState(parseInt(savedCriteria, 10));
+        if (savedTheme && Themes[savedTheme as AppThemeKey]) {
+          applyTheme(savedTheme as AppThemeKey);
+          setAppThemeState(savedTheme as AppThemeKey);
+        } else {
+          applyTheme('dark-emerald');
+        }
+        if (savedReminders !== null) setClassRemindersEnabledState(savedReminders === 'true');
+        if (savedHaptics !== null) setHapticsEnabledState(savedHaptics === 'true');
       } catch (err) {
         console.warn('Error restoring storage:', err);
+      } finally {
+        setIsLoading(false);
       }
     })();
   }, []);
@@ -153,17 +229,14 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     AsyncStorage.setItem(STORAGE_KEYS.TIMETABLE_MODE, mode).catch(() => {});
   };
 
-  // --- Attendance Calculations (68% Criteria requested) ---
-  const ATTENDANCE_CRITERIA_RATIO = 0.68;
-  const attendanceCriteria = 68;
+  // --- Dynamic Attendance Calculations (Based on current attendanceCriteria) ---
+  const ATTENDANCE_CRITERIA_RATIO = attendanceCriteria / 100;
   const totalPresent = subjects.reduce((sum, s) => sum + s.present, 0);
   const totalAbsent = subjects.reduce((sum, s) => sum + s.absent, 0);
   const totalClasses = totalPresent + totalAbsent;
   const overallAttendance = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 100;
 
-  // Classes can miss vs needed for 68%
-  // canMiss = floor((present - 0.68 * total) / 0.68)
-  // needed = ceil((0.68 * total - present) / (1 - 0.68))
+  // Classes can miss vs needed for attendanceCriteria
   const classesCanMiss = Math.max(0, Math.floor((totalPresent - ATTENDANCE_CRITERIA_RATIO * totalClasses) / ATTENDANCE_CRITERIA_RATIO));
   const classesNeeded = Math.max(0, Math.ceil((ATTENDANCE_CRITERIA_RATIO * totalClasses - totalPresent) / (1 - ATTENDANCE_CRITERIA_RATIO)));
 
@@ -200,18 +273,17 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     .filter((slot) => slot.dayOfWeek === dayKey)
     .sort((a, b) => a.period - b.period);
 
-  // --- Tasks Logic (Section 6: Checkbox strike-through, 55% dim, sink to bottom) ---
+  // --- Tasks Logic (Sorting completed tasks to bottom) ---
   const toggleTask = (taskId: string) => {
     triggerHapticFeedback('selection');
     setTasks((prev) => {
       const updated = prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t));
-      // Sort completed items to the bottom
-      updated.sort((a, b) => {
+      const sorted = [...updated].sort((a, b) => {
         if (a.completed === b.completed) return 0;
         return a.completed ? 1 : -1;
       });
-      AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated)).catch(() => {});
-      return updated;
+      AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(sorted)).catch(() => {});
+      return sorted;
     });
   };
 
@@ -232,6 +304,9 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       completed: false,
       subjectId,
     };
+    try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {}
     setTasks((prev) => {
       const updated = [newTask, ...prev];
       AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated)).catch(() => {});
@@ -241,6 +316,9 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deleteTask = (taskId: string) => {
     triggerHapticFeedback('medium');
+    try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {}
     setTasks((prev) => {
       const updated = prev.filter((t) => t.id !== taskId);
       AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated)).catch(() => {});
@@ -253,8 +331,11 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // --- Expenses Logic ---
   const addExpense = (exp: Omit<Expense, 'id'>) => {
     triggerHapticFeedback('success');
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     const newExpense: Expense = {
       ...exp,
+      time: exp.time || formattedTime,
       id: `exp-${Date.now()}`,
     };
     setExpenses((prev) => {
@@ -389,6 +470,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         activeTab,
         setActiveTab,
+        isLoading,
         searchQuery,
         setSearchQuery,
         isSearchExpanded,
@@ -430,6 +512,14 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteHoliday,
         profile,
         updateProfile,
+        setAttendanceCriteria,
+        appTheme,
+        setAppTheme,
+        currentTheme,
+        classRemindersEnabled,
+        setClassRemindersEnabled,
+        hapticsEnabled,
+        setHapticsEnabled,
       }}
     >
       {children}

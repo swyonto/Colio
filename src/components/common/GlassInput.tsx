@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
-import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
+import { useCampus } from '../../context/CampusContext';
 
 interface GlassInputProps extends TextInputProps {
   label: string;
@@ -14,22 +14,26 @@ export const GlassInput: React.FC<GlassInputProps> = ({
   style,
   ...props
 }) => {
+  const { currentTheme } = useCampus();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={styles.container}>
-      <Text style={[Typography.labelSm, styles.label]}>{label}</Text>
+      <Text style={[Typography.labelSm, styles.label, { color: currentTheme.textMuted }]}>{label}</Text>
       <View
         style={[
           styles.inputWrapper,
-          isFocused && styles.focusedBorder,
+          {
+            backgroundColor: isFocused ? currentTheme.bgElevated : currentTheme.bgInner,
+            borderColor: isFocused ? currentTheme.primary : currentTheme.borderGlass,
+          },
           Boolean(error) && styles.errorBorder,
         ]}
       >
         <TextInput
-          style={[styles.input, style]}
-          placeholderTextColor={Colors.textDisabled}
-          selectionColor={Colors.emeraldPrimary}
+          style={[styles.input, { color: currentTheme.textPrimary }, style]}
+          placeholderTextColor={currentTheme.textDisabled}
+          selectionColor={currentTheme.primary}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...props}
@@ -45,33 +49,25 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
   label: {
-    color: Colors.textMuted,
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   inputWrapper: {
-    backgroundColor: '#0F1310',
     borderRadius: 12,
     borderWidth: 0.8,
-    borderColor: 'rgba(0, 230, 118, 0.20)',
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  focusedBorder: {
-    borderColor: Colors.emeraldPrimary,
-    backgroundColor: '#111713',
-  },
   errorBorder: {
-    borderColor: Colors.statusAbsent,
+    borderColor: '#FF5252',
   },
   input: {
-    color: Colors.textPrimary,
     fontSize: 14,
     padding: 0,
   },
   errorText: {
-    color: Colors.statusAbsent,
+    color: '#FF5252',
     fontSize: 11,
     marginTop: 4,
   },

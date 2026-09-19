@@ -42,6 +42,7 @@ export interface Expense {
   amount: number;
   category: ExpenseCategory;
   timeOfDay: TimeOfDay;
+  time?: string; // e.g. "01:30 PM"
   date: string; // ISO format: YYYY-MM-DD
   icon?: string;
 }
@@ -80,6 +81,8 @@ export interface StudentProfile {
   semester: string;
   college: string;
   avatarUri?: string;
+  idCardFrontUri?: string;
+  idCardBackUri?: string;
 }
 
 export type TabKey = 'home' | 'attend' | 'timetable' | 'expenses' | 'more';

@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EmeraldGlassCard } from '../common/EmeraldGlassCard';
-import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useCampus } from '../../context/CampusContext';
 import { TimetableSlot } from '../../types/campus';
@@ -16,7 +15,7 @@ interface TimetableSummaryCardProps {
 const STORAGE_KEY_CANCELLED = '@colio_cancelled_classes_v1';
 
 export const TimetableSummaryCard: React.FC<TimetableSummaryCardProps> = ({ onNavigateToTimetable }) => {
-  const { todayClasses, subjects, adjustSubjectAttendance } = useCampus();
+  const { todayClasses, subjects, adjustSubjectAttendance, currentTheme } = useCampus();
   const [cancelledSlotIds, setCancelledSlotIds] = useState<string[]>([]);
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState<number>(() => {
     const now = new Date();
@@ -57,7 +56,7 @@ export const TimetableSummaryCard: React.FC<TimetableSummaryCardProps> = ({ onNa
     return subjects.find((s) => s.id === subjectId) || {
       name: 'Class Session',
       code: 'CLASS',
-      color: Colors.emeraldPrimary,
+      color: currentTheme.primary,
       room: 'TBA',
       teacher: 'Faculty',
     };
@@ -98,34 +97,41 @@ export const TimetableSummaryCard: React.FC<TimetableSummaryCardProps> = ({ onNa
   });
 
   const startIndex = activeIndex >= 0 ? Math.max(0, activeIndex) : 0;
-  const previewSlots = todayClasses.slice(startIndex, startIndex + 3);
+  const displaySlots = todayClasses.slice(startIndex, startIndex + 3);
 
-  // Fallback to first 3 if all slots are done or empty
-  const displaySlots = previewSlots.length > 0 ? previewSlots : todayClasses.slice(0, 3);
+  const handleMarkAttendance = (subjectId: string, type: 'present' | 'absent') => {
+    triggerHapticFeedback('light');
+    adjustSubjectAttendance(subjectId, type === 'present' ? 1 : 0, type === 'absent' ? 1 : 0);
+  };
 
   return (
     <EmeraldGlassCard onPress={onNavigateToTimetable}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.titleGroup}>
-          <View style={styles.iconCircle}>
-            <Feather name="calendar" size={17} color={Colors.emeraldPrimary} />
+          <View style={[styles.iconCircle, { backgroundColor: currentTheme.primary + '18' }]}>
+            <Feather name="calendar" size={16} color={currentTheme.primary} />
           </View>
-          <Text style={[Typography.titleMd, styles.cardTitle]}>Today's Schedule</Text>
-          <View style={styles.todayCountPill}>
-            <Text style={styles.todayCountText}>{todayClasses.length} Classes</Text>
+          <Text style={[Typography.titleMd, { color: currentTheme.textPrimary }]}>Today's Schedule</Text>
+          <View style={[styles.todayCountPill, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}>
+            <Text style={[styles.todayCountText, { color: currentTheme.textMuted }]}>
+              {todayClasses.length} {todayClasses.length === 1 ? 'Period' : 'Periods'}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.arrowCircle}>
-          <Feather name="arrow-up-right" size={16} color={Colors.emeraldPrimary} />
+        <View style={[styles.arrowCircle, { backgroundColor: currentTheme.primary + '14' }]}>
+          <Feather name="arrow-up-right" size={16} color={currentTheme.primary} />
         </View>
       </View>
 
-      {/* Classes List */}
+      {/* Class Slots */}
       {displaySlots.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No classes scheduled for today! 🎉</Text>
+          <Feather name="coffee" size={24} color={currentTheme.textMuted} />
+          <Text style={[Typography.bodyMd, styles.emptyText, { color: currentTheme.textMuted }]}>
+            No more classes scheduled for today!
+          </Text>
         </View>
       ) : (
         <View style={styles.classesList}>
@@ -133,144 +139,122 @@ export const TimetableSummaryCard: React.FC<TimetableSummaryCardProps> = ({ onNa
             const subj = getSubject(slot.subjectId);
             const timing = getSlotTiming(slot);
             const isCancelled = cancelledSlotIds.includes(slot.id);
+            const isLive = timing.status === 'NOW' && !isCancelled;
 
             return (
               <View
                 key={slot.id}
                 style={[
                   styles.classItemContainer,
+                  {
+                    backgroundColor: isLive ? currentTheme.bgCardSecondary : currentTheme.bgInner,
+                    borderColor: isLive ? currentTheme.primary + '60' : currentTheme.borderGlass,
+                  },
                   isCancelled && styles.classItemCancelled,
-                  timing.status === 'NOW' && !isCancelled && styles.classItemActive,
                 ]}
               >
-                {/* 3.5dp Left Color Stripe */}
-                <View
-                  style={[
-                    styles.colorStripe,
-                    { backgroundColor: isCancelled ? Colors.textDisabled : subj.color },
-                  ]}
-                />
+                {/* Subject Color Stripe Indicator */}
+                <View style={[styles.colorStripe, { backgroundColor: isCancelled ? '#FF5252' : subj.color }]} />
 
                 <View style={styles.classItemContent}>
-                  {/* Top Line: Time + Period Badge + Real Timing Indicator */}
+                  {/* Top: Time and Timing Status Badge */}
                   <View style={styles.slotTopRow}>
-                    <Text style={[Typography.labelSm, styles.timeText, isCancelled && styles.textStriked]}>
-                      {slot.startTime} – {slot.endTime} • Period {slot.period}
+                    <Text
+                      style={[
+                        Typography.labelSm,
+                        styles.timeText,
+                        { color: currentTheme.textMuted },
+                        isCancelled && styles.textStriked,
+                      ]}
+                    >
+                      {slot.startTime} – {slot.endTime}
                     </Text>
 
-                    {/* Edge Case: Cancelled Badge or Real-Time Indicator */}
                     {isCancelled ? (
                       <View style={styles.cancelledBadge}>
-                        <Feather name="slash" size={9} color={Colors.statusAbsent} />
-                        <Text style={styles.cancelledBadgeText}>CANCELLED</Text>
+                        <Text style={styles.cancelledText}>CANCELLED</Text>
                       </View>
-                    ) : (
-                      <>
-                        {timing.status === 'NOW' && (
-                          <View style={styles.nowBadge}>
-                            <View style={styles.livePulseDot} />
-                            <Text style={styles.nowBadgeText}>NOW</Text>
-                          </View>
-                        )}
-                        {timing.status === 'NEXT' && (
-                          <View style={styles.nextBadge}>
-                            <Text style={styles.nextBadgeText}>{timing.label}</Text>
-                          </View>
-                        )}
-                        {timing.status === 'SOON' && (
-                          <View style={styles.soonBadge}>
-                            <Text style={styles.soonBadgeText}>{timing.label}</Text>
-                          </View>
-                        )}
-                        {timing.status === 'COMPLETED' && (
-                          <View style={styles.completedBadge}>
-                            <Feather name="check" size={10} color={Colors.textMuted} />
-                            <Text style={styles.completedBadgeText}>DONE</Text>
-                          </View>
-                        )}
-                      </>
-                    )}
+                    ) : isLive ? (
+                      <View style={[styles.nowBadge, { backgroundColor: currentTheme.primary + '22', borderColor: currentTheme.primary }]}>
+                        <View style={[styles.livePulseDot, { backgroundColor: currentTheme.primary }]} />
+                        <Text style={[styles.nowBadgeText, { color: currentTheme.primary }]}>IN PROGRESS</Text>
+                      </View>
+                    ) : timing.status === 'NEXT' ? (
+                      <View style={[styles.nextBadge, { backgroundColor: currentTheme.primary + '15', borderColor: currentTheme.primary + '40' }]}>
+                        <Text style={[styles.nextBadgeText, { color: currentTheme.primary }]}>{timing.label}</Text>
+                      </View>
+                    ) : null}
                   </View>
 
-                  {/* Middle Line: Subject Title & Code */}
+                  {/* Middle: Subject Code & Name */}
                   <View style={styles.slotNameRow}>
+                    <View
+                      style={[
+                        styles.codeBadge,
+                        {
+                          backgroundColor: `${subj.color}20`,
+                          borderColor: `${subj.color}45`,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.codeBadgeText, { color: subj.color }]}>
+                        {subj.code}
+                      </Text>
+                    </View>
+
                     <Text
                       style={[
                         Typography.titleSm,
                         styles.subjectName,
-                        isCancelled && styles.subjectCancelledText,
+                        { color: currentTheme.textPrimary },
+                        isCancelled && styles.textStriked,
                       ]}
                       numberOfLines={1}
                     >
                       {subj.name}
                     </Text>
-                    <View
-                      style={[
-                        styles.codeBadge,
-                        { borderColor: isCancelled ? 'rgba(255, 255, 255, 0.1)' : `${subj.color}40` },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.codeBadgeText,
-                          { color: isCancelled ? Colors.textMuted : subj.color },
-                        ]}
-                      >
-                        {subj.code}
-                      </Text>
+
+                    {/* Room Indicator on Top Right */}
+                    <View style={styles.topRightGroup}>
+                      <View style={[styles.roomPill, { backgroundColor: currentTheme.primary + '15', borderColor: currentTheme.primary + '35' }]}>
+                        <MaterialIcons name="meeting-room" size={10} color={currentTheme.primary} />
+                        <Text style={[styles.roomText, { color: currentTheme.primary }]}>{slot.room}</Text>
+                      </View>
                     </View>
                   </View>
 
-                  {/* Bottom Line: Room, Teacher & Edge Case Action / Attendance Buttons */}
+                  {/* Bottom: Faculty & Quick Attendance Buttons */}
                   <View style={styles.slotBottomRow}>
-                    <View style={styles.detailsGroup}>
-                      <View style={styles.roomPill}>
-                        <Feather name="map-pin" size={11} color={Colors.textMuted} />
-                        <Text style={styles.roomText}>{slot.room || subj.room}</Text>
-                      </View>
-                      <Text style={styles.teacherText} numberOfLines={1}>
-                        {slot.teacher || subj.teacher}
+                    <View style={styles.teacherGroup}>
+                      <Feather name="user" size={11} color={currentTheme.textMuted} />
+                      <Text style={[styles.teacherText, { color: currentTheme.textMuted }]} numberOfLines={1}>
+                        {slot.teacher}
                       </Text>
                     </View>
 
-                    {/* Actions: If cancelled, provide safe Undo; otherwise Quick Mark + Cancel toggle */}
-                    {isCancelled ? (
-                      <TouchableOpacity
-                        style={styles.undoCancelBtn}
-                        onPress={() => toggleCancelClass(slot.id)}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Feather name="rotate-ccw" size={11} color={Colors.textSecondary} />
-                        <Text style={styles.undoCancelText}>Restore</Text>
-                      </TouchableOpacity>
-                    ) : (
+                    {/* Quick Attendance Logging Actions */}
+                    {!isCancelled && (
                       <View style={styles.actionButtons}>
-                        {/* Attendance Buttons: safe from penalty */}
                         <TouchableOpacity
-                          style={styles.markPresentBtn}
-                          onPress={() => adjustSubjectAttendance(slot.subjectId, 1, 0)}
+                          style={[styles.markPresentBtn, { backgroundColor: currentTheme.statusPresentBg, borderColor: currentTheme.primary + '40' }]}
+                          onPress={() => handleMarkAttendance(subj.id, 'present')}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
-                          <MaterialIcons name="check" size={13} color={Colors.statusPresent} />
-                          <Text style={styles.markPresentText}>Present</Text>
+                          <Feather name="check" size={11} color={currentTheme.statusPresent} />
+                          <Text style={[styles.actionBtnText, { color: currentTheme.statusPresent }]}>
+                            Present
+                          </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                           style={styles.markAbsentBtn}
-                          onPress={() => adjustSubjectAttendance(slot.subjectId, 0, 1)}
+                          onPress={() => handleMarkAttendance(subj.id, 'absent')}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
-                          <MaterialIcons name="close" size={13} color={Colors.statusAbsent} />
-                          <Text style={styles.markAbsentText}>Absent</Text>
-                        </TouchableOpacity>
-
-                        {/* Edge Case Toggle: Cancel Class */}
-                        <TouchableOpacity
-                          style={styles.cancelClassIconBtn}
-                          onPress={() => toggleCancelClass(slot.id)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        >
-                          <Feather name="slash" size={12} color={Colors.textMuted} />
+                          <Feather name="x" size={11} color="#FF5252" />
+                          <Text style={[styles.actionBtnText, { color: '#FF5252' }]}>
+                            Absent
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -301,31 +285,23 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardTitle: {
-    color: Colors.textPrimary,
-  },
   todayCountPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   todayCountText: {
     fontSize: 10,
-    color: Colors.textMuted,
     fontWeight: '600',
   },
   arrowCircle: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: 'rgba(0, 230, 118, 0.10)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -334,15 +310,9 @@ const styles = StyleSheet.create({
   },
   classItemContainer: {
     flexDirection: 'row',
-    backgroundColor: '#0C0F0D',
     borderRadius: 12,
     borderWidth: 0.6,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
     overflow: 'hidden',
-  },
-  classItemActive: {
-    borderColor: 'rgba(0, 230, 118, 0.45)',
-    backgroundColor: '#0E1310',
   },
   classItemCancelled: {
     opacity: 0.7,
@@ -362,7 +332,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeText: {
-    color: Colors.textMuted,
+    fontSize: 11,
   },
   textStriked: {
     textDecorationLine: 'line-through',
@@ -371,9 +341,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0, 230, 118, 0.20)',
     borderWidth: 0.5,
-    borderColor: Colors.emeraldPrimary,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
@@ -382,104 +350,31 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: Colors.emeraldPrimary,
   },
   nowBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: Colors.emeraldPrimary,
-    letterSpacing: 0.5,
   },
   nextBadge: {
-    backgroundColor: 'rgba(0, 176, 255, 0.15)',
-    borderWidth: 0.5,
-    borderColor: '#00B0FF',
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
+    borderWidth: 0.5,
   },
   nextBadgeText: {
     fontSize: 9,
-    fontWeight: '800',
-    color: '#00B0FF',
-    letterSpacing: 0.5,
-  },
-  soonBadge: {
-    backgroundColor: 'rgba(255, 171, 64, 0.15)',
-    borderWidth: 0.5,
-    borderColor: '#FFAB40',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  soonBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FFAB40',
-    letterSpacing: 0.5,
-  },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  completedBadgeText: {
-    fontSize: 9,
     fontWeight: '700',
-    color: Colors.textMuted,
   },
   cancelledBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(255, 82, 82, 0.18)',
-    borderWidth: 0.6,
-    borderColor: 'rgba(255, 82, 82, 0.40)',
+    backgroundColor: 'rgba(255, 82, 82, 0.15)',
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
   },
-  cancelledBadgeText: {
+  cancelledText: {
     fontSize: 9,
-    fontWeight: '800',
-    color: Colors.statusAbsent,
-    letterSpacing: 0.5,
-  },
-  subjectCancelledText: {
-    textDecorationLine: 'line-through',
-    color: Colors.textDisabled,
-  },
-  undoCancelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  undoCancelText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  cancelClassIconBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    color: '#FF5252',
+    fontWeight: '700',
   },
   slotNameRow: {
     flexDirection: 'row',
@@ -487,7 +382,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   subjectName: {
-    color: Colors.textPrimary,
     flex: 1,
   },
   codeBadge: {
@@ -500,36 +394,39 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  topRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   slotBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
-  detailsGroup: {
+  teacherGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
     flex: 1,
   },
   roomPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#161917',
+    borderWidth: 0.5,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 1.5,
     borderRadius: 4,
   },
   roomText: {
     fontSize: 10,
-    color: Colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   teacherText: {
     fontSize: 11,
-    color: Colors.textMuted,
-    maxWidth: 90,
+    maxWidth: 140,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -539,40 +436,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: Colors.statusPresentBg,
-    borderColor: 'rgba(0, 230, 118, 0.35)',
-    borderWidth: 0.5,
     paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 6,
-  },
-  markPresentText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.statusPresent,
+    borderRadius: 5,
+    borderWidth: 0.5,
   },
   markAbsentBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: Colors.statusAbsentBg,
+    backgroundColor: 'rgba(255, 82, 82, 0.14)',
     borderColor: 'rgba(255, 82, 82, 0.35)',
     borderWidth: 0.5,
     paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 5,
   },
-  markAbsentText: {
+  actionBtnText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: Colors.statusAbsent,
+    fontWeight: '700',
   },
   emptyState: {
-    paddingVertical: 18,
+    paddingVertical: 20,
     alignItems: 'center',
+    gap: 8,
   },
   emptyText: {
-    color: Colors.textSecondary,
     fontSize: 13,
+    textAlign: 'center',
   },
 });

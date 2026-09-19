@@ -12,6 +12,7 @@ import { EmeraldButton } from '../components/common/Buttons';
 import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
+import { HomeSkeleton } from '../components/common/SkeletonLoader';
 
 interface HomeScreenProps {
   onNavigateTab: (tab: any) => void;
@@ -35,6 +36,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     tasks,
     expenses,
     attendanceCriteria = 68,
+    currentTheme,
   } = useCampus();
 
   // Quick edit modal for 2x2 stat cards
@@ -55,7 +57,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: currentTheme.bgBase }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
@@ -120,7 +122,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Card 1: Attendance */}
               <StatMiniCard
                 icon="check-circle"
-                iconColor={overallAttendance >= attendanceCriteria ? Colors.statusPresent : Colors.statusAbsent}
+                iconColor={overallAttendance >= attendanceCriteria ? currentTheme.statusPresent : Colors.statusAbsent}
                 value={`${overallAttendance}%`}
                 label="ATTENDANCE"
                 badgeText={`Can miss ${classesCanMiss}`}
@@ -135,7 +137,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Card 2: Expenses */}
               <StatMiniCard
                 icon="payments"
-                iconColor={Colors.emeraldPrimary}
+                iconColor={currentTheme.primary}
                 value={`₹${currentMonthTotal}`}
                 label="EXPENSES"
                 badgeText="On Track"
@@ -152,7 +154,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Card 3: Tasks */}
               <StatMiniCard
                 icon="assignment"
-                iconColor={Colors.emeraldPrimary}
+                iconColor={currentTheme.primary}
                 value={`${pendingTasksCount} Tasks`}
                 label="TASKS"
                 badgeText={pendingTasksCount === 0 ? 'Clear ✓' : `${pendingTasksCount} Due`}
@@ -167,7 +169,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Card 4: Books / Docs */}
               <StatMiniCard
                 icon="menu-book"
-                iconColor={Colors.emeraldHighlight}
+                iconColor={currentTheme.primary}
                 value={`${documents.length} Docs`}
                 label="DOCS"
                 badgeText="Library"
@@ -189,35 +191,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             contentContainerStyle={styles.quickActionsContainer}
           >
             <TouchableOpacity
-              style={styles.quickActionChip}
+              style={[styles.quickActionChip, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
               onPress={() => onOpenMoreSection('books')}
             >
-              <Feather name="book-open" size={14} color={Colors.emeraldPrimary} />
-              <Text style={styles.quickActionText}>Books & PDFs</Text>
+              <Feather name="book-open" size={14} color={currentTheme.primary} />
+              <Text style={[styles.quickActionText, { color: currentTheme.textPrimary }]}>Books & PDFs</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.quickActionChip}
+              style={[styles.quickActionChip, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
               onPress={() => onOpenMoreSection('idcard')}
             >
-              <Feather name="credit-card" size={14} color={Colors.emeraldPrimary} />
-              <Text style={styles.quickActionText}>Digital ID</Text>
+              <Feather name="credit-card" size={14} color={currentTheme.primary} />
+              <Text style={[styles.quickActionText, { color: currentTheme.textPrimary }]}>Digital ID</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.quickActionChip}
+              style={[styles.quickActionChip, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
               onPress={() => onOpenMoreSection('holidays')}
             >
-              <Feather name="sun" size={14} color={Colors.emeraldPrimary} />
-              <Text style={styles.quickActionText}>Holidays</Text>
+              <Feather name="sun" size={14} color={currentTheme.primary} />
+              <Text style={[styles.quickActionText, { color: currentTheme.textPrimary }]}>Holidays</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.quickActionChip}
+              style={[styles.quickActionChip, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
               onPress={() => onOpenMoreSection('cgpa')}
             >
-              <Feather name="award" size={14} color={Colors.emeraldPrimary} />
-              <Text style={styles.quickActionText}>CGPA Calc</Text>
+              <Feather name="award" size={14} color={currentTheme.primary} />
+              <Text style={[styles.quickActionText, { color: currentTheme.textPrimary }]}>CGPA Calc</Text>
             </TouchableOpacity>
           </ScrollView>
 
@@ -265,7 +267,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 110,
+    paddingBottom: 125,
     gap: 16,
   },
   statGrid: {

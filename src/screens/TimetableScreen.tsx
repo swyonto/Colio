@@ -28,7 +28,7 @@ const DAYS = [
 ];
 
 export const TimetableScreen: React.FC = () => {
-  const { timetable, subjects, timetableViewMode, setTimetableViewMode, adjustSubjectAttendance } = useCampus();
+  const { timetable, subjects, timetableViewMode, setTimetableViewMode, adjustSubjectAttendance, currentTheme } = useCampus();
   const [selectedDay, setSelectedDay] = useState(1);
 
   const getSubject = (subjectId: string) => {
@@ -44,7 +44,7 @@ export const TimetableScreen: React.FC = () => {
   const daySlots = timetable.filter((slot) => slot.dayOfWeek === selectedDay);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
       {/* Top Controls: Day Selector & Grid/List View Mode Switcher (Section 8.1) */}
       <View style={styles.topControlBar}>
         {/* Days Scroll */}

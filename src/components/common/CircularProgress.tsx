@@ -10,6 +10,7 @@ interface CircularProgressProps {
   size?: number;
   strokeWidth?: number;
   criteria?: number;
+  showLabel?: boolean;
 }
 
 export const CircularProgress: React.FC<CircularProgressProps> = ({
@@ -17,6 +18,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   size = 84,
   strokeWidth = 7.5,
   criteria = 68,
+  showLabel = true,
 }) => {
   const clamped = Math.min(100, Math.max(0, percentage));
   const radius = (size - strokeWidth) / 2;
@@ -94,13 +96,15 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
         />
       </Svg>
 
-      {/* Centered Percentage Label */}
-      <View style={styles.centerContent}>
-        <Text style={[styles.percentValue, { color: colorScheme.stroke }]}>
-          {clamped}
-          <Text style={styles.percentSymbol}>%</Text>
-        </Text>
-      </View>
+      {/* Centered Percentage Label (optional) */}
+      {showLabel && (
+        <View style={styles.centerContent}>
+          <Text style={[styles.percentValue, { color: colorScheme.stroke }]}>
+            {clamped}
+            <Text style={styles.percentSymbol}>%</Text>
+          </Text>
+        </View>
+      )}
     </View>
   );
 };

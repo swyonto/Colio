@@ -1,5 +1,5 @@
 {
-  "name": "campusos",
+  "name": "colio",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -9,12 +9,13 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~57.0.15",
+    "@expo/metro-runtime": "~57.0.16",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~57.0.23",
+    "expo": "~57.0.24",
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
+    "expo-image-picker": "~57.0.19",
     "expo-linear-gradient": "~57.0.2",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",

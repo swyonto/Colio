@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
-import { MaterialIcons, Feather } from '@expo/vector-icons';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ColioLogo } from './ColioLogo';
-import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useCampus } from '../../context/CampusContext';
 import { triggerHapticFeedback } from '../../utils/haptics';
@@ -13,7 +12,7 @@ interface GlassHeaderProps {
 }
 
 export const GlassHeader: React.FC<GlassHeaderProps> = ({ onPressProfile }) => {
-  const { profile, searchQuery, setSearchQuery, isSearchExpanded, setIsSearchExpanded } = useCampus();
+  const { profile, searchQuery, setSearchQuery, isSearchExpanded, setIsSearchExpanded, currentTheme } = useCampus();
   const inputRef = useRef<TextInput>(null);
 
   const getInitials = (name: string) => {
@@ -41,43 +40,51 @@ export const GlassHeader: React.FC<GlassHeaderProps> = ({ onPressProfile }) => {
   };
 
   return (
-    <View style={styles.headerContainer}>
+    <View style={[styles.headerContainer, { backgroundColor: currentTheme.bgBase }]}>
       {/* Top Glass Background */}
       <LinearGradient
-        colors={['#070B09', '#0A0E0C']}
+        colors={[currentTheme.bgBase, currentTheme.bgSurface]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.bottomBorder} />
+      <View style={[styles.bottomBorder, { backgroundColor: currentTheme.borderGlass }]} />
 
       {/* When Search is Expanded: Full Horizontal Search Bar */}
       {isSearchExpanded ? (
         <View style={styles.searchExpandedRow}>
-          <View style={styles.searchInputContainer}>
-            <Feather name="search" size={17} color={Colors.emeraldPrimary} style={styles.searchInnerIcon} />
+          <View
+            style={[
+              styles.searchInputContainer,
+              {
+                backgroundColor: currentTheme.bgInner,
+                borderColor: currentTheme.primary + '60',
+              },
+            ]}
+          >
+            <Feather name="search" size={17} color={currentTheme.primary} style={styles.searchInnerIcon} />
             <TextInput
               ref={inputRef}
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: currentTheme.textPrimary }]}
               placeholder="Search subjects, tasks, documents..."
-              placeholderTextColor={Colors.textDisabled}
+              placeholderTextColor={currentTheme.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Feather name="x-circle" size={16} color={Colors.textMuted} />
+                <Feather name="x-circle" size={16} color={currentTheme.textMuted} />
               </TouchableOpacity>
             )}
           </View>
 
           <TouchableOpacity
-            style={styles.closeSearchButton}
+            style={[styles.closeSearchButton, { backgroundColor: currentTheme.bgCardSecondary }]}
             onPress={handleCloseSearch}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Feather name="x" size={20} color={Colors.textPrimary} />
+            <Feather name="x" size={20} color={currentTheme.textPrimary} />
           </TouchableOpacity>
         </View>
       ) : (
@@ -88,12 +95,14 @@ export const GlassHeader: React.FC<GlassHeaderProps> = ({ onPressProfile }) => {
             <View style={styles.brandTextGroup}>
               {(!profile.appNickname || profile.appNickname === 'Colio' || profile.appNickname === 'CampusHub') ? (
                 <View style={styles.colioLogoTitleRow}>
-                  <Text style={styles.colioPrefix}>Col</Text>
-                  <Text style={styles.colioSuffix}>io</Text>
-                  <View style={styles.colioDot} />
+                  <Text style={[styles.colioPrefix, { color: currentTheme.isDark ? '#FFFFFF' : currentTheme.textPrimary }]}>
+                    Col
+                  </Text>
+                  <Text style={[styles.colioSuffix, { color: currentTheme.primary }]}>io</Text>
+                  <View style={[styles.colioDot, { backgroundColor: currentTheme.primary }]} />
                 </View>
               ) : (
-                <Text style={[Typography.titleLg, styles.appNameText]} numberOfLines={1}>
+                <Text style={[Typography.titleLg, styles.appNameText, { color: currentTheme.textPrimary }]} numberOfLines={1}>
                   {profile.appNickname}
                 </Text>
               )}
@@ -104,28 +113,45 @@ export const GlassHeader: React.FC<GlassHeaderProps> = ({ onPressProfile }) => {
           <View style={styles.rightActionsGroup}>
             {/* 38dp Circular Search Button */}
             <TouchableOpacity
-              style={styles.searchCircleButton}
+              style={[
+                styles.searchCircleButton,
+                {
+                  backgroundColor: currentTheme.bgSurface,
+                  borderColor: currentTheme.primary + '40',
+                },
+              ]}
               onPress={handleOpenSearch}
               activeOpacity={0.8}
             >
-              <Feather name="search" size={18} color={Colors.emeraldPrimary} />
+              <Feather name="search" size={18} color={currentTheme.primary} />
             </TouchableOpacity>
 
-            {/* Profile Avatar Pill with Student Initials */}
+            {/* Profile Avatar Pill with User Image or Student Initials */}
             <TouchableOpacity
-              style={styles.avatarPill}
+              style={[
+                styles.avatarPill,
+                {
+                  borderColor: currentTheme.primary + '60',
+                },
+              ]}
               onPress={() => {
                 triggerHapticFeedback('selection');
                 onPressProfile?.();
               }}
               activeOpacity={0.8}
             >
-              <LinearGradient
-                colors={['#141414', '#1A1A1A']}
-                style={styles.avatarInner}
-              >
-                <Text style={styles.avatarInitials}>{getInitials(profile.name)}</Text>
-              </LinearGradient>
+              {profile.avatarUri ? (
+                <Image source={{ uri: profile.avatarUri }} style={styles.avatarPillImage} />
+              ) : (
+                <LinearGradient
+                  colors={[currentTheme.bgCardSecondary, currentTheme.bgElevated]}
+                  style={styles.avatarInner}
+                >
+                  <Text style={[styles.avatarInitials, { color: currentTheme.primary }]}>
+                    {getInitials(profile.name)}
+                  </Text>
+                </LinearGradient>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -137,10 +163,9 @@ export const GlassHeader: React.FC<GlassHeaderProps> = ({ onPressProfile }) => {
 const styles = StyleSheet.create({
   headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 52 : 42,
-    paddingBottom: 14,
+    paddingTop: 6,
+    paddingBottom: 8,
     position: 'relative',
-    backgroundColor: '#070B09',
   },
   bottomBorder: {
     position: 'absolute',
@@ -148,7 +173,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 0.6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   headerMainRow: {
     flexDirection: 'row',
@@ -171,25 +195,21 @@ const styles = StyleSheet.create({
   colioPrefix: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
     letterSpacing: -0.4,
   },
   colioSuffix: {
     fontSize: 22,
     fontWeight: '800',
-    color: Colors.emeraldPrimary,
     letterSpacing: -0.4,
   },
   colioDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#00E676',
     marginLeft: 3,
     marginBottom: 3,
   },
   appNameText: {
-    color: Colors.textPrimary,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
@@ -202,9 +222,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#121513',
     borderWidth: 0.8,
-    borderColor: 'rgba(0, 230, 118, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -212,9 +230,12 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 230, 118, 0.45)',
+    borderWidth: 1.2,
     overflow: 'hidden',
+  },
+  avatarPillImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarInner: {
     flex: 1,
@@ -222,7 +243,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarInitials: {
-    color: Colors.emeraldPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -235,9 +255,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#101311',
     borderWidth: 1,
-    borderColor: 'rgba(0, 230, 118, 0.40)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -247,7 +265,6 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: Colors.textPrimary,
     fontSize: 14,
     height: '100%',
     padding: 0,
@@ -256,7 +273,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#161917',
     justifyContent: 'center',
     alignItems: 'center',
   },

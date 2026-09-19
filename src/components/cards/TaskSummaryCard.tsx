@@ -1,63 +1,64 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../common/EmeraldGlassCard';
 import { GlassDialog } from '../common/GlassDialog';
 import { GlassInput } from '../common/GlassInput';
 import { EmeraldButton } from '../common/Buttons';
-import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { useCampus } from '../../context/CampusContext';
 import { Task, Priority } from '../../types/campus';
 import { triggerHapticFeedback } from '../../utils/haptics';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 interface TaskSummaryCardProps {
   onNavigateToTasks: () => void;
 }
 
-// Interactive Animated Task Row with smooth checkmark and strikethrough effect
+// Interactive Animated Task Row with smooth checkmark pop, spring rotate, strikethrough, and opacity
 const AnimatedTaskItem: React.FC<{
   task: Task;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   getPriorityTheme: (p: Priority) => { bg: string; text: string; border: string };
 }> = ({ task, onToggle, onDelete, getPriorityTheme }) => {
+  const { currentTheme } = useCampus();
   const checkScale = useRef(new Animated.Value(task.completed ? 1 : 0)).current;
   const boxScale = useRef(new Animated.Value(1)).current;
   const lineProgress = useRef(new Animated.Value(task.completed ? 1 : 0)).current;
+  const rowOpacity = useRef(new Animated.Value(task.completed ? 0.55 : 1)).current;
+
   const priorityTheme = getPriorityTheme(task.priority);
 
   useEffect(() => {
     Animated.parallel([
       Animated.spring(checkScale, {
         toValue: task.completed ? 1 : 0,
-        friction: 5,
-        tension: 80,
+        friction: 6,
+        tension: 110,
         useNativeDriver: true,
       }),
       Animated.timing(lineProgress, {
         toValue: task.completed ? 1 : 0,
         duration: 220,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
         useNativeDriver: false,
+      }),
+      Animated.timing(rowOpacity, {
+        toValue: task.completed ? 0.55 : 1,
+        duration: 200,
+        useNativeDriver: true,
       }),
     ]).start();
   }, [task.completed]);
 
   const handlePress = () => {
     triggerHapticFeedback('selection');
-    // Button pop bounce
-    Animated.sequence([
-      Animated.timing(boxScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
-      Animated.spring(boxScale, { toValue: 1, friction: 4, useNativeDriver: true }),
-    ]).start();
 
-    try {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    } catch {}
+    // Pop bounce on the checkbox icon
+    Animated.sequence([
+      Animated.timing(boxScale, { toValue: 1.3, duration: 100, useNativeDriver: true }),
+      Animated.spring(boxScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
+    ]).start();
 
     onToggle(task.id);
   };
@@ -67,8 +68,23 @@ const AnimatedTaskItem: React.FC<{
     outputRange: ['0%', '100%'],
   });
 
+  const checkRotate = checkScale.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-25deg', '0deg'],
+  });
+
   return (
-    <View style={[styles.taskRow, task.completed && styles.taskRowCompleted]}>
+    <Animated.View
+      style={[
+        styles.taskRow,
+        {
+          backgroundColor: task.completed ? currentTheme.bgCardSecondary : currentTheme.bgInner,
+          borderColor: currentTheme.borderGlass,
+        },
+        task.completed && styles.taskRowCompleted,
+        { opacity: rowOpacity },
+      ]}
+    >
       {/* Animated Checkbox */}
       <TouchableOpacity
         onPress={handlePress}
@@ -78,12 +94,25 @@ const AnimatedTaskItem: React.FC<{
         <Animated.View
           style={[
             styles.checkbox,
-            task.completed && styles.checkboxChecked,
+            { borderColor: currentTheme.primary + '60' },
+            task.completed && {
+              backgroundColor: currentTheme.primary,
+              borderColor: currentTheme.primary,
+            },
             { transform: [{ scale: boxScale }] },
           ]}
         >
-          <Animated.View style={{ transform: [{ scale: checkScale }], opacity: checkScale }}>
-            <MaterialIcons name="check" size={13} color="#050907" />
+          <Animated.View
+            style={{
+              transform: [{ scale: checkScale }, { rotate: checkRotate }],
+              opacity: checkScale,
+            }}
+          >
+            <MaterialIcons
+              name="check"
+              size={13}
+              color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+            />
           </Animated.View>
         </Animated.View>
       </TouchableOpacity>
@@ -95,7 +124,7 @@ const AnimatedTaskItem: React.FC<{
             style={[
               Typography.bodyMd,
               styles.taskTitle,
-              task.completed && styles.taskTitleCompleted,
+              { color: task.completed ? currentTheme.textMuted : currentTheme.textPrimary },
             ]}
             numberOfLines={1}
           >
@@ -106,6 +135,7 @@ const AnimatedTaskItem: React.FC<{
             style={[
               styles.strikeThroughLine,
               {
+                backgroundColor: currentTheme.primary,
                 width: lineWidth,
                 opacity: lineProgress,
               },
@@ -131,99 +161,113 @@ const AnimatedTaskItem: React.FC<{
 
           {/* Due Date Chip */}
           <View style={styles.dueDateChip}>
-            <Feather name="clock" size={10} color={Colors.textMuted} />
-            <Text style={styles.dueDateText}>{task.dueDate}</Text>
+            <Feather name="clock" size={10} color={currentTheme.textMuted} />
+            <Text style={[styles.dueDateText, { color: currentTheme.textMuted }]}>
+              {task.dueDate}
+            </Text>
           </View>
         </View>
       </View>
 
-      {/* Delete Button */}
+      {/* Quick Actions */}
       <TouchableOpacity
         onPress={() => onDelete(task.id)}
+        style={styles.deleteActionBtn}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        style={styles.deleteBtn}
       >
-        <Feather name="trash-2" size={14} color={Colors.textDisabled} />
+        <Feather name="trash-2" size={13} color={currentTheme.textMuted} />
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 };
 
 export const TaskSummaryCard: React.FC<TaskSummaryCardProps> = ({ onNavigateToTasks }) => {
-  const { tasks, toggleTask, addTask, deleteTask, pendingTasksCount } = useCampus();
+  const { tasks, toggleTask, addTask, deleteTask, pendingTasksCount, currentTheme } = useCampus();
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newDueDate, setNewDueDate] = useState('Today');
+  const [newDue, setNewDue] = useState('Today');
   const [newPriority, setNewPriority] = useState<Priority>('MEDIUM');
 
-  // Preview first 4 tasks on home dashboard
-  const previewTasks = tasks.slice(0, 4);
+  // Show top 3 pending tasks, if fewer than 3, show completed tasks to fill
+  const pendingTasks = tasks.filter((t) => !t.completed);
+  const completedTasks = tasks.filter((t) => t.completed);
+  const displayTasks = [...pendingTasks, ...completedTasks].slice(0, 3);
 
   const getPriorityTheme = (p: Priority) => {
     switch (p) {
       case 'URGENT':
-        return { bg: Colors.statusAbsentBg, text: Colors.statusAbsent, border: 'rgba(255, 82, 82, 0.4)' };
+        return { bg: 'rgba(255, 82, 82, 0.15)', text: '#FF5252', border: 'rgba(255, 82, 82, 0.35)' };
       case 'HIGH':
-        return { bg: Colors.statusPendingBg, text: Colors.statusPending, border: 'rgba(255, 171, 64, 0.4)' };
-      case 'LOW':
-        return { bg: 'rgba(255, 255, 255, 0.06)', text: Colors.textMuted, border: 'rgba(255, 255, 255, 0.12)' };
+        return { bg: 'rgba(255, 171, 64, 0.15)', text: '#FFAB40', border: 'rgba(255, 171, 64, 0.35)' };
       case 'MEDIUM':
+        return {
+          bg: currentTheme.primary + '18',
+          text: currentTheme.primary,
+          border: currentTheme.primary + '35',
+        };
+      case 'LOW':
       default:
-        return { bg: Colors.statusPresentBg, text: Colors.statusPresent, border: 'rgba(0, 230, 118, 0.4)' };
+        return {
+          bg: currentTheme.isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+          text: currentTheme.textMuted,
+          border: currentTheme.borderGlass,
+        };
     }
   };
 
-  const handleSaveTask = () => {
+  const handleSaveNewTask = () => {
     if (!newTitle.trim()) return;
-    addTask(newTitle.trim(), newDesc.trim(), newDueDate, newPriority);
+    addTask(newTitle.trim(), newDesc.trim(), newDue, newPriority);
     setNewTitle('');
     setNewDesc('');
-    setNewDueDate('Today');
-    setNewPriority('MEDIUM');
     setIsAddModalOpen(false);
   };
 
   return (
     <>
       <EmeraldGlassCard onPress={onNavigateToTasks}>
-        {/* Header: Title is now "Tasks" */}
+        {/* Header */}
         <View style={styles.headerRow}>
           <View style={styles.titleGroup}>
-            <View style={styles.iconCircle}>
-              <Feather name="check-square" size={17} color={Colors.emeraldPrimary} />
+            <View style={[styles.iconCircle, { backgroundColor: currentTheme.primary + '18' }]}>
+              <Feather name="check-square" size={16} color={currentTheme.primary} />
             </View>
-            <Text style={[Typography.titleMd, styles.cardTitle]}>Tasks</Text>
+            <Text style={[Typography.titleMd, { color: currentTheme.textPrimary }]}>Tasks & Deadlines</Text>
             {pendingTasksCount > 0 && (
-              <View style={styles.counterBadge}>
-                <Text style={styles.counterText}>{pendingTasksCount}</Text>
+              <View style={[styles.counterBadge, { backgroundColor: currentTheme.primary + '20' }]}>
+                <Text style={[styles.counterText, { color: currentTheme.primary }]}>
+                  {pendingTasksCount}
+                </Text>
               </View>
             )}
           </View>
 
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={styles.addTaskCircleBtn}
               onPress={() => setIsAddModalOpen(true)}
+              style={[styles.addTaskCircleBtn, { backgroundColor: currentTheme.bgCardSecondary }]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Feather name="plus" size={16} color={Colors.emeraldPrimary} />
+              <Feather name="plus" size={14} color={currentTheme.primary} />
             </TouchableOpacity>
-
-            <View style={styles.arrowCircle}>
-              <Feather name="arrow-up-right" size={16} color={Colors.emeraldPrimary} />
+            <View style={[styles.arrowCircle, { backgroundColor: currentTheme.primary + '14' }]}>
+              <Feather name="arrow-up-right" size={16} color={currentTheme.primary} />
             </View>
           </View>
         </View>
 
-        {/* Task List */}
-        {previewTasks.length === 0 ? (
-          <View style={styles.emptyTasksContainer}>
-            <Text style={styles.emptyTasksText}>All caught up! No tasks pending.</Text>
-          </View>
-        ) : (
-          <View style={styles.tasksList}>
-            {previewTasks.map((task) => (
+        {/* Task Items List */}
+        <View style={styles.tasksList}>
+          {displayTasks.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, { color: currentTheme.textMuted }]}>
+                All tasks completed! Tap + to add a task.
+              </Text>
+            </View>
+          ) : (
+            displayTasks.map((task) => (
               <AnimatedTaskItem
                 key={task.id}
                 task={task}
@@ -231,72 +275,91 @@ export const TaskSummaryCard: React.FC<TaskSummaryCardProps> = ({ onNavigateToTa
                 onDelete={deleteTask}
                 getPriorityTheme={getPriorityTheme}
               />
-            ))}
-          </View>
-        )}
+            ))
+          )}
+        </View>
       </EmeraldGlassCard>
 
-      {/* Simplified New Task Modal (Section 6.2 - No Subject Friction) */}
+      {/* Add Task Dialog */}
       <GlassDialog
         visible={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="New Task"
+        title="Add New Task"
       >
         <GlassInput
-          label="Task Title *"
-          placeholder="e.g. Submit Operating System Assignment"
+          label="Task Title"
+          placeholder="e.g. CS201 Assignment 3"
           value={newTitle}
           onChangeText={setNewTitle}
-          autoFocus
         />
 
         <GlassInput
-          label="Description (Optional)"
-          placeholder="e.g. Include questions 1 to 5 and graphs"
+          label="Description / Notes"
+          placeholder="Optional notes or rubric details"
           value={newDesc}
           onChangeText={setNewDesc}
         />
 
-        {/* Quick Date Chips */}
-        <Text style={[Typography.labelSm, styles.chipGroupLabel]}>DUE DATE</Text>
-        <View style={styles.chipsRow}>
-          {['Today', 'Tomorrow', 'This Week'].map((dateOption) => {
-            const isSelected = newDueDate === dateOption;
-            return (
+        <View style={styles.formSection}>
+          <Text style={[styles.sectionLabel, { color: currentTheme.textMuted }]}>DUE DATE</Text>
+          <View style={styles.selectorRow}>
+            {['Today', 'Tomorrow', 'This Week'].map((d) => (
               <TouchableOpacity
-                key={dateOption}
-                style={[styles.quickChip, isSelected && styles.quickChipActive]}
-                onPress={() => setNewDueDate(dateOption)}
+                key={d}
+                style={[
+                  styles.optionPill,
+                  { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
+                  newDue === d && { backgroundColor: currentTheme.primary + '20', borderColor: currentTheme.primary },
+                ]}
+                onPress={() => setNewDue(d)}
               >
-                <Text style={[styles.quickChipText, isSelected && styles.quickChipTextActive]}>
-                  {dateOption}
+                <Text
+                  style={[
+                    styles.optionPillText,
+                    { color: newDue === d ? currentTheme.primary : currentTheme.textMuted },
+                    newDue === d && styles.optionPillTextActive,
+                  ]}
+                >
+                  {d}
                 </Text>
               </TouchableOpacity>
-            );
-          })}
+            ))}
+          </View>
         </View>
 
-        {/* Priority Selector */}
-        <Text style={[Typography.labelSm, styles.chipGroupLabel]}>PRIORITY</Text>
-        <View style={styles.chipsRow}>
-          {(['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as Priority[]).map((p) => {
-            const isSelected = newPriority === p;
-            return (
-              <TouchableOpacity
-                key={p}
-                style={[styles.quickChip, isSelected && styles.quickChipActive]}
-                onPress={() => setNewPriority(p)}
-              >
-                <Text style={[styles.quickChipText, isSelected && styles.quickChipTextActive]}>
-                  {p}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+        <View style={styles.formSection}>
+          <Text style={[styles.sectionLabel, { color: currentTheme.textMuted }]}>PRIORITY LEVEL</Text>
+          <View style={styles.selectorRow}>
+            {(['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as Priority[]).map((p) => {
+              const pTheme = getPriorityTheme(p);
+              const isSelected = newPriority === p;
+              return (
+                <TouchableOpacity
+                  key={p}
+                  style={[
+                    styles.optionPill,
+                    { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
+                    isSelected && { backgroundColor: pTheme.bg, borderColor: pTheme.border },
+                  ]}
+                  onPress={() => setNewPriority(p)}
+                >
+                  <Text
+                    style={[
+                      styles.optionPillText,
+                      { color: isSelected ? pTheme.text : currentTheme.textMuted },
+                      isSelected && styles.optionPillTextActive,
+                    ]}
+                  >
+                    {p}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
-        <View style={{ marginTop: 18 }}>
-          <EmeraldButton label="Save Task" onPress={handleSaveTask} />
+        <View style={{ marginTop: 14 }}>
+          <EmeraldButton label="Create Task" onPress={handleSaveNewTask} />
         </View>
       </GlassDialog>
     </>
@@ -319,21 +382,15 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardTitle: {
-    color: Colors.textPrimary,
-  },
   counterBadge: {
-    backgroundColor: 'rgba(0, 230, 118, 0.20)',
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 1,
   },
   counterText: {
-    color: Colors.emeraldPrimary,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -346,7 +403,6 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#161917',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -354,7 +410,6 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: 'rgba(0, 230, 118, 0.10)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -365,28 +420,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#0C0F0D',
     borderRadius: 10,
     padding: 10,
     borderWidth: 0.6,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   taskRowCompleted: {
     opacity: 0.55,
-    backgroundColor: '#0A0C0A',
   },
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 6,
     borderWidth: 1.2,
-    borderColor: 'rgba(0, 230, 118, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: Colors.emeraldPrimary,
-    borderColor: Colors.emeraldPrimary,
   },
   taskDetails: {
     flex: 1,
@@ -398,18 +445,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   taskTitle: {
-    color: Colors.textPrimary,
     fontWeight: '600',
-  },
-  taskTitleCompleted: {
-    color: Colors.textMuted,
   },
   strikeThroughLine: {
     position: 'absolute',
     left: 0,
     top: '50%',
     height: 1.5,
-    backgroundColor: Colors.emeraldPrimary,
     borderRadius: 1,
   },
   taskMetaRow: {
@@ -434,47 +476,42 @@ const styles = StyleSheet.create({
   },
   dueDateText: {
     fontSize: 10,
-    color: Colors.textMuted,
   },
-  deleteBtn: {
+  deleteActionBtn: {
     padding: 4,
   },
-  emptyTasksContainer: {
-    paddingVertical: 16,
+  emptyState: {
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  emptyTasksText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
+  emptyText: {
+    fontSize: 12,
   },
-  chipGroupLabel: {
-    color: Colors.textMuted,
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  formSection: {
+    marginVertical: 6,
     gap: 6,
   },
-  quickChip: {
-    paddingHorizontal: 12,
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  selectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  optionPill: {
+    flex: 1,
     paddingVertical: 7,
     borderRadius: 8,
-    backgroundColor: '#121614',
     borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
   },
-  quickChipActive: {
-    backgroundColor: 'rgba(0, 230, 118, 0.20)',
-    borderColor: Colors.emeraldPrimary,
-  },
-  quickChipText: {
-    color: Colors.textMuted,
-    fontSize: 12,
+  optionPillText: {
+    fontSize: 11,
     fontWeight: '600',
   },
-  quickChipTextActive: {
-    color: Colors.textPrimary,
+  optionPillTextActive: {
+    fontWeight: '700',
   },
 });
