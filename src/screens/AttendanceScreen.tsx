@@ -122,17 +122,32 @@ export const AttendanceScreen: React.FC = () => {
                 key={tab.id}
                 style={[
                   styles.dayTabPill,
-                  isSelected && styles.dayTabPillActive,
-                  isToday && !isSelected && styles.dayTabPillToday,
+                  {
+                    backgroundColor: currentTheme.bgCardSecondary,
+                    borderColor: currentTheme.borderGlass,
+                  },
+                  isSelected && {
+                    backgroundColor: currentTheme.primary + '20',
+                    borderColor: currentTheme.primary,
+                  },
+                  isToday && !isSelected && {
+                    borderColor: currentTheme.primary + '40',
+                  },
                 ]}
                 onPress={() => setSelectedDayTab(tab.id)}
               >
                 <View style={styles.dayTabInnerRow}>
-                  <Text style={[styles.dayTabText, isSelected && styles.dayTabTextActive]}>
+                  <Text
+                    style={[
+                      styles.dayTabText,
+                      { color: isSelected ? currentTheme.primary : currentTheme.textMuted },
+                      isSelected && styles.dayTabTextActive,
+                    ]}
+                  >
                     {tab.label}
                   </Text>
                   {isToday && (
-                    <View style={[styles.tabTodayDot, isSelected && styles.tabTodayDotSelected]} />
+                    <View style={[styles.tabTodayDot, { backgroundColor: isSelected ? currentTheme.primary : currentTheme.primary + '80' }]} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -152,15 +167,15 @@ export const AttendanceScreen: React.FC = () => {
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
               <View style={styles.cardTitleRow}>
-                <View style={styles.titleIconBadge}>
-                  <MaterialIcons name="fact-check" size={16} color={Colors.emeraldPrimary} />
+                <View style={[styles.titleIconBadge, { backgroundColor: currentTheme.primary + '18' }]}>
+                  <MaterialIcons name="fact-check" size={16} color={currentTheme.primary} />
                 </View>
-                <Text style={[Typography.titleMd, styles.mainCardTitle]}>Attendance Card</Text>
+                <Text style={[Typography.titleMd, styles.mainCardTitle, { color: currentTheme.textPrimary }]}>Attendance Card</Text>
               </View>
 
               {/* 87% + Left-Aligned Goal Badge with Mini Dynamic Circular Progress */}
               <View style={styles.percentageAndBadgeRow}>
-                <Text style={[Typography.displayLg, styles.overallPercentageText]}>
+                <Text style={[Typography.displayLg, styles.overallPercentageText, { color: currentTheme.textPrimary }]}>
                   {overallAttendance}%
                 </Text>
 
@@ -200,11 +215,11 @@ export const AttendanceScreen: React.FC = () => {
           </View>
 
           {/* Bottom Row: 4-Column Centered Layout (Attended | Absent | Total | Can Miss) */}
-          <View style={styles.statsFourColRow}>
+          <View style={[styles.statsFourColRow, { backgroundColor: currentTheme.bgInner, borderColor: currentTheme.borderGlass }]}>
             {/* 1. Classes Attended */}
             <View style={styles.metricColumn}>
-              <Text style={styles.metricColumnLabel}>ATTENDED</Text>
-              <Text style={[styles.metricColumnValue, { color: Colors.emeraldPrimary }]}>
+              <Text style={[styles.metricColumnLabel, { color: currentTheme.textMuted }]}>ATTENDED</Text>
+              <Text style={[styles.metricColumnValue, { color: currentTheme.primary }]}>
                 {totalPresent}
               </Text>
             </View>
@@ -249,22 +264,22 @@ export const AttendanceScreen: React.FC = () => {
         </EmeraldGlassCard>
 
         {/* Smart Rule Callout */}
-        <View style={styles.ruleNoticeCard}>
-          <Feather name="shield" size={14} color={Colors.emeraldHighlight} />
-          <Text style={styles.ruleNoticeText}>
+        <View style={[styles.ruleNoticeCard, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}>
+          <Feather name="shield" size={14} color={currentTheme.primary} />
+          <Text style={[styles.ruleNoticeText, { color: currentTheme.textSecondary }]}>
             Sundays and approved college holidays are excluded from missed class penalties.
           </Text>
         </View>
 
-        {/* Seamless Scheduled Subjects Section Header (blends directly with cards) */}
+        {/* Seamless Scheduled Subjects Section Header */}
         <View style={styles.scheduledSectionHeader}>
           <View style={styles.sectionHeaderLeft}>
-            <View style={styles.sectionAccentBar} />
-            <Text style={styles.sectionTitleText}>
+            <View style={[styles.sectionAccentBar, { backgroundColor: currentTheme.primary }]} />
+            <Text style={[styles.sectionTitleText, { color: currentTheme.textPrimary }]}>
               {selectedDayTab === 'all' ? 'All Subjects' : 'Scheduled Subjects'}
             </Text>
-            <View style={styles.subjectCountPill}>
-              <Text style={styles.subjectCountPillText}>{filteredSubjects.length}</Text>
+            <View style={[styles.subjectCountPill, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}>
+              <Text style={[styles.subjectCountPillText, { color: currentTheme.primary }]}>{filteredSubjects.length}</Text>
             </View>
           </View>
         </View>
@@ -300,14 +315,15 @@ export const AttendanceScreen: React.FC = () => {
                   key={subj.id}
                   style={[
                     styles.subjectCard,
+                    { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass },
                     isCancelled && styles.subjectCardCancelled,
                   ]}
                 >
                   {/* Top Bar: Gradient Color Ring + Code + Name + Edit Button */}
                   <View style={styles.subjHeaderRow}>
                     <View style={styles.subjTitleGroup}>
-                      <View style={[styles.gradientDonutOuter, { borderColor: isCancelled ? Colors.textDisabled : subj.color }]}>
-                        <View style={[styles.gradientDonutInner, { backgroundColor: isCancelled ? Colors.textDisabled : subj.color }]} />
+                      <View style={[styles.gradientDonutOuter, { borderColor: isCancelled ? currentTheme.textDisabled : subj.color, backgroundColor: currentTheme.bgInner }]}>
+                        <View style={[styles.gradientDonutInner, { backgroundColor: isCancelled ? currentTheme.textDisabled : subj.color }]} />
                       </View>
 
                       <View style={{ flex: 1 }}>
@@ -315,13 +331,14 @@ export const AttendanceScreen: React.FC = () => {
                           style={[
                             Typography.titleSm,
                             styles.subjName,
+                            { color: currentTheme.textPrimary },
                             isCancelled && styles.textCancelledStriked,
                           ]}
                           numberOfLines={1}
                         >
                           {subj.name}
                         </Text>
-                        <Text style={styles.subjCodeTeacher}>
+                        <Text style={[styles.subjCodeTeacher, { color: currentTheme.textMuted }]}>
                           {subj.code} • {subj.teacher} • {subj.room}
                         </Text>
                       </View>
@@ -329,10 +346,10 @@ export const AttendanceScreen: React.FC = () => {
 
                     <TouchableOpacity
                       onPress={() => handleOpenEdit(subj)}
-                      style={styles.editSubjectBtn}
+                      style={[styles.editSubjectBtn, { backgroundColor: currentTheme.bgCardSecondary }]}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Feather name="edit-2" size={13} color={Colors.textMuted} />
+                      <Feather name="edit-2" size={13} color={currentTheme.textMuted} />
                     </TouchableOpacity>
                   </View>
 
@@ -414,11 +431,14 @@ export const AttendanceScreen: React.FC = () => {
                     ) : (
                       <>
                         <TouchableOpacity
-                          style={styles.presentActionBtn}
+                          style={[styles.presentActionBtn, { backgroundColor: currentTheme.statusPresentBg, borderColor: currentTheme.primary + '40' }]}
                           onPress={() => adjustSubjectAttendance(subj.id, 1, 0)}
+                          activeOpacity={0.8}
                         >
-                          <MaterialIcons name="check" size={15} color={Colors.statusPresent} />
-                          <Text style={styles.presentActionText}>Present</Text>
+                          <Feather name="check" size={13} color={currentTheme.statusPresent} />
+                          <Text style={[styles.presentActionText, { color: currentTheme.statusPresent }]}>
+                            Attended
+                          </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -537,7 +557,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 110,
+    paddingBottom: 125,
     gap: 14,
   },
   cardHeaderRow: {

@@ -54,6 +54,7 @@ export const TimetableSummaryCard: React.FC<TimetableSummaryCardProps> = ({ onNa
 
   const getSubject = (subjectId: string) => {
     return subjects.find((s) => s.id === subjectId) || {
+      id: subjectId,
       name: 'Class Session',
       code: 'CLASS',
       color: currentTheme.primary,

@@ -19,12 +19,14 @@ import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { triggerHapticFeedback } from '../utils/haptics';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const { profile, updateProfile, currentTheme } = useCampus();
-  const [isLandscape, setIsLandscape] = useState(false);
   const [isBackSide, setIsBackSide] = useState(false);
+  const [cardRotation, setCardRotation] = useState(0);
   const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
-  const [fullscreenOrientation, setFullscreenOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [fullscreenRotation, setFullscreenRotation] = useState(0);
 
   const currentImageUri = isBackSide ? profile.idCardBackUri : profile.idCardFrontUri;
 
@@ -119,39 +121,9 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         <View style={{ flex: 1 }}>
           <Text style={[Typography.titleLg, { color: currentTheme.textPrimary }]}>Student ID Card</Text>
           <Text style={[styles.headerSubtitle, { color: currentTheme.textMuted }]}>
-            {isLandscape ? 'Landscape Mode' : 'Portrait Mode'} • Official Credentials
+            Official Credentials & Gate Pass
           </Text>
         </View>
-
-        {/* Orientation Toggle Button */}
-        <TouchableOpacity
-          onPress={() => {
-            triggerHapticFeedback('selection');
-            setIsLandscape(!isLandscape);
-          }}
-          style={[
-            styles.toggleBtn,
-            {
-              backgroundColor: isLandscape ? currentTheme.primary + '22' : currentTheme.bgCardSecondary,
-              borderColor: isLandscape ? currentTheme.primary : currentTheme.borderGlass,
-            },
-          ]}
-          activeOpacity={0.8}
-        >
-          <Feather
-            name="rotate-cw"
-            size={16}
-            color={isLandscape ? currentTheme.primary : currentTheme.textMuted}
-          />
-          <Text
-            style={[
-              styles.toggleBtnLabel,
-              { color: isLandscape ? currentTheme.primary : currentTheme.textMuted },
-            ]}
-          >
-            {isLandscape ? 'Landscape' : 'Portrait'}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -209,15 +181,19 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           activeOpacity={0.92}
           onPress={() => {
             triggerHapticFeedback('selection');
-            setFullscreenOrientation(isLandscape ? 'landscape' : 'portrait');
-            setIsFullscreenPreview(true);
+            if (currentImageUri) {
+              setFullscreenRotation(cardRotation);
+              setIsFullscreenPreview(true);
+            } else {
+              promptUploadOptions(isBackSide ? 'back' : 'front');
+            }
           }}
         >
           <View
             style={[
               styles.cardOuter,
               { borderColor: currentTheme.primary + '50' },
-              isLandscape && styles.cardOuterLandscape,
+              currentImageUri ? styles.cardOuterWithImage : styles.cardOuterDigital,
             ]}
           >
             {/* Background Gradient */}
@@ -233,19 +209,16 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               <View style={styles.uploadedCardContainer}>
                 <Image
                   source={{ uri: currentImageUri }}
-                  style={styles.uploadedCardImage}
-                  resizeMode="contain"
+                  style={[
+                    styles.uploadedCardImage,
+                    { transform: [{ rotate: `${cardRotation}deg` }] },
+                  ]}
+                  resizeMode={cardRotation % 180 !== 0 ? 'contain' : 'cover'}
                 />
-                <View style={[styles.uploadedBadge, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.primary }]}>
-                  <Feather name="check-circle" size={12} color={currentTheme.primary} />
-                  <Text style={[styles.uploadedBadgeText, { color: currentTheme.textPrimary }]}>
-                    Uploaded {isBackSide ? 'Back' : 'Front'} Photo • Tap to Expand
-                  </Text>
-                </View>
               </View>
             ) : !isBackSide ? (
               /* DIGITAL SIMULATED FRONT OF ID CARD */
-              <View style={[styles.cardInnerFront, isLandscape && styles.cardInnerFrontLandscape]}>
+              <View style={styles.cardInnerFront}>
                 {/* Institution Header */}
                 <View style={styles.idCardHeader}>
                   <View style={styles.idLogoGroup}>
@@ -268,7 +241,7 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </View>
 
                 {/* Student Profile Row */}
-                <View style={[styles.studentDetailsRow, isLandscape && styles.studentDetailsRowLandscape]}>
+                <View style={styles.studentDetailsRow}>
                   {/* Student Photo */}
                   <View style={[styles.photoContainer, { borderColor: currentTheme.primary + '60' }]}>
                     {profile.avatarUri ? (
@@ -342,20 +315,24 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </View>
         </TouchableOpacity>
 
-        {/* Action Buttons: Fullscreen Preview + Upload Options */}
+        {/* Action Buttons: Fullscreen Preview / Upload + Rotate to Landscape */}
         <View style={styles.cardActionsRow}>
           <TouchableOpacity
             style={[styles.previewActionBtn, { backgroundColor: currentTheme.primary + '20', borderColor: currentTheme.primary }]}
             onPress={() => {
               triggerHapticFeedback('selection');
-              setFullscreenOrientation(isLandscape ? 'landscape' : 'portrait');
-              setIsFullscreenPreview(true);
+              if (currentImageUri) {
+                setFullscreenRotation(cardRotation);
+                setIsFullscreenPreview(true);
+              } else {
+                promptUploadOptions(isBackSide ? 'back' : 'front');
+              }
             }}
             activeOpacity={0.8}
           >
-            <Feather name="maximize-2" size={15} color={currentTheme.primary} />
+            <Feather name={currentImageUri ? 'maximize-2' : 'camera'} size={15} color={currentTheme.primary} />
             <Text style={[styles.previewActionBtnText, { color: currentTheme.primary }]}>
-              Fullscreen Preview
+              {currentImageUri ? 'Fullscreen Preview' : `Upload ${isBackSide ? 'Back' : 'Front'} Photo`}
             </Text>
           </TouchableOpacity>
 
@@ -363,13 +340,13 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             style={[styles.previewActionBtn, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.borderGlass }]}
             onPress={() => {
               triggerHapticFeedback('selection');
-              setIsLandscape(!isLandscape);
+              setCardRotation((prev) => (prev + 90) % 360);
             }}
             activeOpacity={0.8}
           >
             <Feather name="rotate-cw" size={15} color={currentTheme.textPrimary} />
             <Text style={[styles.previewActionBtnText, { color: currentTheme.textPrimary }]}>
-              {isLandscape ? 'Switch to Portrait' : 'Switch to Landscape'}
+              {cardRotation === 0 ? 'Rotate to Landscape' : `Rotate (${cardRotation}°)`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -456,24 +433,9 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             </View>
           </View>
         </View>
-
-        {/* Security & Access Notice */}
-        <EmeraldGlassCard>
-          <View style={styles.secureNoticeRow}>
-            <Feather name="lock" size={18} color={currentTheme.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={[Typography.titleSm, { color: currentTheme.textPrimary }]}>
-                Offline Cryptographic Stamp
-              </Text>
-              <Text style={[Typography.bodySm, { color: currentTheme.textMuted, marginTop: 2 }]}>
-                Credentials and photos are securely cached locally on your device for rapid gate pass verification.
-              </Text>
-            </View>
-          </View>
-        </EmeraldGlassCard>
       </ScrollView>
 
-      {/* FULLSCREEN PREVIEW MODAL (With Portrait / Landscape & Front / Back Controls) */}
+      {/* FULLSCREEN PREVIEW MODAL (With Rotate to Landscape & Front / Back Controls) */}
       <Modal visible={isFullscreenPreview} transparent animationType="fade">
         <View style={styles.fullscreenModalOverlay}>
           {/* Header Controls */}
@@ -500,17 +462,17 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </Text>
               </TouchableOpacity>
 
-              {/* Toggle Portrait / Landscape */}
+              {/* Rotate to Landscape / 90° */}
               <TouchableOpacity
                 style={styles.fullscreenControlPill}
                 onPress={() => {
                   triggerHapticFeedback('selection');
-                  setFullscreenOrientation(fullscreenOrientation === 'portrait' ? 'landscape' : 'portrait');
+                  setFullscreenRotation((prev) => (prev + 90) % 360);
                 }}
               >
                 <Feather name="rotate-cw" size={14} color="#FFFFFF" />
                 <Text style={styles.fullscreenControlText}>
-                  {fullscreenOrientation === 'landscape' ? 'Landscape' : 'Portrait'}
+                  {fullscreenRotation === 0 ? 'Rotate to Landscape' : `Rotated ${fullscreenRotation}°`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -521,7 +483,10 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             <View
               style={[
                 styles.fullscreenCardInner,
-                fullscreenOrientation === 'landscape' && styles.fullscreenCardLandscape,
+                fullscreenRotation % 180 !== 0 ? styles.fullscreenCardLandscapeRotated : styles.fullscreenCardNormal,
+                {
+                  transform: [{ rotate: `${fullscreenRotation}deg` }],
+                },
               ]}
             >
               {currentImageUri ? (
@@ -622,39 +587,25 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
-    minHeight: 280,
     borderWidth: 1.2,
   },
-  cardOuterLandscape: {
-    minHeight: 220,
+  cardOuterDigital: {
+    minHeight: 280,
+  },
+  cardOuterWithImage: {
+    width: '100%',
     aspectRatio: 1.586,
   },
   uploadedCardContainer: {
-    flex: 1,
-    minHeight: 260,
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
+    overflow: 'hidden',
   },
   uploadedCardImage: {
     width: '100%',
     height: '100%',
-    minHeight: 260,
-  },
-  uploadedBadge: {
-    position: 'absolute',
-    bottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 0.8,
-  },
-  uploadedBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
   },
   cardInnerFront: {
     padding: 18,
@@ -933,16 +884,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fullscreenCardInner: {
-    width: '100%',
-    aspectRatio: 1,
-    maxWidth: 400,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  fullscreenCardLandscape: {
-    width: '100%',
+  fullscreenCardNormal: {
+    width: Math.min(SCREEN_WIDTH - 32, 420),
     aspectRatio: 1.586,
-    transform: [{ rotate: '0deg' }],
+  },
+  fullscreenCardLandscapeRotated: {
+    width: Math.min(SCREEN_HEIGHT * 0.72, 580),
+    aspectRatio: 1.586,
   },
   fullscreenCardImage: {
     width: '100%',
