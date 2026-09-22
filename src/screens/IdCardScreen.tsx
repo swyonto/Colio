@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { EmeraldButton, GlassButton } from '../components/common/Buttons';
+import { ColioLogo } from '../components/common/ColioLogo';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { triggerHapticFeedback } from '../utils/haptics';
@@ -222,15 +223,13 @@ export const IdCardScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 {/* Institution Header */}
                 <View style={styles.idCardHeader}>
                   <View style={styles.idLogoGroup}>
-                    <View style={[styles.idGradCapCircle, { backgroundColor: currentTheme.primary + '30', borderColor: currentTheme.primary }]}>
-                      <MaterialIcons name="school" size={18} color="#FFFFFF" />
-                    </View>
+                    <ColioLogo size={28} />
                     <View>
                       <Text style={[styles.collegeName, { color: currentTheme.textPrimary }]}>
                         {profile.college || 'National Institute of Technology'}
                       </Text>
                       <Text style={[styles.appNicknameTag, { color: currentTheme.primary }]}>
-                        {profile.appNickname || 'CampusHub'} Student Card
+                        Colio Student Card
                       </Text>
                     </View>
                   </View>

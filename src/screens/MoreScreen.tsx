@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
+import { ColioLogo } from '../components/common/ColioLogo';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { sendInstantTestNotification } from '../services/notifications';
@@ -263,7 +264,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
       {/* App Version Info */}
       <View style={[styles.appInfoCard, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
         <View style={styles.appBadgeRow}>
-          <MaterialIcons name="school" size={18} color={currentTheme.primary} />
+          <ColioLogo size={22} />
           <Text style={[styles.appInfoTitle, { color: currentTheme.textPrimary }]}>Colio</Text>
           <View style={[styles.versionTag, { backgroundColor: currentTheme.primary + '20' }]}>
             <Text style={[styles.versionText, { color: currentTheme.primary }]}>v2.0 Production</Text>
