@@ -539,5 +539,6 @@ export const initialProfile: StudentProfile = {
   college: 'Department of Computer Science',
   avatarUri: '',
   avatarSize: 'medium',
+  avatarPreset: 0,
   isSetupComplete: true,
 };

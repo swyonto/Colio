@@ -84,6 +84,7 @@ export interface StudentProfile {
   college: string;
   avatarUri?: string;
   avatarSize?: 'small' | 'medium' | 'large';
+  avatarPreset?: number;
   isSetupComplete?: boolean;
   idCardFrontUri?: string;
   idCardBackUri?: string;

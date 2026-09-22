@@ -77,14 +77,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
   const [college, setCollege] = useState(profile.college);
   const [avatarUri, setAvatarUri] = useState(profile.avatarUri || '');
   const [avatarSize, setAvatarSize] = useState<'small' | 'medium' | 'large'>(profile.avatarSize || 'medium');
-  const [selectedAvatarPreset, setSelectedAvatarPreset] = useState(0);
+  const [selectedAvatarPreset, setSelectedAvatarPreset] = useState(profile.avatarPreset ?? 0);
 
-  // Sync avatarSize from profile state
+  // Sync avatarSize, avatarPreset, and avatarUri from profile state
   useEffect(() => {
     if (profile.avatarSize) {
       setAvatarSize(profile.avatarSize);
     }
   }, [profile.avatarSize]);
+
+  useEffect(() => {
+    if (typeof profile.avatarPreset === 'number') {
+      setSelectedAvatarPreset(profile.avatarPreset);
+    }
+  }, [profile.avatarPreset]);
+
+  useEffect(() => {
+    if (profile.avatarUri !== undefined) {
+      setAvatarUri(profile.avatarUri);
+    }
+  }, [profile.avatarUri]);
 
   // Attendance Goal local state for instantaneous tactile updates
   const [goal, setGoal] = useState<number>(attendanceCriteria);
@@ -177,6 +189,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
       college: college.trim() || profile.college,
       avatarUri,
       avatarSize,
+      avatarPreset: selectedAvatarPreset,
     });
     setIsEditing(false);
   };
@@ -190,6 +203,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
     setCollege(profile.college);
     setAvatarUri(profile.avatarUri || '');
     setAvatarSize(profile.avatarSize || 'medium');
+    setSelectedAvatarPreset(profile.avatarPreset ?? 0);
     setIsEditing(false);
   };
 
@@ -1102,7 +1116,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
               {avatarUri ? (
                 <TouchableOpacity
                   style={[styles.uploadActionOption, { backgroundColor: 'rgba(255, 82, 82, 0.12)', borderColor: 'rgba(255, 82, 82, 0.35)' }]}
-                  onPress={handleDeletePfp}
+                  onPress={removeAvatarPhoto}
                   activeOpacity={0.8}
                 >
                   <View style={[styles.uploadActionIconBox, { backgroundColor: 'rgba(255, 82, 82, 0.25)' }]}>
@@ -1122,74 +1136,47 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
 
             <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
 
-            {/* Avatar Sizing Selector */}
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.subHeadingLabel, { color: currentTheme.textMuted }]}>
-                AVATAR DISPLAY SIZE (PRESERVED)
-              </Text>
-              <View style={styles.modalSizePillsRow}>
-                {(['small', 'medium', 'large'] as const).map((sz) => {
-                  const isChosen = avatarSize === sz;
-                  return (
-                    <TouchableOpacity
-                      key={sz}
-                      style={[
-                        styles.sizePillBtn,
-                        {
-                          backgroundColor: isChosen ? currentTheme.primary + '22' : currentTheme.bgCardSecondary,
-                          borderColor: isChosen ? currentTheme.primary : currentTheme.borderGlass,
-                        },
-                      ]}
-                      onPress={() => handleSelectAvatarSize(sz)}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.sizePillText,
-                          {
-                            color: isChosen ? currentTheme.primary : currentTheme.textMuted,
-                            fontWeight: isChosen ? '700' : '500',
-                          },
-                        ]}
-                      >
-                        {sz === 'small' ? 'Small' : sz === 'medium' ? 'Standard' : 'Large'}
-                      </Text>
-                      {isChosen && <Feather name="check" size={13} color={currentTheme.primary} />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
-
-            {/* Gradient Avatar Presets */}
-            <Text style={[styles.avatarPickerHint, { color: currentTheme.textMuted }]}>Or choose a colorful gradient style:</Text>
+            {/* Gradient Avatar Ring Style Presets */}
+            <Text style={[styles.avatarPickerHint, { color: currentTheme.textMuted }]}>
+              Or choose a colorful gradient style:
+            </Text>
 
             <View style={styles.avatarPresetsRow}>
               {AVATAR_PRESETS.map((preset, idx) => {
-                const isSelected = selectedAvatarPreset === idx && !avatarUri;
+                const isSelected = selectedAvatarPreset === idx;
                 return (
                   <TouchableOpacity
                     key={preset.id}
-                    style={[styles.avatarPresetItem, isSelected && styles.avatarPresetItemSelected]}
+                    style={[
+                      styles.avatarPresetItem,
+                      isSelected && [styles.avatarPresetItemSelected, { borderColor: currentTheme.primary }],
+                    ]}
                     onPress={() => {
                       triggerHapticFeedback('selection');
                       setSelectedAvatarPreset(idx);
-                      setAvatarUri('');
-                      updateProfile({ avatarUri: '' });
+                      updateProfile({ avatarPreset: idx });
                       setShowAvatarPicker(false);
                     }}
+                    activeOpacity={0.8}
                   >
                     <LinearGradient
                       colors={preset.colors as [string, string]}
                       style={styles.avatarPresetRing}
                     >
                       <View style={[styles.avatarPresetInner, { backgroundColor: currentTheme.bgInner }]}>
-                        <Text style={styles.avatarPresetInitial}>{getInitials(name)}</Text>
+                        {avatarUri ? (
+                          <Image
+                            source={{ uri: avatarUri }}
+                            style={{ width: '100%', height: '100%', borderRadius: 16 }}
+                          />
+                        ) : (
+                          <Text style={styles.avatarPresetInitial}>{getInitials(name)}</Text>
+                        )}
                       </View>
                     </LinearGradient>
-                    <Text style={[styles.avatarPresetLabel, { color: currentTheme.textMuted }]}>{preset.label}</Text>
+                    <Text style={[styles.avatarPresetLabel, { color: isSelected ? currentTheme.primary : currentTheme.textMuted, fontWeight: isSelected ? '700' : '500' }]}>
+                      {preset.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
