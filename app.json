@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Colio",
-    "slug": "colio",
+    "slug": "campusos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -40,6 +40,7 @@
         }
       ]
     ],
+    "owner": "sharagaki",
     "extra": {
       "eas": {
         "projectId": "b44055ef-1089-4e40-a56e-a130791f8d4e"
