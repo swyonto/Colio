@@ -61,6 +61,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
     setClassRemindersEnabled,
     hapticsEnabled,
     setHapticsEnabled,
+    resetAllData,
   } = useCampus();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -70,7 +71,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
   const [semester, setSemester] = useState(profile.semester || 'Semester 5');
   const [college, setCollege] = useState(profile.college);
   const [avatarUri, setAvatarUri] = useState(profile.avatarUri || '');
+  const [avatarSize, setAvatarSize] = useState<'small' | 'medium' | 'large'>(profile.avatarSize || 'medium');
   const [selectedAvatarPreset, setSelectedAvatarPreset] = useState(0);
+
+  // Sync avatarSize from profile state
+  useEffect(() => {
+    if (profile.avatarSize) {
+      setAvatarSize(profile.avatarSize);
+    }
+  }, [profile.avatarSize]);
 
   // Attendance Goal local state for instantaneous tactile updates
   const [goal, setGoal] = useState<number>(attendanceCriteria);
@@ -94,6 +103,65 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
       .toUpperCase();
   };
 
+  const getAvatarDimensions = () => {
+    switch (avatarSize) {
+      case 'small':
+        return { ringSize: 68, borderRadius: 34, fontSize: 22 };
+      case 'large':
+        return { ringSize: 104, borderRadius: 52, fontSize: 36 };
+      case 'medium':
+      default:
+        return { ringSize: 84, borderRadius: 42, fontSize: 28 };
+    }
+  };
+  const avatarDim = getAvatarDimensions();
+
+  const handleSelectAvatarSize = (sz: 'small' | 'medium' | 'large') => {
+    triggerHapticFeedback('selection');
+    setAvatarSize(sz);
+    updateProfile({ avatarSize: sz });
+  };
+
+  const handleDeletePfp = () => {
+    triggerHapticFeedback('warning');
+    Alert.alert(
+      'Delete Profile Picture (PFP)',
+      'Are you sure you want to delete your profile picture? This will revert your profile back to standard academic initials.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete PFP',
+          style: 'destructive',
+          onPress: () => {
+            setAvatarUri('');
+            updateProfile({ avatarUri: '' });
+            setShowAvatarPicker(false);
+            triggerHapticFeedback('success');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmResetAll = () => {
+    triggerHapticFeedback('warning');
+    Alert.alert(
+      'Reset All Application Data?',
+      'This will permanently delete all stored attendance records, timetable slots, logged expenses, uploaded PDFs, and profile settings, returning Colio to initial onboarding setup.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Everything',
+          style: 'destructive',
+          onPress: async () => {
+            await resetAllData();
+            onBack();
+          },
+        },
+      ]
+    );
+  };
+
   const handleSave = () => {
     triggerHapticFeedback('success');
     updateProfile({
@@ -103,6 +171,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
       semester,
       college: college.trim() || profile.college,
       avatarUri,
+      avatarSize,
     });
     setIsEditing(false);
   };
@@ -115,6 +184,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
     setSemester(profile.semester || 'Semester 5');
     setCollege(profile.college);
     setAvatarUri(profile.avatarUri || '');
+    setAvatarSize(profile.avatarSize || 'medium');
     setIsEditing(false);
   };
 
@@ -254,13 +324,43 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
                 colors={AVATAR_PRESETS[selectedAvatarPreset].colors as [string, string]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.avatarGradientRing}
+                style={[
+                  styles.avatarGradientRing,
+                  {
+                    width: avatarDim.ringSize,
+                    height: avatarDim.ringSize,
+                    borderRadius: avatarDim.borderRadius,
+                  },
+                ]}
               >
                 {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                  <Image
+                    source={{ uri: avatarUri }}
+                    style={[
+                      styles.avatarImage,
+                      {
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: avatarDim.borderRadius - 2,
+                      },
+                    ]}
+                  />
                 ) : (
-                  <View style={[styles.avatarInnerFill, { backgroundColor: currentTheme.bgInner }]}>
-                    <Text style={[styles.avatarInitialsText, { color: currentTheme.textPrimary }]}>
+                  <View
+                    style={[
+                      styles.avatarInnerFill,
+                      {
+                        backgroundColor: currentTheme.bgInner,
+                        borderRadius: avatarDim.borderRadius - 2,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.avatarInitialsText,
+                        { color: currentTheme.textPrimary, fontSize: avatarDim.fontSize },
+                      ]}
+                    >
                       {getInitials(name)}
                     </Text>
                   </View>
@@ -272,6 +372,39 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
                 <Feather name="camera" size={12} color={currentTheme.isDark ? '#050907' : '#FFFFFF'} />
               </View>
             </TouchableOpacity>
+
+            {/* Profile Avatar Size Selector */}
+            <View style={styles.avatarSizePillsContainer}>
+              {(['small', 'medium', 'large'] as const).map((sz) => {
+                const isSelected = avatarSize === sz;
+                return (
+                  <TouchableOpacity
+                    key={sz}
+                    style={[
+                      styles.avatarSizeChip,
+                      {
+                        backgroundColor: isSelected ? currentTheme.primary + '22' : currentTheme.bgCardSecondary,
+                        borderColor: isSelected ? currentTheme.primary : currentTheme.borderGlass,
+                      },
+                    ]}
+                    onPress={() => handleSelectAvatarSize(sz)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.avatarSizeChipText,
+                        {
+                          color: isSelected ? currentTheme.primary : currentTheme.textMuted,
+                          fontWeight: isSelected ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {sz === 'small' ? 'Small' : sz === 'medium' ? 'Standard' : 'Large'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {/* Student Name */}
             {isEditing ? (
@@ -648,6 +781,25 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           </View>
         </View>
 
+        {/* 5. Data & Application Reset */}
+        <View style={[styles.sectionCard, { backgroundColor: currentTheme.bgSurface, borderColor: 'rgba(255, 82, 82, 0.25)' }]}>
+          <View style={[styles.sectionHeaderRow, { borderBottomColor: 'rgba(255, 82, 82, 0.2)' }]}>
+            <Feather name="alert-triangle" size={15} color="#FF5252" />
+            <Text style={[styles.sectionTitle, { color: '#FF5252' }]}>Data & Application Reset</Text>
+          </View>
+          <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
+            Reset all saved timetable schedules, attendance records, expense history, uploaded PDFs, and profile settings to return to first-time setup.
+          </Text>
+          <TouchableOpacity
+            style={[styles.resetAllBtn, { backgroundColor: 'rgba(255, 82, 82, 0.12)', borderColor: 'rgba(255, 82, 82, 0.35)' }]}
+            onPress={handleConfirmResetAll}
+            activeOpacity={0.8}
+          >
+            <Feather name="refresh-cw" size={14} color="#FF5252" />
+            <Text style={styles.resetAllBtnText}>Reset All Data & Restart Setup</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Action Save/Cancel Buttons in Edit Mode */}
         {isEditing && (
           <View style={styles.editActionsRow}>
@@ -715,7 +867,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
         </View>
       </Modal>
 
-      {/* Avatar Customization Modal (Camera, Gallery, Presets & Remove) */}
+      {/* Avatar Customization Modal (Camera, Gallery, Presets, Sizing & Delete PFP) */}
       <Modal visible={showAvatarPicker} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.borderGlass }]}>
@@ -768,23 +920,64 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
 
               {avatarUri ? (
                 <TouchableOpacity
-                  style={[styles.uploadActionOption, { backgroundColor: 'rgba(255, 82, 82, 0.1)', borderColor: 'rgba(255, 82, 82, 0.3)' }]}
-                  onPress={removeAvatarPhoto}
+                  style={[styles.uploadActionOption, { backgroundColor: 'rgba(255, 82, 82, 0.12)', borderColor: 'rgba(255, 82, 82, 0.35)' }]}
+                  onPress={handleDeletePfp}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.uploadActionIconBox, { backgroundColor: 'rgba(255, 82, 82, 0.2)' }]}>
+                  <View style={[styles.uploadActionIconBox, { backgroundColor: 'rgba(255, 82, 82, 0.25)' }]}>
                     <Feather name="trash-2" size={18} color="#FF5252" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.uploadActionTitle, { color: '#FF5252' }]}>
-                      Remove Custom Photo
+                    <Text style={[styles.uploadActionTitle, { color: '#FF5252', fontWeight: '700' }]}>
+                      Delete Profile Picture (PFP)
                     </Text>
                     <Text style={[styles.uploadActionSub, { color: currentTheme.textMuted }]}>
-                      Revert back to avatar initials
+                      Remove photo and restore initial avatar
                     </Text>
                   </View>
                 </TouchableOpacity>
               ) : null}
+            </View>
+
+            <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
+
+            {/* Avatar Sizing Selector */}
+            <View style={{ gap: 6 }}>
+              <Text style={[styles.subHeadingLabel, { color: currentTheme.textMuted }]}>
+                AVATAR DISPLAY SIZE (PRESERVED)
+              </Text>
+              <View style={styles.modalSizePillsRow}>
+                {(['small', 'medium', 'large'] as const).map((sz) => {
+                  const isChosen = avatarSize === sz;
+                  return (
+                    <TouchableOpacity
+                      key={sz}
+                      style={[
+                        styles.sizePillBtn,
+                        {
+                          backgroundColor: isChosen ? currentTheme.primary + '22' : currentTheme.bgCardSecondary,
+                          borderColor: isChosen ? currentTheme.primary : currentTheme.borderGlass,
+                        },
+                      ]}
+                      onPress={() => handleSelectAvatarSize(sz)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.sizePillText,
+                          {
+                            color: isChosen ? currentTheme.primary : currentTheme.textMuted,
+                            fontWeight: isChosen ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {sz === 'small' ? 'Small' : sz === 'medium' ? 'Standard' : 'Large'}
+                      </Text>
+                      {isChosen && <Feather name="check" size={13} color={currentTheme.primary} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
@@ -1271,5 +1464,53 @@ const styles = StyleSheet.create({
   },
   avatarPresetLabel: {
     fontSize: 10,
+  },
+  avatarSizePillsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginVertical: 4,
+  },
+  avatarSizeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 0.8,
+  },
+  avatarSizeChipText: {
+    fontSize: 11,
+  },
+  resetAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 0.8,
+    marginTop: 6,
+  },
+  resetAllBtnText: {
+    color: '#FF5252',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalSizePillsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  sizePillBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 0.8,
+  },
+  sizePillText: {
+    fontSize: 11,
   },
 });

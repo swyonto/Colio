@@ -83,12 +83,16 @@ export const ExpenseSummaryCard: React.FC<ExpenseSummaryCardProps> = ({ onNaviga
       {/* Main Stats Row */}
       <View style={styles.statsContainer}>
         <View style={styles.totalRow}>
-          <View>
-            <Text style={[Typography.displayLg, styles.amountText, { color: currentTheme.textPrimary }]}>
+          <View style={styles.amountCol}>
+            <Text
+              style={[Typography.displayLg, styles.amountText, { color: currentTheme.textPrimary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               ₹{currentMonthTotal.toLocaleString('en-IN')}
             </Text>
-            <Text style={[styles.monthLabel, { color: currentTheme.textMuted }]}>
-              Spent this month (September 2026)
+            <Text style={[styles.monthLabel, { color: currentTheme.textMuted }]} numberOfLines={1}>
+              Spent this month
             </Text>
           </View>
 
@@ -112,6 +116,7 @@ export const ExpenseSummaryCard: React.FC<ExpenseSummaryCardProps> = ({ onNaviga
                 styles.indicatorText,
                 { color: isMoMIncrease ? '#FF5252' : currentTheme.primary },
               ]}
+              numberOfLines={1}
             >
               {Math.abs(momChangePercent)}% MoM
             </Text>
@@ -265,19 +270,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'nowrap',
+    gap: 8,
+  },
+  amountCol: {
+    flex: 1,
+    minWidth: 140,
   },
   amountText: {},
   monthLabel: {
     marginTop: 2,
+    fontSize: 11,
   },
   indicatorBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
+    gap: 4,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 0.6,
+    flexShrink: 0,
+    alignSelf: 'center',
   },
   indicatorText: {
     fontSize: 11,

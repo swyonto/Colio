@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
 import { ColioLogo } from './ColioLogo';
 import { Colors } from '../../theme/colors';
+import { useCampus } from '../../context/CampusContext';
 
 interface AppSplashScreenProps {
   isLoading: boolean;
@@ -11,13 +12,14 @@ interface AppSplashScreenProps {
 const { width } = Dimensions.get('window');
 
 const LOADING_STEPS = [
-  'Initializing Campus Intelligence...',
-  'Syncing timetable & academic schedule...',
-  'Computing attendance criteria & buffer...',
+  'Initializing Colio Student OS...',
+  'Syncing timetable & matrix schedule...',
+  'Computing 75% attendance buffer...',
   'System ready.',
 ];
 
 export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onFinished }) => {
+  const { currentTheme } = useCampus();
   const [statusIndex, setStatusIndex] = useState(0);
   const [shouldRender, setShouldRender] = useState(true);
 
@@ -67,13 +69,13 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
         Animated.parallel([
           Animated.timing(pulseScale, {
             toValue: 1,
-            duration: 1200,
+            duration: 1400,
             easing: Easing.in(Easing.quad),
             useNativeDriver: true,
           }),
           Animated.timing(pulseOpacity, {
             toValue: 0.45,
-            duration: 1200,
+            duration: 1400,
             useNativeDriver: true,
           }),
         ]),
@@ -81,31 +83,46 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
     );
     pulseLoop.start();
 
-    // Smooth Progress bar animation across 1000ms
+    return () => pulseLoop.stop();
+  }, []);
+
+  // 2. Linear progress bar & step text progression
+  useEffect(() => {
+    if (!isLoading) return;
+
+    // Animate progress smoothly to ~90% while loading
     Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 1050,
+      toValue: 0.88,
+      duration: 1800,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       useNativeDriver: false,
     }).start();
 
-    // Status text steps
+    // Step text ticker
     const interval = setInterval(() => {
-      Animated.sequence([
-        Animated.timing(textFade, { toValue: 0, duration: 120, useNativeDriver: true }),
-        Animated.timing(textFade, { toValue: 1, duration: 150, useNativeDriver: true }),
-      ]).start();
+      // Fade text out
+      Animated.timing(textFade, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => {
+        setStatusIndex((prev) => {
+          const next = (prev + 1) % (LOADING_STEPS.length - 1);
+          return next;
+        });
+        // Fade text in
+        Animated.timing(textFade, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 700);
 
-      setStatusIndex((prev) => (prev < LOADING_STEPS.length - 1 ? prev + 1 : prev));
-    }, 320);
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
-    return () => {
-      pulseLoop.stop();
-      clearInterval(interval);
-    };
-  }, []);
-
-  // 2. Handle exit transition when loading finishes
+  // 3. Exit transition when loading completes
   useEffect(() => {
     if (!isLoading) {
       // Complete the progress to 100%
@@ -144,6 +161,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
       style={[
         styles.overlay,
         {
+          backgroundColor: currentTheme.bgBase,
           opacity: screenOpacity,
           transform: [{ scale: screenScale }],
         },
@@ -151,11 +169,13 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
       pointerEvents={isLoading ? 'auto' : 'none'}
     >
       <View style={styles.centerBox}>
-        {/* Pulsing Emerald Halo */}
+        {/* Pulsing Halo */}
         <Animated.View
           style={[
             styles.haloGlow,
             {
+              backgroundColor: currentTheme.primary + '25',
+              shadowColor: currentTheme.primary,
               transform: [{ scale: pulseScale }],
               opacity: pulseOpacity,
             },
@@ -167,6 +187,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
           style={[
             styles.logoWrapper,
             {
+              shadowColor: currentTheme.primary,
               transform: [{ scale: logoScale }],
               opacity: logoOpacity,
             },
@@ -175,31 +196,44 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
           <ColioLogo size={68} />
         </Animated.View>
 
-        {/* App Title with Neon Highlight */}
+        {/* App Title */}
         <View style={styles.brandGroup}>
           <View style={styles.titleRow}>
-            <Text style={styles.brandTitle}>Campus</Text>
-            <Text style={[styles.brandTitle, styles.brandTitleHighlight]}>OS</Text>
+            <Text style={[styles.brandTitle, { color: currentTheme.textPrimary }]}>COL</Text>
+            <Text style={[styles.brandTitle, { color: currentTheme.primary }]}>IO</Text>
           </View>
-          <Text style={styles.brandSubtitle}>STUDENT INTELLIGENCE SYSTEM</Text>
+          <Text style={[styles.brandSubtitle, { color: currentTheme.textMuted }]}>
+            STUDENT OPERATING SYSTEM
+          </Text>
         </View>
 
         {/* Glowing Progress Bar */}
         <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
+          <Animated.View
+            style={[
+              styles.progressBar,
+              {
+                width: progressWidth,
+                backgroundColor: currentTheme.primary,
+                shadowColor: currentTheme.primary,
+              },
+            ]}
+          />
         </View>
 
         {/* Dynamic Status Text */}
-        <Animated.Text style={[styles.statusText, { opacity: textFade }]}>
+        <Animated.Text style={[styles.statusText, { opacity: textFade, color: currentTheme.textMuted }]}>
           {LOADING_STEPS[statusIndex]}
         </Animated.Text>
       </View>
 
       {/* Footer Version & Security Pill */}
       <View style={styles.footerRow}>
-        <View style={styles.securePill}>
-          <View style={styles.secureDot} />
-          <Text style={styles.secureText}>CAMPUS LOCAL DATABASE ACTIVE</Text>
+        <View style={[styles.securePill, { backgroundColor: currentTheme.primary + '15', borderColor: currentTheme.primary + '35' }]}>
+          <View style={[styles.secureDot, { backgroundColor: currentTheme.primary }]} />
+          <Text style={[styles.secureText, { color: currentTheme.primary }]}>
+            100% OFFLINE ENCRYPTED DATA
+          </Text>
         </View>
       </View>
     </Animated.View>
@@ -208,15 +242,10 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#050907',
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...StyleSheet.absoluteFill,
     zIndex: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centerBox: {
     alignItems: 'center',
@@ -229,8 +258,6 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(0, 230, 118, 0.20)',
-    shadowColor: Colors.emeraldPrimary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 35,
@@ -238,7 +265,6 @@ const styles = StyleSheet.create({
   },
   logoWrapper: {
     marginBottom: 20,
-    shadowColor: Colors.emeraldPrimary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -253,18 +279,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  brandTitleHighlight: {
-    color: Colors.emeraldPrimary,
+    letterSpacing: 2,
   },
   brandSubtitle: {
     fontSize: 10,
     fontWeight: '800',
-    color: Colors.textMuted,
     letterSpacing: 2.2,
     marginTop: 4,
   },
@@ -278,16 +299,13 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: Colors.emeraldPrimary,
     borderRadius: 2,
-    shadowColor: Colors.emeraldPrimary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 6,
   },
   statusText: {
     fontSize: 11,
-    color: Colors.textMuted,
     fontWeight: '600',
     letterSpacing: 0.3,
     textAlign: 'center',
@@ -305,20 +323,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 230, 118, 0.08)',
     borderWidth: 0.6,
-    borderColor: 'rgba(0, 230, 118, 0.22)',
   },
   secureDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.emeraldPrimary,
   },
   secureText: {
     fontSize: 9,
     fontWeight: '700',
-    color: Colors.emeraldPrimary,
     letterSpacing: 0.8,
   },
 });

@@ -83,6 +83,8 @@ export const ColioLogo: React.FC<ColioLogoProps> = ({ size = 36 }) => {
   );
 };
 
+export const CalioLogo = ColioLogo;
+
 const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',

@@ -44,6 +44,11 @@ export const ExpensesScreen: React.FC = () => {
   const [activeTimeFilter, setActiveTimeFilter] = useState('all');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
 
+  // History View Mode (Cards vs Table) & Lazy Loading / Infinite Scroll
+  const [historyViewMode, setHistoryViewMode] = useState<'cards' | 'table'>('cards');
+  const PAGE_SIZE = 8;
+  const [visibleExpenseCount, setVisibleExpenseCount] = useState<number>(PAGE_SIZE);
+
   // Modals
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -61,6 +66,11 @@ export const ExpensesScreen: React.FC = () => {
   const [preAmount, setPreAmount] = useState('');
   const [preCategory, setPreCategory] = useState<ExpenseCategory>('Food');
 
+  // Reset pagination when month or filters change
+  React.useEffect(() => {
+    setVisibleExpenseCount(PAGE_SIZE);
+  }, [selectedMonth, activeTimeFilter, activeCategoryFilter]);
+
   // Filtered expense entries
   const monthExpenses = expenses.filter((e) => e.date.startsWith(selectedMonth));
   const filteredExpenses = monthExpenses.filter((e) => {
@@ -69,6 +79,7 @@ export const ExpensesScreen: React.FC = () => {
     return matchTime && matchCat;
   });
 
+  const displayedExpenses = filteredExpenses.slice(0, visibleExpenseCount);
   const monthTotal = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   // Category breakdown
@@ -229,7 +240,7 @@ export const ExpensesScreen: React.FC = () => {
                     <Text style={styles.catName}>{cat}</Text>
                     <Text style={styles.catAmount}>₹{catAmount} ({catPct}%)</Text>
                   </View>
-                  <ProgressBar percentage={catPct} height={5} color={Colors.emeraldPrimary} />
+                  <ProgressBar percentage={catPct} height={5} color={currentTheme.primary} />
                 </View>
               );
             })}
@@ -239,7 +250,7 @@ export const ExpensesScreen: React.FC = () => {
         {/* SECTION 9.2: EDITABLE QUICK EXPENSE PRESETS (CRUD) */}
         <View style={styles.sectionBlock}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[Typography.overline, { color: Colors.textMuted }]}>
+            <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>
               QUICK LOG PRESETS (LONG-PRESS TO EDIT)
             </Text>
             <TouchableOpacity
@@ -249,10 +260,10 @@ export const ExpensesScreen: React.FC = () => {
                 setPreCategory('Food');
                 setIsAddPresetOpen(true);
               }}
-              style={styles.addPresetBtn}
+              style={[styles.addPresetBtn, { backgroundColor: currentTheme.primary + '1F' }]}
             >
-              <Feather name="plus" size={13} color={Colors.emeraldPrimary} />
-              <Text style={styles.addPresetBtnText}>New Preset</Text>
+              <Feather name="plus" size={13} color={currentTheme.primary} />
+              <Text style={[styles.addPresetBtnText, { color: currentTheme.primary }]}>New Preset</Text>
             </TouchableOpacity>
           </View>
 
@@ -260,7 +271,10 @@ export const ExpensesScreen: React.FC = () => {
             {presets.map((preset) => (
               <TouchableOpacity
                 key={preset.id}
-                style={styles.presetTile}
+                style={[
+                  styles.presetTile,
+                  { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass },
+                ]}
                 onPress={() => handleQuickLog(preset)}
                 onLongPress={() => {
                   setEditingPreset(preset);
@@ -271,13 +285,13 @@ export const ExpensesScreen: React.FC = () => {
                 delayLongPress={350}
               >
                 <View style={styles.presetTileTop}>
-                  <Text style={styles.presetTileTitle} numberOfLines={1}>
+                  <Text style={[styles.presetTileTitle, { color: currentTheme.textSecondary }]} numberOfLines={1}>
                     {preset.title}
                   </Text>
-                  <Feather name="edit-2" size={10} color={Colors.textDisabled} />
+                  <Feather name="edit-2" size={10} color={currentTheme.textDisabled} />
                 </View>
-                <Text style={styles.presetTileAmount}>+₹{preset.amount}</Text>
-                <Text style={styles.presetTileCategory}>{preset.category}</Text>
+                <Text style={[styles.presetTileAmount, { color: currentTheme.primary }]}>+₹{preset.amount}</Text>
+                <Text style={[styles.presetTileCategory, { color: currentTheme.textMuted }]}>{preset.category}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -292,10 +306,14 @@ export const ExpensesScreen: React.FC = () => {
               return (
                 <TouchableOpacity
                   key={tf.id}
-                  style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                  style={[
+                    styles.filterPill,
+                    { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
+                    isSelected && { backgroundColor: currentTheme.primary + '25', borderColor: currentTheme.primary },
+                  ]}
                   onPress={() => setActiveTimeFilter(tf.id)}
                 >
-                  <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                  <Text style={[styles.filterPillText, isSelected && { color: currentTheme.textPrimary, fontWeight: '700' }]}>
                     {tf.label}
                   </Text>
                 </TouchableOpacity>
@@ -310,10 +328,14 @@ export const ExpensesScreen: React.FC = () => {
               return (
                 <TouchableOpacity
                   key={c}
-                  style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                  style={[
+                    styles.filterPill,
+                    { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
+                    isSelected && { backgroundColor: currentTheme.primary + '25', borderColor: currentTheme.primary },
+                  ]}
                   onPress={() => setActiveCategoryFilter(c)}
                 >
-                  <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                  <Text style={[styles.filterPillText, isSelected && { color: currentTheme.textPrimary, fontWeight: '700' }]}>
                     {c === 'all' ? 'All Categories' : c}
                   </Text>
                 </TouchableOpacity>
@@ -323,9 +345,9 @@ export const ExpensesScreen: React.FC = () => {
         </View>
 
         {/* First-Time Tip Callout */}
-        <View style={styles.tipCallout}>
-          <Feather name="info" size={14} color={Colors.emeraldHighlight} />
-          <Text style={styles.tipText}>
+        <View style={[styles.tipCallout, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.primary + '30' }]}>
+          <Feather name="info" size={14} color={currentTheme.primary} />
+          <Text style={[styles.tipText, { color: currentTheme.textSecondary }]}>
             Tip: Tap any expense to edit details or delete.
           </Text>
           <TouchableOpacity
@@ -336,27 +358,84 @@ export const ExpensesScreen: React.FC = () => {
               setExpTimeOfDay('Afternoon');
               setIsAddExpenseOpen(true);
             }}
-            style={styles.logCustomBtn}
+            style={[styles.logCustomBtn, { backgroundColor: currentTheme.primary }]}
           >
-            <Text style={styles.logCustomBtnText}>+ Custom Expense</Text>
+            <Text style={[styles.logCustomBtnText, { color: currentTheme.isDark ? '#050907' : '#FFFFFF' }]}>+ Custom Expense</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Expense History List */}
+        {/* Expense History List / Table Section */}
         <View style={styles.historySection}>
-          <Text style={[Typography.overline, { color: Colors.textMuted }]}>
-            LOGGED EXPENSES ({filteredExpenses.length})
-          </Text>
+          <View style={styles.historyHeaderRow}>
+            <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>
+              LOGGED EXPENSES ({filteredExpenses.length})
+            </Text>
+
+            {/* View Mode Toggle: Cards vs Table */}
+            <View style={[styles.historyModeToggleContainer, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}>
+              <TouchableOpacity
+                style={[
+                  styles.historyModeButton,
+                  historyViewMode === 'cards' && { backgroundColor: currentTheme.primary },
+                ]}
+                onPress={() => setHistoryViewMode('cards')}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Feather
+                  name="grid"
+                  size={12}
+                  color={historyViewMode === 'cards' ? (currentTheme.isDark ? '#050907' : '#FFFFFF') : currentTheme.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.historyModeButtonText,
+                    { color: historyViewMode === 'cards' ? (currentTheme.isDark ? '#050907' : '#FFFFFF') : currentTheme.textMuted },
+                  ]}
+                >
+                  Cards
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.historyModeButton,
+                  historyViewMode === 'table' && { backgroundColor: currentTheme.primary },
+                ]}
+                onPress={() => setHistoryViewMode('table')}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Feather
+                  name="list"
+                  size={12}
+                  color={historyViewMode === 'table' ? (currentTheme.isDark ? '#050907' : '#FFFFFF') : currentTheme.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.historyModeButtonText,
+                    { color: historyViewMode === 'table' ? (currentTheme.isDark ? '#050907' : '#FFFFFF') : currentTheme.textMuted },
+                  ]}
+                >
+                  Table
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {filteredExpenses.length === 0 ? (
             <View style={styles.emptyExpenseBox}>
-              <Text style={styles.emptyExpenseText}>No expense records found for this selection.</Text>
+              <Text style={[styles.emptyExpenseText, { color: currentTheme.textMuted }]}>
+                No expense records found for this selection.
+              </Text>
             </View>
-          ) : (
-            filteredExpenses.map((exp) => (
+          ) : historyViewMode === 'cards' ? (
+            /* CARDS VIEW */
+            displayedExpenses.map((exp) => (
               <TouchableOpacity
                 key={exp.id}
-                style={styles.expenseItemRow}
+                style={[
+                  styles.expenseItemRow,
+                  { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass },
+                ]}
                 onPress={() => {
                   setEditingExpense(exp);
                   setExpTitle(exp.title);
@@ -367,36 +446,107 @@ export const ExpensesScreen: React.FC = () => {
                 activeOpacity={0.8}
               >
                 <View style={styles.expenseItemLeft}>
-                  <View style={styles.categoryIconCircle}>
+                  <View style={[styles.categoryIconCircle, { backgroundColor: currentTheme.primary + '18' }]}>
                     <Feather
                       name={exp.category === 'Food' ? 'coffee' : exp.category === 'Transport' ? 'navigation' : exp.category === 'Books' ? 'book' : 'tag'}
                       size={15}
-                      color={Colors.emeraldPrimary}
+                      color={currentTheme.primary}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[Typography.titleSm, styles.expItemTitle]} numberOfLines={1}>
+                    <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]} numberOfLines={1}>
                       {exp.title}
                     </Text>
-                    <Text style={styles.expItemMeta}>
+                    <Text style={[styles.expItemMeta, { color: currentTheme.textMuted }]}>
                       {exp.date} • {exp.time || (exp.timeOfDay === 'Morning' ? '09:30 AM' : exp.timeOfDay === 'Afternoon' ? '01:15 PM' : exp.timeOfDay === 'Evening' ? '05:45 PM' : '09:20 PM')} • {exp.category}
                     </Text>
                   </View>
                 </View>
 
                 <View style={styles.expenseItemRight}>
-                  <Text style={[Typography.titleMd, styles.expItemAmount]}>
+                  <Text style={[Typography.titleMd, { color: currentTheme.textPrimary, fontWeight: '700' }]}>
                     ₹{exp.amount}
                   </Text>
                   <TouchableOpacity
                     onPress={() => deleteExpense(exp.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Feather name="trash-2" size={14} color={Colors.textDisabled} />
+                    <Feather name="trash-2" size={14} color={currentTheme.textDisabled} />
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             ))
+          ) : (
+            /* TABLE VIEW */
+            <View style={[styles.tableContainer, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
+              {/* Table Header */}
+              <View style={[styles.tableHeaderRow, { backgroundColor: currentTheme.bgCardSecondary, borderBottomColor: currentTheme.borderGlass }]}>
+                <Text style={[styles.thText, styles.thDate, { color: currentTheme.textMuted }]}>DATE</Text>
+                <Text style={[styles.thText, styles.thDesc, { color: currentTheme.textMuted }]}>TITLE & CAT</Text>
+                <Text style={[styles.thText, styles.thAmount, { color: currentTheme.textMuted }]}>AMOUNT</Text>
+                <Text style={[styles.thText, styles.thAction, { color: currentTheme.textMuted }]}>ACT</Text>
+              </View>
+
+              {displayedExpenses.map((exp, idx) => (
+                <TouchableOpacity
+                  key={exp.id}
+                  style={[
+                    styles.tableRow,
+                    {
+                      borderBottomColor: currentTheme.borderGlass,
+                      backgroundColor: idx % 2 === 0 ? 'transparent' : (currentTheme.isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)'),
+                    },
+                  ]}
+                  onPress={() => {
+                    setEditingExpense(exp);
+                    setExpTitle(exp.title);
+                    setExpAmount(exp.amount.toString());
+                    setExpCategory(exp.category);
+                    setExpTimeOfDay(exp.timeOfDay);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.thDate}>
+                    <Text style={[styles.tdDate, { color: currentTheme.textPrimary }]}>{exp.date.slice(5)}</Text>
+                    <Text style={[styles.tdTime, { color: currentTheme.textMuted }]}>{exp.time || exp.timeOfDay}</Text>
+                  </View>
+                  <View style={styles.thDesc}>
+                    <Text style={[styles.tdTitle, { color: currentTheme.textPrimary }]} numberOfLines={1}>{exp.title}</Text>
+                    <View style={[styles.tableCatBadge, { backgroundColor: currentTheme.primary + '18' }]}>
+                      <Text style={[styles.tableCatText, { color: currentTheme.primary }]}>{exp.category}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.thAmount}>
+                    <Text style={[styles.tdAmount, { color: currentTheme.textPrimary }]}>₹{exp.amount}</Text>
+                  </View>
+                  <View style={styles.thAction}>
+                    <TouchableOpacity
+                      onPress={() => deleteExpense(exp.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Feather name="trash-2" size={13} color={currentTheme.textDisabled} />
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Lazy Loading / Progressive Loading Trigger */}
+          {visibleExpenseCount < filteredExpenses.length && (
+            <TouchableOpacity
+              style={[
+                styles.loadMoreBtn,
+                { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
+              ]}
+              onPress={() => setVisibleExpenseCount((prev) => prev + PAGE_SIZE)}
+              activeOpacity={0.8}
+            >
+              <Feather name="chevron-down" size={14} color={currentTheme.primary} />
+              <Text style={[styles.loadMoreBtnText, { color: currentTheme.primary }]}>
+                Load Older Expenses ({displayedExpenses.length} of {filteredExpenses.length})
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
       </ScrollView>
@@ -432,10 +582,18 @@ export const ExpensesScreen: React.FC = () => {
           {CATEGORIES.map((c) => (
             <TouchableOpacity
               key={c}
-              style={[styles.dialogSelectChip, expCategory === c && styles.dialogSelectChipActive]}
+              style={[
+                styles.dialogSelectChip,
+                expCategory === c && { backgroundColor: currentTheme.primary + '25', borderColor: currentTheme.primary },
+              ]}
               onPress={() => setExpCategory(c)}
             >
-              <Text style={[styles.dialogSelectChipText, expCategory === c && styles.dialogSelectChipTextActive]}>
+              <Text
+                style={[
+                  styles.dialogSelectChipText,
+                  expCategory === c && { color: currentTheme.textPrimary, fontWeight: '700' },
+                ]}
+              >
                 {c}
               </Text>
             </TouchableOpacity>
@@ -448,10 +606,18 @@ export const ExpensesScreen: React.FC = () => {
           {(['Morning', 'Afternoon', 'Evening', 'Night'] as TimeOfDay[]).map((t) => (
             <TouchableOpacity
               key={t}
-              style={[styles.dialogSelectChip, expTimeOfDay === t && styles.dialogSelectChipActive]}
+              style={[
+                styles.dialogSelectChip,
+                expTimeOfDay === t && { backgroundColor: currentTheme.primary + '25', borderColor: currentTheme.primary },
+              ]}
               onPress={() => setExpTimeOfDay(t)}
             >
-              <Text style={[styles.dialogSelectChipText, expTimeOfDay === t && styles.dialogSelectChipTextActive]}>
+              <Text
+                style={[
+                  styles.dialogSelectChipText,
+                  expTimeOfDay === t && { color: currentTheme.textPrimary, fontWeight: '700' },
+                ]}
+              >
                 {t}
               </Text>
             </TouchableOpacity>
@@ -503,10 +669,18 @@ export const ExpensesScreen: React.FC = () => {
           {CATEGORIES.map((c) => (
             <TouchableOpacity
               key={c}
-              style={[styles.dialogSelectChip, preCategory === c && styles.dialogSelectChipActive]}
+              style={[
+                styles.dialogSelectChip,
+                preCategory === c && { backgroundColor: currentTheme.primary + '25', borderColor: currentTheme.primary },
+              ]}
               onPress={() => setPreCategory(c)}
             >
-              <Text style={[styles.dialogSelectChipText, preCategory === c && styles.dialogSelectChipTextActive]}>
+              <Text
+                style={[
+                  styles.dialogSelectChipText,
+                  preCategory === c && { color: currentTheme.textPrimary, fontWeight: '700' },
+                ]}
+              >
                 {c}
               </Text>
             </TouchableOpacity>
@@ -732,6 +906,114 @@ const styles = StyleSheet.create({
   },
   historySection: {
     gap: 10,
+  },
+  historyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  historyModeToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 2,
+    borderRadius: 8,
+    borderWidth: 0.6,
+    gap: 2,
+  },
+  historyModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  historyModeButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tableContainer: {
+    borderRadius: 12,
+    borderWidth: 0.6,
+    overflow: 'hidden',
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 0.6,
+  },
+  thText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderBottomWidth: 0.6,
+  },
+  thDate: {
+    width: 68,
+  },
+  tdDate: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tdTime: {
+    fontSize: 9,
+    marginTop: 1,
+  },
+  thDesc: {
+    flex: 1,
+    paddingRight: 6,
+  },
+  tdTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tableCatBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  tableCatText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  thAmount: {
+    width: 65,
+    alignItems: 'flex-end',
+  },
+  tdAmount: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  thAction: {
+    width: 32,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 0.6,
+    marginTop: 4,
+  },
+  loadMoreBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   emptyExpenseBox: {
     paddingVertical: 24,

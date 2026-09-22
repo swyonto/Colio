@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { GlassInput } from '../components/common/GlassInput';
 import { ProgressBar } from '../components/common/ProgressBar';
-import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
+import { useCampus } from '../context/CampusContext';
 
 interface SemesterRecord {
   sem: string;
@@ -21,6 +21,7 @@ const INITIAL_SEMS: SemesterRecord[] = [
 ];
 
 export const CgpaScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+  const { currentTheme } = useCampus();
   const [semesters, setSemesters] = useState<SemesterRecord[]>(INITIAL_SEMS);
   const [targetCgpa, setTargetCgpa] = useState('9.0');
 
@@ -39,17 +40,21 @@ export const CgpaScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header Bar */}
-      <View style={styles.headerBar}>
+    <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
+      {/* Top Header */}
+      <View style={[styles.headerBar, { backgroundColor: currentTheme.bgCardSecondary, borderBottomColor: currentTheme.borderGlass }]}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <Feather name="arrow-left" size={20} color={Colors.textPrimary} />
+          <TouchableOpacity onPress={onBack} style={[styles.backBtn, { backgroundColor: currentTheme.bgCard }]}>
+            <Feather name="arrow-left" size={18} color={currentTheme.textPrimary} />
           </TouchableOpacity>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={[Typography.titleLg, styles.headerTitle]}>CGPA Calculator</Text>
-          <Text style={styles.headerSubtitle}>Weighted Credit Grade Estimator</Text>
+          <Text style={[Typography.titleMd, { color: currentTheme.textPrimary, fontWeight: '700' }]}>
+            CGPA Calculator
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: currentTheme.textMuted }]}>
+            Weighted Credit Grade Estimator
+          </Text>
         </View>
       </View>
 
@@ -61,49 +66,71 @@ export const CgpaScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         {/* Cumulative Grade Gauge Card */}
         <EmeraldGlassCard>
           <View style={styles.gaugeContent}>
-            <Text style={[Typography.overline, { color: Colors.textMuted }]}>CUMULATIVE GRADE POINT AVERAGE</Text>
-            <Text style={[Typography.displayXl, styles.cgpaValue]}>{currentCgpa}</Text>
+            <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>
+              CUMULATIVE GRADE POINT AVERAGE
+            </Text>
+            <Text style={[Typography.displayXl, styles.cgpaValue, { color: currentTheme.primary }]}>
+              {currentCgpa}
+            </Text>
 
             <View style={styles.badgeRow}>
-              <View style={styles.targetBadge}>
-                <Feather name="target" size={12} color={Colors.emeraldPrimary} />
-                <Text style={styles.targetBadgeText}>Target: {targetCgpa}</Text>
+              <View style={[styles.targetBadge, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '35' }]}>
+                <Feather name="target" size={12} color={currentTheme.primary} />
+                <Text style={[styles.targetBadgeText, { color: currentTheme.primary }]}>Target: {targetCgpa}</Text>
               </View>
-              <Text style={styles.creditsNote}>
-                {totalCredits} Total Credits Earned Across 4 Semesters
+              <Text style={[styles.creditsNote, { color: currentTheme.textMuted }]}>
+                {totalCredits} Total Credits Earned Across {semesters.length} Semesters
               </Text>
             </View>
 
             <View style={{ width: '100%', marginTop: 8 }}>
-              <ProgressBar percentage={(parseFloat(currentCgpa) / 10) * 100} height={8} />
+              <ProgressBar percentage={(parseFloat(currentCgpa) / 10) * 100} height={8} color={currentTheme.primary} />
             </View>
           </View>
         </EmeraldGlassCard>
 
         {/* Semester Scores */}
         <View style={styles.semesterList}>
-          <Text style={[Typography.overline, { color: Colors.textMuted }]}>SEMESTER SGPA BREAKDOWN</Text>
+          <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>SEMESTER SGPA BREAKDOWN</Text>
 
           {semesters.map((s, idx) => (
-            <View key={s.sem} style={styles.semCard}>
+            <View
+              key={s.sem}
+              style={[styles.semCard, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
+            >
               <View style={{ flex: 1 }}>
-                <Text style={[Typography.titleSm, styles.semTitle]}>{s.sem}</Text>
-                <Text style={styles.semCredits}>{s.credits} Credits</Text>
+                <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>{s.sem}</Text>
+                <Text style={[styles.semCredits, { color: currentTheme.textMuted }]}>{s.credits} Credits</Text>
               </View>
 
               <View style={styles.sgpaInputWrap}>
-                <Text style={styles.sgpaLabel}>SGPA:</Text>
-                <GlassInput
-                  label=""
+                <Text style={[styles.sgpaLabel, { color: currentTheme.textSecondary }]}>SGPA:</Text>
+                <TextInput
                   value={s.sgpa.toString()}
                   onChangeText={(val) => updateSemesterSgpa(idx, val)}
                   keyboardType="numeric"
-                  style={styles.inlineInput}
+                  style={[styles.inlineInput, { color: currentTheme.primary }]}
                 />
               </View>
             </View>
           ))}
         </View>
+
+        {/* Target Simulator */}
+        <EmeraldGlassCard>
+          <Text style={[Typography.overline, { color: currentTheme.textMuted, marginBottom: 8 }]}>
+            TARGET SIMULATOR
+          </Text>
+          <GlassInput
+            label="Desired Target CGPA"
+            value={targetCgpa}
+            onChangeText={setTargetCgpa}
+            keyboardType="numeric"
+          />
+          <Text style={[Typography.bodySm, { color: currentTheme.textMuted, marginTop: 4, fontSize: 11 }]}>
+            Calculates required minimum SGPA in remaining semesters to achieve your target graduation honors.
+          </Text>
+        </EmeraldGlassCard>
       </ScrollView>
     </View>
   );
@@ -112,33 +139,25 @@ export const CgpaScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgBase,
   },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 42,
-    paddingBottom: 12,
-    backgroundColor: '#0A0E0C',
+    paddingVertical: 12,
     borderBottomWidth: 0.6,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     gap: 12,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#131714',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    color: Colors.textPrimary,
-  },
   headerSubtitle: {
-    color: Colors.textMuted,
     fontSize: 11,
+    marginTop: 1,
   },
   scrollArea: {
     flex: 1,
@@ -154,7 +173,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   cgpaValue: {
-    color: Colors.emeraldPrimary,
     fontWeight: '800',
   },
   badgeRow: {
@@ -165,20 +183,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 0.6,
-    borderColor: 'rgba(0, 230, 118, 0.3)',
   },
   targetBadgeText: {
-    color: Colors.emeraldPrimary,
     fontSize: 11,
     fontWeight: '700',
   },
   creditsNote: {
-    color: Colors.textMuted,
     fontSize: 11,
   },
   semesterList: {
@@ -187,18 +201,12 @@ const styles = StyleSheet.create({
   semCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F1210',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  semTitle: {
-    color: Colors.textPrimary,
   },
   semCredits: {
-    color: Colors.textMuted,
     fontSize: 11,
   },
   sgpaInputWrap: {
@@ -208,7 +216,6 @@ const styles = StyleSheet.create({
     width: 100,
   },
   sgpaLabel: {
-    color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -216,6 +223,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.emeraldHighlight,
   },
 });

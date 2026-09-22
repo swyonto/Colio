@@ -5,214 +5,519 @@ export const initialSubjects: Subject[] = [
     id: 'subj-1',
     name: 'Python Programming',
     code: 'PYTH',
-    teacher: 'Prof. Sharma',
-    room: 'CL-2',
+    teacher: 'Dr. AD',
+    room: 'AD1 / Lab 3',
     color: '#00E676',
-    present: 26,
-    absent: 4,
+    present: 0,
+    absent: 0,
     targetPercent: 68,
   },
   {
     id: 'subj-2',
     name: 'Computer System Architecture',
     code: 'CSA',
-    teacher: 'Dr. Verma',
-    room: 'LT-1',
+    teacher: 'Prof. DJS / PSS',
+    room: 'DJS1 / Lab 3',
     color: '#00C853',
-    present: 22,
-    absent: 6,
+    present: 0,
+    absent: 0,
     targetPercent: 68,
   },
   {
     id: 'subj-3',
-    name: 'Mathematical Computing',
+    name: 'Mathematics',
     code: 'MC',
-    teacher: 'Prof. Rao',
-    room: 'Lab 1',
+    teacher: 'Dr. PRK',
+    room: 'PRK1 / Lab 2',
     color: '#69F0AE',
-    present: 19,
-    absent: 5,
+    present: 0,
+    absent: 0,
     targetPercent: 68,
   },
   {
     id: 'subj-4',
-    name: 'Economics for Engineers',
+    name: 'General Elective 1',
     code: 'GE1',
-    teacher: 'Dr. Mehta',
-    room: 'R-204',
+    teacher: 'Prof. AD / MBB',
+    room: 'AD1 / MBB Lab',
     color: '#00B0FF',
-    present: 16,
-    absent: 2,
+    present: 0,
+    absent: 0,
     targetPercent: 68,
   },
   {
     id: 'subj-5',
-    name: 'Value Addition: Ethics',
+    name: 'Value Added Course 1',
     code: 'VAC1',
-    teacher: 'Prof. Singh',
-    room: 'Audi 2',
+    teacher: 'Prof. ITH',
+    room: 'ITH / Lab',
     color: '#FFD600',
-    present: 12,
-    absent: 1,
+    present: 0,
+    absent: 0,
     targetPercent: 68,
   },
   {
     id: 'subj-6',
-    name: 'Web Dev & Cloud Skills',
+    name: 'Skill Enhancement Course 1',
     code: 'SEC1',
-    teacher: 'Dr. Gupta',
-    room: 'Lab 3',
+    teacher: 'Prof. MBB',
+    room: 'MBB Lab 2',
     color: '#FF9100',
-    present: 20,
-    absent: 3,
+    present: 0,
+    absent: 0,
     targetPercent: 68,
   },
   {
     id: 'subj-7',
-    name: 'Technical Communication',
+    name: 'Language 1',
     code: 'LANG1',
-    teacher: 'Ms. Kapoor',
-    room: 'R-102',
+    teacher: 'Prof. BSK1 / SPD1',
+    room: 'Room 101',
     color: '#00E5FF',
-    present: 15,
-    absent: 3,
+    present: 0,
+    absent: 0,
     targetPercent: 68,
   },
 ];
 
 export const initialTimetable: TimetableSlot[] = [
-  // Monday (1)
-  { id: 'tt-m1', dayOfWeek: 1, period: 1, startTime: '08:30', endTime: '09:30', subjectId: 'subj-1', room: 'CL-2', teacher: 'Prof. Sharma' },
-  { id: 'tt-m2', dayOfWeek: 1, period: 2, startTime: '09:30', endTime: '10:30', subjectId: 'subj-2', room: 'LT-1', teacher: 'Dr. Verma' },
-  { id: 'tt-m3', dayOfWeek: 1, period: 3, startTime: '10:30', endTime: '11:30', subjectId: 'subj-3', room: 'Lab 1', teacher: 'Prof. Rao' },
-  { id: 'tt-m4', dayOfWeek: 1, period: 4, startTime: '11:30', endTime: '12:30', subjectId: 'subj-4', room: 'R-204', teacher: 'Dr. Mehta' },
-  { id: 'tt-m6', dayOfWeek: 1, period: 6, startTime: '01:30', endTime: '02:30', subjectId: 'subj-6', room: 'Lab 3', teacher: 'Dr. Gupta' },
-  { id: 'tt-m7', dayOfWeek: 1, period: 7, startTime: '02:30', endTime: '03:30', subjectId: 'subj-7', room: 'R-102', teacher: 'Ms. Kapoor' },
-
-  // Tuesday (2)
-  { id: 'tt-t1', dayOfWeek: 2, period: 1, startTime: '08:30', endTime: '09:30', subjectId: 'subj-2', room: 'LT-1', teacher: 'Dr. Verma' },
-  { id: 'tt-t2', dayOfWeek: 2, period: 2, startTime: '09:30', endTime: '10:30', subjectId: 'subj-1', room: 'CL-2', teacher: 'Prof. Sharma' },
-  { id: 'tt-t3', dayOfWeek: 2, period: 3, startTime: '10:30', endTime: '11:30', subjectId: 'subj-5', room: 'Audi 2', teacher: 'Prof. Singh' },
-  { id: 'tt-t4', dayOfWeek: 2, period: 4, startTime: '11:30', endTime: '12:30', subjectId: 'subj-3', room: 'Lab 1', teacher: 'Prof. Rao' },
-  { id: 'tt-t7', dayOfWeek: 2, period: 7, startTime: '02:30', endTime: '03:30', subjectId: 'subj-6', room: 'Lab 3', teacher: 'Dr. Gupta' },
-  { id: 'tt-t8', dayOfWeek: 2, period: 8, startTime: '03:30', endTime: '04:30', subjectId: 'subj-4', room: 'R-204', teacher: 'Dr. Mehta' },
-
-  // Wednesday (3)
-  { id: 'tt-w1', dayOfWeek: 3, period: 1, startTime: '08:30', endTime: '09:30', subjectId: 'subj-3', room: 'Lab 1', teacher: 'Prof. Rao' },
-  { id: 'tt-w2', dayOfWeek: 3, period: 2, startTime: '09:30', endTime: '10:30', subjectId: 'subj-4', room: 'R-204', teacher: 'Dr. Mehta' },
-  { id: 'tt-w3', dayOfWeek: 3, period: 3, startTime: '10:30', endTime: '11:30', subjectId: 'subj-1', room: 'CL-2', teacher: 'Prof. Sharma' },
-  { id: 'tt-w6', dayOfWeek: 3, period: 6, startTime: '01:30', endTime: '02:30', subjectId: 'subj-2', room: 'LT-1', teacher: 'Dr. Verma' },
-  { id: 'tt-w7', dayOfWeek: 3, period: 7, startTime: '02:30', endTime: '03:30', subjectId: 'subj-7', room: 'R-102', teacher: 'Ms. Kapoor' },
-
-  // Thursday (4)
-  { id: 'tt-th1', dayOfWeek: 4, period: 1, startTime: '08:30', endTime: '09:30', subjectId: 'subj-6', room: 'Lab 3', teacher: 'Dr. Gupta' },
-  { id: 'tt-th2', dayOfWeek: 4, period: 2, startTime: '09:30', endTime: '10:30', subjectId: 'subj-2', room: 'LT-1', teacher: 'Dr. Verma' },
-  { id: 'tt-th3', dayOfWeek: 4, period: 3, startTime: '10:30', endTime: '11:30', subjectId: 'subj-1', room: 'CL-2', teacher: 'Prof. Sharma' },
-  { id: 'tt-th4', dayOfWeek: 4, period: 4, startTime: '11:30', endTime: '12:30', subjectId: 'subj-5', room: 'Audi 2', teacher: 'Prof. Singh' },
-  { id: 'tt-th7', dayOfWeek: 4, period: 7, startTime: '02:30', endTime: '03:30', subjectId: 'subj-3', room: 'Lab 1', teacher: 'Prof. Rao' },
-
-  // Friday (5)
-  { id: 'tt-f1', dayOfWeek: 5, period: 1, startTime: '08:30', endTime: '09:30', subjectId: 'subj-1', room: 'CL-2', teacher: 'Prof. Sharma' },
-  { id: 'tt-f2', dayOfWeek: 5, period: 2, startTime: '09:30', endTime: '10:30', subjectId: 'subj-3', room: 'Lab 1', teacher: 'Prof. Rao' },
-  { id: 'tt-f3', dayOfWeek: 5, period: 3, startTime: '10:30', endTime: '11:30', subjectId: 'subj-2', room: 'LT-1', teacher: 'Dr. Verma' },
-  { id: 'tt-f4', dayOfWeek: 5, period: 4, startTime: '11:30', endTime: '12:30', subjectId: 'subj-6', room: 'Lab 3', teacher: 'Dr. Gupta' },
-  { id: 'tt-f6', dayOfWeek: 5, period: 6, startTime: '01:30', endTime: '02:30', subjectId: 'subj-4', room: 'R-204', teacher: 'Dr. Mehta' },
-
-  // Saturday (6)
-  { id: 'tt-s1', dayOfWeek: 6, period: 1, startTime: '08:30', endTime: '09:30', subjectId: 'subj-5', room: 'Audi 2', teacher: 'Prof. Singh' },
-  { id: 'tt-s2', dayOfWeek: 6, period: 2, startTime: '09:30', endTime: '10:30', subjectId: 'subj-7', room: 'R-102', teacher: 'Ms. Kapoor' },
-  { id: 'tt-s3', dayOfWeek: 6, period: 3, startTime: '10:30', endTime: '11:30', subjectId: 'subj-1', room: 'CL-2', teacher: 'Prof. Sharma' },
-];
-
-export const initialTasks: Task[] = [
+  // ==========================================
+  // MONDAY (Day 1)
+  // ==========================================
   {
-    id: 'task-1',
-    title: 'Submit Python Assignment 4 (NumPy & Pandas)',
-    description: 'Complete data analysis on dataset and submit Jupyter notebook on portal.',
-    dueDate: 'Today',
-    priority: 'URGENT',
-    completed: false,
+    id: 'tt-m2',
+    dayOfWeek: 1,
+    period: 2,
+    startTime: '09:30',
+    endTime: '10:30',
     subjectId: 'subj-1',
+    room: 'AD1',
+    teacher: 'Dr. AD',
   },
   {
-    id: 'task-2',
-    title: 'CSA Microarchitecture Flowchart Presentation',
-    description: 'Prepare 5 slides on pipeline hazards and branch prediction.',
-    dueDate: 'Tomorrow',
-    priority: 'HIGH',
-    completed: false,
-    subjectId: 'subj-2',
+    id: 'tt-m3',
+    dayOfWeek: 1,
+    period: 3,
+    startTime: '10:30',
+    endTime: '11:30',
+    subjectId: 'subj-5',
+    room: 'LAB',
+    teacher: 'Prof. ITH',
   },
   {
-    id: 'task-3',
-    title: 'Prepare for Discrete Math Quiz',
-    description: 'Revise recurrence relations, graph theory, and Boolean algebra.',
-    dueDate: '2026-09-22',
-    priority: 'MEDIUM',
-    completed: false,
+    id: 'tt-m4',
+    dayOfWeek: 1,
+    period: 4,
+    startTime: '11:30',
+    endTime: '12:30',
+    subjectId: 'subj-5',
+    room: 'LAB',
+    teacher: 'Prof. ITH',
+  },
+  {
+    id: 'tt-m5',
+    dayOfWeek: 1,
+    period: 5,
+    startTime: '12:30',
+    endTime: '01:30',
     subjectId: 'subj-3',
+    room: 'PRK1',
+    teacher: 'Dr. PRK',
+  },
+
+  // ==========================================
+  // TUESDAY (Day 2)
+  // ==========================================
+  {
+    id: 'tt-t1',
+    dayOfWeek: 2,
+    period: 1,
+    startTime: '08:30',
+    endTime: '09:30',
+    subjectId: 'subj-2',
+    room: 'Lab 3',
+    teacher: 'Prof. DJS',
   },
   {
-    id: 'task-4',
-    title: 'Issue recommended Algorithms textbook from library',
-    description: 'Return previous book and borrow CLRS copy.',
-    dueDate: '2026-09-15',
-    priority: 'LOW',
-    completed: true,
+    id: 'tt-t2',
+    dayOfWeek: 2,
+    period: 2,
+    startTime: '09:30',
+    endTime: '10:30',
+    subjectId: 'subj-3',
+    room: 'Lab 3',
+    teacher: 'PRK / AD / DJS',
+  },
+  {
+    id: 'tt-t3',
+    dayOfWeek: 2,
+    period: 3,
+    startTime: '10:30',
+    endTime: '11:30',
+    subjectId: 'subj-3',
+    room: 'Lab 3',
+    teacher: 'PRK / AD / DJS',
+  },
+  {
+    id: 'tt-t4',
+    dayOfWeek: 2,
+    period: 4,
+    startTime: '11:30',
+    endTime: '12:30',
+    subjectId: 'subj-1',
+    room: 'AD1',
+    teacher: 'Dr. AD',
+  },
+  {
+    id: 'tt-t5',
+    dayOfWeek: 2,
+    period: 5,
+    startTime: '12:30',
+    endTime: '01:30',
+    subjectId: 'subj-1',
+    room: 'AD1',
+    teacher: 'Dr. AD',
+  },
+  {
+    id: 'tt-t7',
+    dayOfWeek: 2,
+    period: 7,
+    startTime: '02:30',
+    endTime: '03:30',
+    subjectId: 'subj-5',
+    room: 'ITH',
+    teacher: 'Prof. ITH',
+  },
+  {
+    id: 'tt-t8',
+    dayOfWeek: 2,
+    period: 8,
+    startTime: '03:30',
+    endTime: '04:30',
+    subjectId: 'subj-7',
+    room: 'Room 101',
+    teacher: 'Prof. BSK1 / SPD1',
+  },
+  {
+    id: 'tt-t9',
+    dayOfWeek: 2,
+    period: 9,
+    startTime: '04:30',
+    endTime: '05:30',
+    subjectId: 'subj-7',
+    room: 'Room 101',
+    teacher: 'Prof. BSK1 / SPD1',
+  },
+
+  // ==========================================
+  // WEDNESDAY (Day 3)
+  // ==========================================
+  {
+    id: 'tt-w1',
+    dayOfWeek: 3,
+    period: 1,
+    startTime: '08:30',
+    endTime: '09:30',
+    subjectId: 'subj-3',
+    room: 'Lab 2',
+    teacher: 'Dr. PRK',
+  },
+  {
+    id: 'tt-w2',
+    dayOfWeek: 3,
+    period: 2,
+    startTime: '09:30',
+    endTime: '10:30',
+    subjectId: 'subj-3',
+    room: 'Lab 2',
+    teacher: 'PRK / AD',
+  },
+  {
+    id: 'tt-w3',
+    dayOfWeek: 3,
+    period: 3,
+    startTime: '10:30',
+    endTime: '11:30',
+    subjectId: 'subj-1',
+    room: 'Lab 2',
+    teacher: 'Dr. AD',
+  },
+  {
+    id: 'tt-w6',
+    dayOfWeek: 3,
+    period: 6,
+    startTime: '01:30',
+    endTime: '02:30',
     subjectId: 'subj-6',
+    room: 'MBB Lab 2',
+    teacher: 'Prof. MBB',
+  },
+  {
+    id: 'tt-w7',
+    dayOfWeek: 3,
+    period: 7,
+    startTime: '02:30',
+    endTime: '03:30',
+    subjectId: 'subj-6',
+    room: 'MBB Lab 2',
+    teacher: 'Prof. MBB',
+  },
+  {
+    id: 'tt-w8',
+    dayOfWeek: 3,
+    period: 8,
+    startTime: '03:30',
+    endTime: '04:30',
+    subjectId: 'subj-6',
+    room: 'MBB Lab 2',
+    teacher: 'Prof. MBB',
+  },
+  {
+    id: 'tt-w9',
+    dayOfWeek: 3,
+    period: 9,
+    startTime: '04:30',
+    endTime: '05:30',
+    subjectId: 'subj-6',
+    room: 'MBB Lab 2',
+    teacher: 'Prof. MBB',
+  },
+
+  // ==========================================
+  // THURSDAY (Day 4)
+  // ==========================================
+  {
+    id: 'tt-th1',
+    dayOfWeek: 4,
+    period: 1,
+    startTime: '08:30',
+    endTime: '09:30',
+    subjectId: 'subj-4',
+    room: 'MBB Lab',
+    teacher: 'Prof. AD / MBB',
+  },
+  {
+    id: 'tt-th2',
+    dayOfWeek: 4,
+    period: 2,
+    startTime: '09:30',
+    endTime: '10:30',
+    subjectId: 'subj-4',
+    room: 'MBB Lab',
+    teacher: 'Prof. AD / MBB',
+  },
+  {
+    id: 'tt-th3',
+    dayOfWeek: 4,
+    period: 3,
+    startTime: '10:30',
+    endTime: '11:30',
+    subjectId: 'subj-4',
+    room: 'AD1',
+    teacher: 'Prof. AD',
+  },
+  {
+    id: 'tt-th4',
+    dayOfWeek: 4,
+    period: 4,
+    startTime: '11:30',
+    endTime: '12:30',
+    subjectId: 'subj-4',
+    room: 'AD1',
+    teacher: 'Prof. AD',
+  },
+  {
+    id: 'tt-th5',
+    dayOfWeek: 4,
+    period: 5,
+    startTime: '12:30',
+    endTime: '01:30',
+    subjectId: 'subj-2',
+    room: 'DJS1',
+    teacher: 'Prof. DJS',
+  },
+
+  // ==========================================
+  // FRIDAY (Day 5)
+  // ==========================================
+  {
+    id: 'tt-f2',
+    dayOfWeek: 5,
+    period: 2,
+    startTime: '09:30',
+    endTime: '10:30',
+    subjectId: 'subj-2',
+    room: 'Lab 3',
+    teacher: 'Prof. PSS',
+  },
+  {
+    id: 'tt-f3',
+    dayOfWeek: 5,
+    period: 3,
+    startTime: '10:30',
+    endTime: '11:30',
+    subjectId: 'subj-2',
+    room: 'Lab 3',
+    teacher: 'Prof. PSS',
+  },
+  {
+    id: 'tt-f4',
+    dayOfWeek: 5,
+    period: 4,
+    startTime: '11:30',
+    endTime: '12:30',
+    subjectId: 'subj-1',
+    room: 'Lab 3',
+    teacher: 'Dr. AD',
+  },
+  {
+    id: 'tt-f5',
+    dayOfWeek: 5,
+    period: 5,
+    startTime: '12:30',
+    endTime: '01:30',
+    subjectId: 'subj-1',
+    room: 'Lab 3',
+    teacher: 'Dr. AD',
+  },
+  {
+    id: 'tt-f6',
+    dayOfWeek: 5,
+    period: 6,
+    startTime: '01:30',
+    endTime: '02:30',
+    subjectId: 'subj-4',
+    room: 'AD1',
+    teacher: 'Prof. AD',
+  },
+
+  // ==========================================
+  // SATURDAY (Day 6)
+  // ==========================================
+  {
+    id: 'tt-s1',
+    dayOfWeek: 6,
+    period: 1,
+    startTime: '08:30',
+    endTime: '09:30',
+    subjectId: 'subj-7',
+    room: 'Room 101',
+    teacher: 'Prof. BSK1 / SPD1',
+  },
+  {
+    id: 'tt-s2',
+    dayOfWeek: 6,
+    period: 2,
+    startTime: '09:30',
+    endTime: '10:30',
+    subjectId: 'subj-7',
+    room: 'Room 101',
+    teacher: 'Prof. BSK1 / SPD1',
+  },
+  {
+    id: 'tt-s3',
+    dayOfWeek: 6,
+    period: 3,
+    startTime: '10:30',
+    endTime: '11:30',
+    subjectId: 'subj-3',
+    room: 'PRK1',
+    teacher: 'Dr. PRK',
+  },
+  {
+    id: 'tt-s4',
+    dayOfWeek: 6,
+    period: 4,
+    startTime: '11:30',
+    endTime: '12:30',
+    subjectId: 'subj-3',
+    room: 'PRK1',
+    teacher: 'Dr. PRK',
   },
 ];
+
+export const initialTasks: Task[] = [];
+
+export const initialExpenses: Expense[] = [];
 
 export const initialPresets: QuickExpensePreset[] = [
-  { id: 'pre-1', title: 'Canteen Chai & Samosa', amount: 40, category: 'Food', icon: 'coffee' },
-  { id: 'pre-2', title: 'Metro Smart Card Recharge', amount: 200, category: 'Transport', icon: 'train' },
-  { id: 'pre-3', title: 'Notes Printing & Xerox', amount: 65, category: 'Books', icon: 'file-text' },
-  { id: 'pre-4', title: 'Campus Lunch Thali', amount: 110, category: 'Food', icon: 'utensils' },
-  { id: 'pre-5', title: 'Shared Auto Fare', amount: 30, category: 'Transport', icon: 'car' },
-  { id: 'pre-6', title: 'Library Book Fine', amount: 25, category: 'College', icon: 'book' },
-];
-
-export const initialExpenses: Expense[] = [
-  { id: 'exp-1', title: 'Campus Lunch & Juice', amount: 120, category: 'Food', timeOfDay: 'Afternoon', date: '2026-09-17' },
-  { id: 'exp-2', title: 'Metro Card Recharge', amount: 200, category: 'Transport', timeOfDay: 'Morning', date: '2026-09-17' },
-  { id: 'exp-3', title: 'Python Lab Manual Xerox', amount: 75, category: 'Books', timeOfDay: 'Evening', date: '2026-09-16' },
-  { id: 'exp-4', title: 'Evening Chai & Cookies', amount: 45, category: 'Food', timeOfDay: 'Evening', date: '2026-09-16' },
-  { id: 'exp-5', title: 'College Fest Registration', amount: 250, category: 'College', timeOfDay: 'Morning', date: '2026-09-15' },
-  { id: 'exp-6', title: 'Stationery & Spiral Notebooks', amount: 180, category: 'Books', timeOfDay: 'Evening', date: '2026-09-14' },
-  { id: 'exp-7', title: 'Hostel Night Canteen Maggi', amount: 60, category: 'Food', timeOfDay: 'Night', date: '2026-09-13' },
-  // August expenses for MoM comparison
-  { id: 'exp-8', title: 'Semester Books Bundle', amount: 1250, category: 'Books', timeOfDay: 'Afternoon', date: '2026-08-20' },
-  { id: 'exp-9', title: 'Bus Monthly Pass', amount: 800, category: 'Transport', timeOfDay: 'Morning', date: '2026-08-10' },
-  { id: 'exp-10', title: 'Mess Advance Fee', amount: 2400, category: 'Food', timeOfDay: 'Morning', date: '2026-08-05' },
+  { id: 'pre-1', title: 'Chai & Snacks', amount: 30, category: 'Food', icon: 'coffee' },
+  { id: 'pre-2', title: 'Canteen Lunch', amount: 90, category: 'Food', icon: 'coffee' },
+  { id: 'pre-3', title: 'Auto / Metro', amount: 50, category: 'Transport', icon: 'navigation' },
+  { id: 'pre-4', title: 'Xerox & Prints', amount: 20, category: 'College', icon: 'tag' },
 ];
 
 export const initialDocuments: DocumentItem[] = [
   {
     id: 'doc-1',
-    title: 'Python for Data Analysis — Pandas & NumPy Guide',
-    filename: 'Python_Data_Analysis.pdf',
+    title: 'Python for Data Science & Computing - Official Textbook',
+    filename: 'Python_Programming_Guide.pdf',
     docType: 'BOOK',
     subjectCode: 'PYTH',
-    size: '4.8 MB',
-    addedAt: '2026-09-10',
+    size: '3.4 MB',
+    addedAt: '2026-09-01',
+    content: `# Python for Data Science & Computing
+## Chapter 1: Introduction to Python Architecture
+Python is a dynamically-typed, interpreted language renowned for data science and systems engineering.
+
+### Key Concepts:
+- Bytecode Compilation: Python compiles source code (.py) into bytecode (.pyc) executed on PVM.
+- Data Types: int, float, str, list, tuple, dict, and set.
+- Vectorized Operations with NumPy: Ndarrays enable parallelized computations without Python loop overhead.
+
+\`\`\`python
+import numpy as np
+arr = np.array([1, 2, 3, 4, 5])
+print("Mean:", arr.mean())
+\`\`\`
+
+## Chapter 2: Control Flow & Memory Management
+- Conditional Statements: if, elif, else
+- Reference Counting & Garbage Collection (Cyclic GC)`,
   },
   {
     id: 'doc-2',
-    title: 'Computer System Architecture Lecture Notes',
-    filename: 'CSA_Notes_Unit1_4.pdf',
+    title: 'Computer System Architecture (CSA) Lecture Notes Unit 1 & 2',
+    filename: 'CSA_Lecture_Notes_Unit1_2.pdf',
     docType: 'NOTES',
     subjectCode: 'CSA',
-    size: '2.3 MB',
-    addedAt: '2026-09-12',
+    size: '2.1 MB',
+    addedAt: '2026-09-05',
+    content: `# Computer System Architecture (CSA)
+## Section: Section - I (2026 - 27)
+
+### 1. Register Transfer & Microoperations
+- Register Transfer Language (RTL) notation: R2 <- R1.
+- Bus and Memory Transfers: Tri-state bus buffers and multiplexer-based common buses.
+- Arithmetic Microoperations: Binary adder, adder-subtractor, and arithmetic logic shift unit (ALSU).
+
+### 2. Basic Computer Organization & Design
+- Instruction Codes: Opcode, addressing modes (Direct vs Indirect).
+- Computer Registers: DR (Data Register), AR (Address Register), AC (Accumulator), IR (Instruction Register), PC (Program Counter).
+- Timing and Control: Hardwired vs Microprogrammed control units.`,
   },
   {
     id: 'doc-3',
-    title: 'Semester 5 Official Curriculum & Lab Syllabus',
-    filename: 'Syllabus_Sem5_CS.pdf',
+    title: 'First Year Section-I Class Timetable & Academic Regulations (2026-27)',
+    filename: 'CS_FirstYear_SectionI_Timetable.pdf',
     docType: 'SYLLABUS',
-    subjectCode: 'SEC1',
-    size: '1.1 MB',
-    addedAt: '2026-09-02',
+    subjectCode: 'PYTH',
+    size: '1.2 MB',
+    addedAt: '2026-09-01',
+    content: `# Department of Computer Science
+## First Year Section - I Class Timetable (2026 - 27)
+"Learn | Build | Grow — A Better Tomorrow"
+
+### Weekly Schedule Matrix:
+- Monday: PYTH (AD1), VAC1 Lab, MC (PRK1)
+- Tuesday: CSA (Lab 3), MC/PYTH/CSA Lab, PYTH (AD1), VAC1 (ITH), LANG1 (BSK1/SPD1)
+- Wednesday: MC Lab (Lab 2), PYTH Lab (Lab 2), SEC1 Lab (MBB Lab 2)
+- Thursday: GE1 Lab (MBB Lab), GE1 Theory (AD1), CSA (DJS1)
+- Friday: CSA Lab (Lab 3), PYTH Lab (Lab 3), GE1 Theory (AD1)
+- Saturday: LANG1 (Room 101), MC (PRK1)
+
+### Attendance Requirement:
+- Minimum mandatory attendance is 68% for end-semester examination eligibility.`,
   },
 ];
 
@@ -221,16 +526,18 @@ export const initialHolidays: Holiday[] = [
   { id: 'hol-2', name: 'Maha Navami / Dussehra', date: '2026-10-20', type: 'HOLIDAY' },
   { id: 'hol-3', name: 'Deepawali Break', date: '2026-11-09', type: 'HOLIDAY' },
   { id: 'hol-4', name: 'Guru Nanak Jayanti', date: '2026-11-24', type: 'HOLIDAY' },
-  { id: 'hol-5', name: 'Inter-College Tech Hackathon (Duty Leave)', date: '2026-10-14', type: 'DUTY_LEAVE' },
+  { id: 'hol-5', name: 'Department Hackathon (Duty Leave)', date: '2026-10-14', type: 'DUTY_LEAVE' },
 ];
 
 export const initialProfile: StudentProfile = {
   appNickname: 'Colio',
-  name: 'Aarav Sharma',
-  rollNumber: '23BCSE042',
-  course: 'B.Sc Computer Science',
+  name: 'First Year Student',
+  rollNumber: '2026CS-I-042',
+  course: 'Computer Science (Section I)',
   branch: 'Computer Science',
-  semester: 'Semester 5',
-  college: 'National Institute of Technology',
+  semester: 'Semester 1',
+  college: 'Department of Computer Science',
   avatarUri: '',
+  avatarSize: 'medium',
+  isSetupComplete: true,
 };

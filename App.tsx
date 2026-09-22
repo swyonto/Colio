@@ -17,12 +17,37 @@ import { CgpaScreen } from './src/screens/CgpaScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ProfileDialog } from './src/screens/ProfileDialog';
+import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { OnboardingSetupScreen } from './src/screens/OnboardingSetupScreen';
 import { Colors } from './src/theme/colors';
 
 const MainAppContent: React.FC = () => {
-  const { activeTab, setActiveTab, currentTheme } = useCampus();
+  const { activeTab, setActiveTab, currentTheme, isSetupComplete, setIsSetupComplete } = useCampus();
   const [activeSubScreen, setActiveSubScreen] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [onboardingStage, setOnboardingStage] = useState<'welcome' | 'setup'>('welcome');
+
+  // New User First-Time Setup Flow (Item 10 Requirement)
+  if (!isSetupComplete) {
+    return (
+      <SafeAreaView style={[styles.rootContainer, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
+        <StatusBar style={currentTheme.isDark ? 'light' : 'dark'} />
+        {onboardingStage === 'welcome' ? (
+          <WelcomeScreen
+            onStartSignUp={() => setOnboardingStage('setup')}
+            onQuickLogin={() => setIsSetupComplete(true)}
+          />
+        ) : (
+          <OnboardingSetupScreen
+            onBackToWelcome={() => setOnboardingStage('welcome')}
+            onFinishSetup={() => {
+              setOnboardingStage('welcome');
+            }}
+          />
+        )}
+      </SafeAreaView>
+    );
+  }
 
   const renderContent = () => {
     // Sub-screens overlay (Back button returns to previous view)

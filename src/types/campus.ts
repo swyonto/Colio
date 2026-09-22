@@ -63,6 +63,8 @@ export interface DocumentItem {
   subjectCode?: string;
   size: string;
   addedAt: string;
+  uri?: string;
+  content?: string;
 }
 
 export interface Holiday {
@@ -81,6 +83,8 @@ export interface StudentProfile {
   semester: string;
   college: string;
   avatarUri?: string;
+  avatarSize?: 'small' | 'medium' | 'large';
+  isSetupComplete?: boolean;
   idCardFrontUri?: string;
   idCardBackUri?: string;
 }

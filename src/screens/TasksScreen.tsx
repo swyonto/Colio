@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { GlassDialog } from '../components/common/GlassDialog';
 import { GlassInput } from '../components/common/GlassInput';
 import { EmeraldButton } from '../components/common/Buttons';
-import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { Priority, Task } from '../types/campus';
@@ -34,38 +33,67 @@ export const TasksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setIsAddModalOpen(false);
   };
 
+  const getPriorityTheme = (p: Priority) => {
+    switch (p) {
+      case 'URGENT':
+        return { bg: 'rgba(255, 82, 82, 0.15)', text: '#FF5252' };
+      case 'HIGH':
+        return { bg: 'rgba(255, 145, 0, 0.15)', text: '#FF9100' };
+      case 'MEDIUM':
+        return { bg: currentTheme.primary + '18', text: currentTheme.primary };
+      case 'LOW':
+      default:
+        return { bg: 'rgba(0, 176, 255, 0.15)', text: '#00B0FF' };
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
       {/* Top Header */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { backgroundColor: currentTheme.bgCardSecondary, borderBottomColor: currentTheme.borderGlass }]}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <Feather name="arrow-left" size={20} color={Colors.textPrimary} />
+          <TouchableOpacity onPress={onBack} style={[styles.backBtn, { backgroundColor: currentTheme.bgCard }]}>
+            <Feather name="arrow-left" size={18} color={currentTheme.textPrimary} />
           </TouchableOpacity>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={[Typography.titleLg, styles.headerTitle]}>All Tasks & Deadlines</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[Typography.titleMd, { color: currentTheme.textPrimary, fontWeight: '700' }]}>
+            Tasks & Deadlines
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: currentTheme.textMuted }]}>
             {tasks.filter((t) => !t.completed).length} Pending • {tasks.filter((t) => t.completed).length} Completed
           </Text>
         </View>
-        <TouchableOpacity onPress={() => setIsAddModalOpen(true)} style={styles.addBtn}>
-          <Feather name="plus" size={18} color={Colors.emeraldPrimary} />
+        <TouchableOpacity
+          onPress={() => setIsAddModalOpen(true)}
+          style={[styles.addBtn, { backgroundColor: currentTheme.primary + '20', borderColor: currentTheme.primary }]}
+        >
+          <Feather name="plus" size={16} color={currentTheme.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Filter Tabs */}
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, { backgroundColor: currentTheme.bgCardSecondary, borderBottomColor: currentTheme.borderGlass }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {['all', 'pending', 'completed', 'URGENT', 'HIGH', 'MEDIUM', 'LOW'].map((f) => {
             const isSelected = filterPriority === f;
             return (
               <TouchableOpacity
                 key={f}
-                style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass },
+                  isSelected && { backgroundColor: currentTheme.primary + '25', borderColor: currentTheme.primary },
+                ]}
                 onPress={() => setFilterPriority(f)}
               >
-                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    { color: currentTheme.textMuted },
+                    isSelected && { color: currentTheme.textPrimary, fontWeight: '700' },
+                  ]}
+                >
                   {f.toUpperCase()}
                 </Text>
               </TouchableOpacity>
@@ -82,99 +110,134 @@ export const TasksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       >
         {filteredTasks.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>No tasks found in this view.</Text>
+            <Text style={[styles.emptyText, { color: currentTheme.textMuted }]}>No tasks found in this view.</Text>
           </View>
         ) : (
-          filteredTasks.map((t) => (
-            <View key={t.id} style={[styles.taskCard, t.completed && styles.taskCardCompleted]}>
-              {/* Checkbox (Does not delete, strikes through & dims to 55%) */}
-              <TouchableOpacity
-                style={[styles.checkbox, t.completed && styles.checkboxChecked]}
-                onPress={() => toggleTask(t.id)}
+          filteredTasks.map((t) => {
+            const pTheme = getPriorityTheme(t.priority);
+
+            return (
+              <View
+                key={t.id}
+                style={[
+                  styles.taskCard,
+                  { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass },
+                  t.completed && [styles.taskCardCompleted, { backgroundColor: currentTheme.bgCardSecondary }],
+                ]}
               >
-                {t.completed && <MaterialIcons name="check" size={14} color="#050907" />}
-              </TouchableOpacity>
-
-              <View style={styles.taskContent}>
-                <Text
+                {/* Checkbox */}
+                <TouchableOpacity
                   style={[
-                    Typography.titleSm,
-                    styles.taskTitle,
-                    t.completed && styles.taskTitleCompleted,
+                    styles.checkbox,
+                    { borderColor: currentTheme.primary + '50' },
+                    t.completed && { backgroundColor: currentTheme.primary, borderColor: currentTheme.primary },
                   ]}
+                  onPress={() => toggleTask(t.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  {t.title}
-                </Text>
-                {Boolean(t.description) && (
-                  <Text style={styles.taskDesc} numberOfLines={2}>
-                    {t.description}
-                  </Text>
-                )}
+                  {t.completed && (
+                    <Feather
+                      name="check"
+                      size={13}
+                      color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                    />
+                  )}
+                </TouchableOpacity>
 
-                <View style={styles.metaRow}>
-                  <View style={styles.priorityPill}>
-                    <Text style={styles.priorityText}>{t.priority}</Text>
-                  </View>
-                  <View style={styles.dueRow}>
-                    <Feather name="calendar" size={11} color={Colors.textMuted} />
-                    <Text style={styles.dueText}>{t.dueDate}</Text>
+                {/* Content */}
+                <View style={styles.taskContent}>
+                  <Text
+                    style={[
+                      Typography.titleSm,
+                      { color: currentTheme.textPrimary, fontWeight: '600' },
+                      t.completed && styles.taskTitleCompleted,
+                    ]}
+                  >
+                    {t.title}
+                  </Text>
+                  {Boolean(t.description) && (
+                    <Text style={[styles.taskDesc, { color: currentTheme.textMuted }]}>
+                      {t.description}
+                    </Text>
+                  )}
+
+                  <View style={styles.metaRow}>
+                    <View style={[styles.priorityPill, { backgroundColor: pTheme.bg }]}>
+                      <Text style={[styles.priorityText, { color: pTheme.text }]}>
+                        {t.priority}
+                      </Text>
+                    </View>
+                    <View style={styles.dueRow}>
+                      <Feather name="clock" size={11} color={currentTheme.textMuted} />
+                      <Text style={[styles.dueText, { color: currentTheme.textMuted }]}>{t.dueDate}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <TouchableOpacity
-                onPress={() => deleteTask(t.id)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={styles.trashBtn}
-              >
-                <Feather name="trash-2" size={15} color={Colors.textDisabled} />
-              </TouchableOpacity>
-            </View>
-          ))
+                {/* Trash */}
+                <TouchableOpacity
+                  onPress={() => deleteTask(t.id)}
+                  style={styles.trashBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="trash-2" size={14} color={currentTheme.textDisabled} />
+                </TouchableOpacity>
+              </View>
+            );
+          })
         )}
       </ScrollView>
 
-      {/* New Task Dialog */}
-      <GlassDialog visible={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Create New Task">
+      {/* Add Task Dialog */}
+      <GlassDialog
+        visible={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add New Assignment / Task"
+      >
         <GlassInput
           label="Title *"
-          placeholder="e.g. Complete DSA Laboratory Assignment"
+          placeholder="e.g. Physics Lab Report Unit 3"
           value={title}
           onChangeText={setTitle}
           autoFocus
         />
 
         <GlassInput
-          label="Details / Notes"
-          placeholder="e.g. Upload PDF to Google Classroom"
+          label="Description (Optional)"
+          placeholder="e.g. Include circuit diagram & graph"
           value={desc}
           onChangeText={setDesc}
         />
 
-        <Text style={[Typography.labelSm, styles.dialogLabel]}>DUE DATE</Text>
-        <View style={styles.chipsWrap}>
-          {['Today', 'Tomorrow', 'This Weekend', 'Next Week'].map((d) => (
-            <TouchableOpacity
-              key={d}
-              style={[styles.dialogChip, dueDate === d && styles.dialogChipActive]}
-              onPress={() => setDueDate(d)}
-            >
-              <Text style={[styles.dialogChipText, dueDate === d && styles.dialogChipTextActive]}>
-                {d}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <GlassInput
+          label="Due Date / Tag"
+          placeholder="e.g. Today, Tomorrow, Friday, or 2026-10-02"
+          value={dueDate}
+          onChangeText={setDueDate}
+        />
 
-        <Text style={[Typography.labelSm, styles.dialogLabel]}>PRIORITY</Text>
+        {/* Priority Chips */}
+        <Text style={[Typography.labelSm, { color: currentTheme.textMuted, marginTop: 10, marginBottom: 6 }]}>
+          PRIORITY
+        </Text>
         <View style={styles.chipsWrap}>
           {(['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as Priority[]).map((p) => (
             <TouchableOpacity
               key={p}
-              style={[styles.dialogChip, priority === p && styles.dialogChipActive]}
+              style={[
+                styles.dialogChip,
+                { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
+                priority === p && { backgroundColor: currentTheme.primary + '25', borderColor: currentTheme.primary },
+              ]}
               onPress={() => setPriority(p)}
             >
-              <Text style={[styles.dialogChipText, priority === p && styles.dialogChipTextActive]}>
+              <Text
+                style={[
+                  styles.dialogChipText,
+                  { color: currentTheme.textMuted },
+                  priority === p && { color: currentTheme.textPrimary, fontWeight: '700' },
+                ]}
+              >
                 {p}
               </Text>
             </TouchableOpacity>
@@ -192,49 +255,37 @@ export const TasksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgBase,
   },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 42,
-    paddingBottom: 12,
-    backgroundColor: '#0A0E0C',
+    paddingVertical: 12,
     borderBottomWidth: 0.6,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     gap: 12,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#131714',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    color: Colors.textPrimary,
-  },
   headerSubtitle: {
-    color: Colors.textMuted,
     fontSize: 11,
+    marginTop: 1,
   },
   addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#121614',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 0.8,
-    borderColor: 'rgba(0, 230, 118, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   filterRow: {
-    backgroundColor: '#0A0E0B',
     paddingVertical: 8,
     borderBottomWidth: 0.6,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -244,21 +295,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: '#131714',
     borderWidth: 0.6,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  filterChipActive: {
-    backgroundColor: 'rgba(0, 230, 118, 0.20)',
-    borderColor: Colors.emeraldPrimary,
   },
   filterChipText: {
-    color: Colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
-  },
-  filterChipTextActive: {
-    color: Colors.textPrimary,
   },
   scrollArea: {
     flex: 1,
@@ -271,44 +312,32 @@ const styles = StyleSheet.create({
   taskCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#0F1210',
     borderRadius: 14,
     padding: 14,
     borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 12,
   },
   taskCardCompleted: {
     opacity: 0.55,
-    backgroundColor: '#0A0C0A',
   },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 7,
     borderWidth: 1.2,
-    borderColor: 'rgba(0, 230, 118, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 2,
-  },
-  checkboxChecked: {
-    backgroundColor: Colors.emeraldPrimary,
-    borderColor: Colors.emeraldPrimary,
   },
   taskContent: {
     flex: 1,
     gap: 4,
   },
-  taskTitle: {
-    color: Colors.textPrimary,
-  },
   taskTitleCompleted: {
     textDecorationLine: 'line-through',
-    color: Colors.textMuted,
+    opacity: 0.7,
   },
   taskDesc: {
-    color: Colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
   },
@@ -319,7 +348,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   priorityPill: {
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -327,7 +355,6 @@ const styles = StyleSheet.create({
   priorityText: {
     fontSize: 9,
     fontWeight: '700',
-    color: Colors.emeraldPrimary,
   },
   dueRow: {
     flexDirection: 'row',
@@ -335,7 +362,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dueText: {
-    color: Colors.textMuted,
     fontSize: 11,
   },
   trashBtn: {
@@ -346,13 +372,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: Colors.textMuted,
     fontSize: 13,
-  },
-  dialogLabel: {
-    color: Colors.textMuted,
-    marginTop: 10,
-    marginBottom: 6,
   },
   chipsWrap: {
     flexDirection: 'row',
@@ -363,21 +383,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#131714',
     borderWidth: 0.6,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  dialogChipActive: {
-    backgroundColor: 'rgba(0, 230, 118, 0.20)',
-    borderColor: Colors.emeraldPrimary,
   },
   dialogChipText: {
-    color: Colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
-  },
-  dialogChipTextActive: {
-    color: Colors.textPrimary,
-    fontWeight: '700',
   },
 });

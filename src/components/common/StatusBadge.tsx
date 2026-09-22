@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../theme/colors';
+import { useCampus } from '../../context/CampusContext';
 
 interface StatusBadgeProps {
   label: string;
@@ -8,6 +9,8 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ label, variant = 'present' }) => {
+  const { currentTheme } = useCampus();
+
   const getTheme = () => {
     switch (variant) {
       case 'absent':
@@ -17,14 +20,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ label, variant = 'pres
       case 'pending':
         return { bg: Colors.statusPendingBg, text: Colors.statusPending, border: 'rgba(255, 171, 64, 0.35)' };
       case 'now':
-        return { bg: 'rgba(0, 230, 118, 0.20)', text: '#00E676', border: 'rgba(0, 230, 118, 0.50)' };
+        return { bg: currentTheme.primary + '28', text: currentTheme.primary, border: currentTheme.primary + '60' };
       case 'next':
         return { bg: 'rgba(0, 176, 255, 0.15)', text: '#00B0FF', border: 'rgba(0, 176, 255, 0.40)' };
       case 'neutral':
-        return { bg: 'rgba(255, 255, 255, 0.06)', text: Colors.textSecondary, border: 'rgba(255, 255, 255, 0.12)' };
+        return { bg: 'rgba(255, 255, 255, 0.06)', text: currentTheme.textSecondary, border: currentTheme.borderGlass };
       case 'present':
       default:
-        return { bg: Colors.statusPresentBg, text: Colors.statusPresent, border: 'rgba(0, 230, 118, 0.35)' };
+        return { bg: currentTheme.primary + '20', text: currentTheme.primary, border: currentTheme.primary + '50' };
     }
   };
 

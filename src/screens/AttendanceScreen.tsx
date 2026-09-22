@@ -254,7 +254,7 @@ export const AttendanceScreen: React.FC = () => {
               <Text
                 style={[
                   styles.metricColumnValue,
-                  { color: isCriteriaMet ? Colors.emeraldHighlight : Colors.statusAbsent },
+                  { color: isCriteriaMet ? currentTheme.primary : Colors.statusAbsent },
                 ]}
               >
                 {isCriteriaMet ? `${classesCanMiss}` : `${classesNeeded}`}
@@ -293,10 +293,10 @@ export const AttendanceScreen: React.FC = () => {
                 No classes scheduled for {activeDay?.fullLabel || activeDay?.label} on your timetable.
               </Text>
               <TouchableOpacity
-                style={styles.viewAllPillBtn}
+                style={[styles.viewAllPillBtn, { backgroundColor: currentTheme.primary + '20', borderColor: currentTheme.primary }]}
                 onPress={() => setSelectedDayTab('all')}
               >
-                <Text style={styles.viewAllPillText}>View All Subjects</Text>
+                <Text style={[styles.viewAllPillText, { color: currentTheme.primary }]}>View All Subjects</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -339,36 +339,12 @@ export const AttendanceScreen: React.FC = () => {
                           {subj.name}
                         </Text>
                         <Text style={[styles.subjCodeTeacher, { color: currentTheme.textMuted }]}>
-                          {subj.code} • {subj.teacher} • {subj.room}
+                          {subj.code} • {subj.room}
                         </Text>
                       </View>
                     </View>
 
-                    <TouchableOpacity
-                      onPress={() => handleOpenEdit(subj)}
-                      style={[styles.editSubjectBtn, { backgroundColor: currentTheme.bgCardSecondary }]}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Feather name="edit-2" size={13} color={currentTheme.textMuted} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Percentage & Fraction Row */}
-                  <View style={styles.subjStatsRow}>
-                    <View style={styles.subjPctBox}>
-                      <Text
-                        style={[
-                          Typography.headlineSm,
-                          { color: isCancelled ? Colors.textMuted : isSubjSafe ? Colors.textPrimary : Colors.statusAbsent },
-                        ]}
-                      >
-                        {subjPct}%
-                      </Text>
-                      <Text style={styles.fractionNote}>
-                        {subj.present}/{subjTotal} classes
-                      </Text>
-                    </View>
-
+                    {/* Status Pill Indicator */}
                     <View
                       style={[
                         styles.subjStatusBadge,
@@ -376,12 +352,12 @@ export const AttendanceScreen: React.FC = () => {
                           backgroundColor: isCancelled
                             ? 'rgba(255, 255, 255, 0.06)'
                             : isSubjSafe
-                            ? Colors.statusPresentBg
+                            ? currentTheme.primary + '20'
                             : Colors.statusAbsentBg,
                           borderColor: isCancelled
                             ? 'rgba(255, 255, 255, 0.12)'
                             : isSubjSafe
-                            ? 'rgba(0, 230, 118, 0.3)'
+                            ? currentTheme.primary + '50'
                             : 'rgba(255, 82, 82, 0.3)',
                         },
                       ]}
@@ -393,7 +369,7 @@ export const AttendanceScreen: React.FC = () => {
                             color: isCancelled
                               ? Colors.textMuted
                               : isSubjSafe
-                              ? Colors.statusPresent
+                              ? currentTheme.primary
                               : Colors.statusAbsent,
                           },
                         ]}

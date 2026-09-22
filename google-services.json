@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "61733534967",
+    "project_id": "calio2026",
+    "storage_bucket": "calio2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:61733534967:android:8f2b4686c114e11f4527f2",
+        "android_client_info": {
+          "package_name": "swyonto.colio"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDIn6WYpNXoGI3MgqbBgUUmAToTGXvJmfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

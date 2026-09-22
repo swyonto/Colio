@@ -52,6 +52,10 @@ interface CampusContextType {
   timetableViewMode: 'list' | 'grid';
   setTimetableViewMode: (mode: 'list' | 'grid') => void;
   todayClasses: TimetableSlot[];
+  addTimetableSlot: (slot: Omit<TimetableSlot, 'id'>) => void;
+  updateTimetableSlot: (slot: TimetableSlot) => void;
+  deleteTimetableSlot: (id: string) => void;
+  setTimetableSlots: (slots: TimetableSlot[]) => void;
 
   // Tasks
   tasks: Task[];
@@ -86,6 +90,9 @@ interface CampusContextType {
   // Profile & Preferences
   profile: StudentProfile;
   updateProfile: (profile: Partial<StudentProfile>) => void;
+  isSetupComplete: boolean;
+  setIsSetupComplete: (complete: boolean) => void;
+  resetAllData: () => Promise<void>;
   appTheme: AppThemeKey;
   setAppTheme: (theme: AppThemeKey) => void;
   currentTheme: ThemeColors;
@@ -99,6 +106,7 @@ const CampusContext = createContext<CampusContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
   SUBJECTS: '@campusos_subjects_v2',
+  TIMETABLE: '@campusos_timetable_v2',
   TASKS: '@campusos_tasks_v2',
   EXPENSES: '@campusos_expenses_v2',
   PRESETS: '@campusos_presets_v2',
@@ -110,6 +118,7 @@ const STORAGE_KEYS = {
   APP_THEME: '@campusos_app_theme_v2',
   CLASS_REMINDERS: '@campusos_class_reminders_v2',
   HAPTICS: '@campusos_haptics_v2',
+  SETUP_COMPLETE: '@campusos_setup_complete_v2',
 };
 
 export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -119,7 +128,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
   const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
-  const [timetable] = useState<TimetableSlot[]>(initialTimetable);
+  const [timetable, setTimetableState] = useState<TimetableSlot[]>(initialTimetable);
   const [timetableViewMode, setTimetableViewModeState] = useState<'list' | 'grid'>('list');
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
@@ -127,6 +136,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [documents, setDocuments] = useState<DocumentItem[]>(initialDocuments);
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [profile, setProfile] = useState<StudentProfile>(initialProfile);
+  const [isSetupComplete, setIsSetupCompleteState] = useState<boolean>(true);
 
   // Dynamic Preferences
   const [attendanceCriteria, setAttendanceCriteriaState] = useState<number>(68);
@@ -167,6 +177,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         const [
           savedSubjects,
+          savedTimetable,
           savedTasks,
           savedExpenses,
           savedPresets,
@@ -178,8 +189,10 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           savedTheme,
           savedReminders,
           savedHaptics,
+          savedSetupComplete,
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.SUBJECTS),
+          AsyncStorage.getItem(STORAGE_KEYS.TIMETABLE),
           AsyncStorage.getItem(STORAGE_KEYS.TASKS),
           AsyncStorage.getItem(STORAGE_KEYS.EXPENSES),
           AsyncStorage.getItem(STORAGE_KEYS.PRESETS),
@@ -191,14 +204,22 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           AsyncStorage.getItem(STORAGE_KEYS.APP_THEME),
           AsyncStorage.getItem(STORAGE_KEYS.CLASS_REMINDERS),
           AsyncStorage.getItem(STORAGE_KEYS.HAPTICS),
+          AsyncStorage.getItem(STORAGE_KEYS.SETUP_COMPLETE),
         ]);
 
         if (savedSubjects) setSubjects(JSON.parse(savedSubjects));
+        if (savedTimetable) setTimetableState(JSON.parse(savedTimetable));
         if (savedTasks) setTasks(JSON.parse(savedTasks));
         if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
         if (savedPresets) setPresets(JSON.parse(savedPresets));
         if (savedMode === 'grid' || savedMode === 'list') setTimetableViewModeState(savedMode);
-        if (savedProfile) setProfile(JSON.parse(savedProfile));
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          setProfile(parsed);
+          if (parsed.isSetupComplete !== undefined && savedSetupComplete === null) {
+            setIsSetupCompleteState(Boolean(parsed.isSetupComplete));
+          }
+        }
         if (savedDocs) setDocuments(JSON.parse(savedDocs));
         if (savedHols) setHolidays(JSON.parse(savedHols));
         if (savedCriteria) setAttendanceCriteriaState(parseInt(savedCriteria, 10));
@@ -210,6 +231,9 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         if (savedReminders !== null) setClassRemindersEnabledState(savedReminders === 'true');
         if (savedHaptics !== null) setHapticsEnabledState(savedHaptics === 'true');
+        if (savedSetupComplete !== null) {
+          setIsSetupCompleteState(savedSetupComplete === 'true');
+        }
       } catch (err) {
         console.warn('Error restoring storage:', err);
       } finally {
@@ -455,7 +479,49 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  // --- Profile Logic ---
+  // --- Timetable CRUD Logic ---
+  const setTimetableSlots = (slots: TimetableSlot[]) => {
+    triggerHapticFeedback('success');
+    setTimetableState(slots);
+    AsyncStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(slots)).catch(() => {});
+  };
+
+  const addTimetableSlot = (slot: Omit<TimetableSlot, 'id'>) => {
+    triggerHapticFeedback('success');
+    const newSlot: TimetableSlot = {
+      ...slot,
+      id: `tt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    };
+    setTimetableState((prev) => {
+      // Remove any existing slot at the exact same day & period to prevent conflicts
+      const filtered = prev.filter(
+        (s) => !(s.dayOfWeek === slot.dayOfWeek && s.period === slot.period)
+      );
+      const updated = [...filtered, newSlot].sort((a, b) => a.period - b.period);
+      AsyncStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  const updateTimetableSlot = (updatedSlot: TimetableSlot) => {
+    triggerHapticFeedback('medium');
+    setTimetableState((prev) => {
+      const updated = prev.map((s) => (s.id === updatedSlot.id ? updatedSlot : s));
+      AsyncStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  const deleteTimetableSlot = (id: string) => {
+    triggerHapticFeedback('warning');
+    setTimetableState((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      AsyncStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  // --- Profile & Setup Logic ---
   const updateProfile = (updated: Partial<StudentProfile>) => {
     triggerHapticFeedback('success');
     setProfile((prev) => {
@@ -463,6 +529,65 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(merged)).catch(() => {});
       return merged;
     });
+  };
+
+  const setIsSetupComplete = (complete: boolean) => {
+    triggerHapticFeedback('success');
+    setIsSetupCompleteState(complete);
+    AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, String(complete)).catch(() => {});
+    setProfile((prev) => {
+      const updated = { ...prev, isSetupComplete: complete };
+      AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  const resetAllData = async () => {
+    triggerHapticFeedback('warning');
+    const allKeysToPurge = [
+      ...Object.values(STORAGE_KEYS),
+      '@colio_cancelled_attendance_subjects_v1',
+      '@campusos_avatar_size_v2',
+    ];
+
+    try {
+      await AsyncStorage.multiRemove(allKeysToPurge);
+    } catch (e) {
+      console.warn('Error clearing storage:', e);
+    }
+
+    // Clean subjects with fresh 0 attendance counts
+    const cleanSubjects = initialSubjects.map((s) => ({
+      ...s,
+      present: 0,
+      absent: 0,
+    }));
+
+    // Reset state: Clean tasks & expenses, official Section-I timetable preserved
+    setSubjects(cleanSubjects);
+    setTimetableState(initialTimetable);
+    setTasks([]);
+    setExpenses([]);
+    setPresets(initialPresets);
+    setDocuments(initialDocuments);
+    setHolidays(initialHolidays);
+    setProfile(initialProfile);
+    setIsSetupCompleteState(true);
+    setActiveTabState('home');
+
+    // Persist the clean baseline into local database (AsyncStorage)
+    try {
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.TIMETABLE, JSON.stringify(initialTimetable)],
+        [STORAGE_KEYS.PROFILE, JSON.stringify(initialProfile)],
+        [STORAGE_KEYS.SUBJECTS, JSON.stringify(cleanSubjects)],
+        [STORAGE_KEYS.TASKS, JSON.stringify([])],
+        [STORAGE_KEYS.EXPENSES, JSON.stringify([])],
+        [STORAGE_KEYS.SETUP_COMPLETE, 'true'],
+      ]);
+    } catch (e) {
+      console.warn('Error writing clean initial db state:', e);
+    }
   };
 
   return (
@@ -488,6 +613,10 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         timetableViewMode,
         setTimetableViewMode,
         todayClasses,
+        addTimetableSlot,
+        updateTimetableSlot,
+        deleteTimetableSlot,
+        setTimetableSlots,
         tasks,
         toggleTask,
         addTask,
@@ -512,6 +641,9 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteHoliday,
         profile,
         updateProfile,
+        isSetupComplete,
+        setIsSetupComplete,
+        resetAllData,
         setAttendanceCriteria,
         appTheme,
         setAppTheme,

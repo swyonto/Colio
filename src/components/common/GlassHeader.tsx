@@ -93,10 +93,10 @@ export const GlassHeader: React.FC<GlassHeaderProps> = ({ onPressProfile }) => {
           <View style={styles.brandingGroup}>
             <ColioLogo size={36} />
             <View style={styles.brandTextGroup}>
-              {(!profile.appNickname || profile.appNickname === 'Colio' || profile.appNickname === 'CampusHub') ? (
+              {(!profile.appNickname || profile.appNickname === 'Calio' || profile.appNickname === 'Colio' || profile.appNickname === 'CampusHub') ? (
                 <View style={styles.colioLogoTitleRow}>
                   <Text style={[styles.colioPrefix, { color: currentTheme.isDark ? '#FFFFFF' : currentTheme.textPrimary }]}>
-                    Col
+                    Cal
                   </Text>
                   <Text style={[styles.colioSuffix, { color: currentTheme.primary }]}>io</Text>
                   <View style={[styles.colioDot, { backgroundColor: currentTheme.primary }]} />

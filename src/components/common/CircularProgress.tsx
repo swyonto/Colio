@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Colors } from '../../theme/colors';
+import { useCampus } from '../../context/CampusContext';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -20,6 +21,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   criteria = 68,
   showLabel = true,
 }) => {
+  const { currentTheme } = useCampus();
   const clamped = Math.min(100, Math.max(0, percentage));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -27,7 +29,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   // Determine color according to closeness to criteria (68%)
   // Red: below criteria
   // Yellow/Amber: boundary zone close to criteria (68% - 75%)
-  // Green/Emerald: safe zone (>= 76%)
+  // Safe zone: uses current theme primary
   const getColor = () => {
     if (clamped < criteria) {
       return {
@@ -36,7 +38,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
         glow: 'rgba(255, 82, 82, 0.35)',
       };
     }
-    if (clamped < criteria + 8) {
+    if (clamped <= criteria + 7) {
       return {
         stroke: '#FFC107',
         bgTrack: 'rgba(255, 193, 7, 0.12)',
@@ -44,9 +46,9 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
       };
     }
     return {
-      stroke: '#00E676',
-      bgTrack: 'rgba(0, 230, 118, 0.12)',
-      glow: 'rgba(0, 230, 118, 0.35)',
+      stroke: currentTheme.primary,
+      bgTrack: currentTheme.primary + '20',
+      glow: currentTheme.primary + '55',
     };
   };
 

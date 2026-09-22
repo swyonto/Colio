@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
-import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 
@@ -23,7 +22,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
       {/* Student Profile Overview Card */}
       <EmeraldGlassCard onPress={onOpenProfile}>
         <View style={styles.profileRow}>
-          <View style={styles.avatarCircle}>
+          <View style={[styles.avatarCircle, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.primary }]}>
             {profile.avatarUri ? (
               <Image source={{ uri: profile.avatarUri }} style={{ width: '100%', height: '100%', borderRadius: 24 }} />
             ) : (
@@ -40,120 +39,120 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
 
           <View style={{ flex: 1, gap: 2 }}>
             <View style={styles.nameHeaderRow}>
-              <Text style={[Typography.titleMd, styles.profileName]}>{profile.name}</Text>
-              <Feather name="edit-2" size={14} color={Colors.emeraldPrimary} />
+              <Text style={[Typography.titleMd, { color: currentTheme.textPrimary, fontWeight: '700' }]}>{profile.name}</Text>
+              <Feather name="edit-2" size={14} color={currentTheme.primary} />
             </View>
-            <Text style={styles.profileMeta}>
+            <Text style={[styles.profileMeta, { color: currentTheme.textSecondary }]}>
               {profile.rollNumber} • {profile.course}
             </Text>
-            <Text style={styles.profileCollege}>{profile.college}</Text>
+            <Text style={[styles.profileCollege, { color: currentTheme.textMuted }]}>{profile.college}</Text>
           </View>
         </View>
 
-        <View style={styles.appNicknameBadgeRow}>
-          <Text style={styles.appNicknameLabel}>App Header Display Name:</Text>
-          <View style={styles.appNicknamePill}>
-            <Text style={styles.appNicknameVal}>"{profile.appNickname || 'CampusHub'}"</Text>
+        <View style={[styles.appNicknameBadgeRow, { borderTopColor: currentTheme.borderGlass }]}>
+          <Text style={[styles.appNicknameLabel, { color: currentTheme.textMuted }]}>App Header Display Name:</Text>
+          <View style={[styles.appNicknamePill, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}>
+            <Text style={[styles.appNicknameVal, { color: currentTheme.primary }]}>"{profile.appNickname || 'Colio'}"</Text>
           </View>
         </View>
       </EmeraldGlassCard>
 
       {/* Academic Modules Hub */}
       <View style={styles.modulesSection}>
-        <Text style={[Typography.overline, { color: Colors.textMuted }]}>ACADEMIC SUITE</Text>
+        <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>ACADEMIC SUITE</Text>
 
         {/* 1. Books & Documents */}
         <TouchableOpacity
-          style={styles.hubTile}
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
           onPress={() => onOpenSection('books')}
           activeOpacity={0.8}
         >
-          <View style={[styles.tileIconBox, { backgroundColor: 'rgba(105, 240, 174, 0.12)' }]}>
-            <MaterialIcons name="picture-as-pdf" size={22} color={Colors.emeraldHighlight} />
+          <View style={[styles.tileIconBox, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '35' }]}>
+            <MaterialIcons name="picture-as-pdf" size={22} color={currentTheme.primary} />
           </View>
           <View style={styles.tileInfo}>
-            <Text style={[Typography.titleSm, styles.tileTitle]}>Books & PDFs</Text>
-            <Text style={styles.tileSubtitle}>{documents.length} offline cached academic documents</Text>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>Books & PDFs</Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>{documents.length} offline cached academic documents</Text>
           </View>
-          <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+          <Feather name="chevron-right" size={18} color={currentTheme.textMuted} />
         </TouchableOpacity>
 
         {/* 2. Digital ID Card */}
         <TouchableOpacity
-          style={styles.hubTile}
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
           onPress={() => onOpenSection('idcard')}
           activeOpacity={0.8}
         >
-          <View style={[styles.tileIconBox, { backgroundColor: 'rgba(0, 230, 118, 0.12)' }]}>
-            <Feather name="credit-card" size={20} color={Colors.emeraldPrimary} />
+          <View style={[styles.tileIconBox, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '35' }]}>
+            <Feather name="credit-card" size={20} color={currentTheme.primary} />
           </View>
           <View style={styles.tileInfo}>
-            <Text style={[Typography.titleSm, styles.tileTitle]}>Digital Student ID</Text>
-            <Text style={styles.tileSubtitle}>Fullscreen & landscape security card</Text>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>Digital Student ID</Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>Fullscreen & landscape security card</Text>
           </View>
-          <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+          <Feather name="chevron-right" size={18} color={currentTheme.textMuted} />
         </TouchableOpacity>
 
         {/* 3. Holidays & Leaves */}
         <TouchableOpacity
-          style={styles.hubTile}
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
           onPress={() => onOpenSection('holidays')}
           activeOpacity={0.8}
         >
-          <View style={[styles.tileIconBox, { backgroundColor: 'rgba(255, 193, 7, 0.12)' }]}>
-            <Feather name="sun" size={20} color={Colors.statusHoliday} />
+          <View style={[styles.tileIconBox, { backgroundColor: '#FFD60020', borderColor: '#FFD60040' }]}>
+            <MaterialIcons name="event-available" size={22} color="#FFD600" />
           </View>
           <View style={styles.tileInfo}>
-            <Text style={[Typography.titleSm, styles.tileTitle]}>Academic Holidays</Text>
-            <Text style={styles.tileSubtitle}>{holidays.length} upcoming gazetted holidays & duty leaves</Text>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>Academic Calendar & Leaves</Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>{holidays.length} semester breaks & duty leaves</Text>
           </View>
-          <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+          <Feather name="chevron-right" size={18} color={currentTheme.textMuted} />
         </TouchableOpacity>
 
         {/* 4. CGPA Calculator */}
         <TouchableOpacity
-          style={styles.hubTile}
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
           onPress={() => onOpenSection('cgpa')}
           activeOpacity={0.8}
         >
-          <View style={[styles.tileIconBox, { backgroundColor: 'rgba(0, 176, 255, 0.12)' }]}>
+          <View style={[styles.tileIconBox, { backgroundColor: '#00B0FF20', borderColor: '#00B0FF40' }]}>
             <Feather name="award" size={20} color="#00B0FF" />
           </View>
           <View style={styles.tileInfo}>
-            <Text style={[Typography.titleSm, styles.tileTitle]}>CGPA Calculator</Text>
-            <Text style={styles.tileSubtitle}>Weighted semester SGPA & target estimator</Text>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>CGPA & Target Forecaster</Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>Semester grade & target SGPA simulator</Text>
           </View>
-          <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+          <Feather name="chevron-right" size={18} color={currentTheme.textMuted} />
         </TouchableOpacity>
 
-        {/* 5. Full Tasks List */}
+        {/* 5. Tasks & Deadlines */}
         <TouchableOpacity
-          style={styles.hubTile}
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
           onPress={() => onOpenSection('tasks')}
           activeOpacity={0.8}
         >
-          <View style={[styles.tileIconBox, { backgroundColor: 'rgba(255, 171, 64, 0.12)' }]}>
-            <Feather name="check-square" size={20} color={Colors.statusPending} />
+          <View style={[styles.tileIconBox, { backgroundColor: '#FF910020', borderColor: '#FF910040' }]}>
+            <Feather name="check-square" size={20} color="#FF9100" />
           </View>
           <View style={styles.tileInfo}>
-            <Text style={[Typography.titleSm, styles.tileTitle]}>Tasks & Deadlines</Text>
-            <Text style={styles.tileSubtitle}>{pendingTasksCount} pending assignments & quizzes</Text>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>Tasks & Deadlines</Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>{pendingTasksCount} pending assignments & quizzes</Text>
           </View>
-          <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+          <Feather name="chevron-right" size={18} color={currentTheme.textMuted} />
         </TouchableOpacity>
       </View>
 
       {/* App Version Info */}
-      <View style={styles.appInfoCard}>
+      <View style={[styles.appInfoCard, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
         <View style={styles.appBadgeRow}>
-          <MaterialIcons name="school" size={18} color={Colors.emeraldPrimary} />
-          <Text style={styles.appInfoTitle}>CampusOS</Text>
-          <View style={styles.versionTag}>
-            <Text style={styles.versionText}>v2.1 Dark Emerald</Text>
+          <MaterialIcons name="school" size={18} color={currentTheme.primary} />
+          <Text style={[styles.appInfoTitle, { color: currentTheme.textPrimary }]}>Colio</Text>
+          <View style={[styles.versionTag, { backgroundColor: currentTheme.primary + '20' }]}>
+            <Text style={[styles.versionText, { color: currentTheme.primary }]}>v2.0 Production</Text>
           </View>
         </View>
-        <Text style={styles.appInfoDesc}>
-          Offline-first student academic companion. Pure charcoal Supabase-style glassmorphism with emerald lighting.
+        <Text style={[styles.appInfoDesc, { color: currentTheme.textMuted }]}>
+          Offline-first student academic operating system. Pure glassmorphism with dynamic theme personalization.
         </Text>
       </View>
     </ScrollView>
@@ -163,7 +162,6 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgBase,
   },
   contentContainer: {
     padding: 16,
@@ -179,14 +177,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#161C18',
     borderWidth: 1.2,
-    borderColor: Colors.emeraldPrimary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    color: Colors.emeraldPrimary,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -195,15 +190,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  profileName: {
-    color: Colors.textPrimary,
-  },
   profileMeta: {
-    color: Colors.textSecondary,
     fontSize: 12,
   },
   profileCollege: {
-    color: Colors.textMuted,
     fontSize: 11,
   },
   appNicknameBadgeRow: {
@@ -212,23 +202,18 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 12,
     borderTopWidth: 0.6,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: 8,
   },
   appNicknameLabel: {
-    color: Colors.textMuted,
     fontSize: 11,
   },
   appNicknamePill: {
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: 'rgba(0, 230, 118, 0.3)',
   },
   appNicknameVal: {
-    color: Colors.emeraldHighlight,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -238,11 +223,9 @@ const styles = StyleSheet.create({
   hubTile: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F1210',
     borderRadius: 14,
     padding: 14,
     borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 12,
   },
   tileIconBox: {
@@ -250,7 +233,6 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 12,
     borderWidth: 0.7,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -258,19 +240,13 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  tileTitle: {
-    color: Colors.textPrimary,
-  },
   tileSubtitle: {
-    color: Colors.textMuted,
     fontSize: 11,
   },
   appInfoCard: {
-    backgroundColor: '#0A0D0B',
     borderRadius: 14,
     padding: 16,
     borderWidth: 0.6,
-    borderColor: 'rgba(0, 230, 118, 0.20)',
     gap: 6,
     alignItems: 'center',
   },
@@ -280,23 +256,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   appInfoTitle: {
-    color: Colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
   versionTag: {
-    backgroundColor: 'rgba(0, 230, 118, 0.15)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   versionText: {
-    color: Colors.emeraldPrimary,
     fontSize: 10,
     fontWeight: '800',
   },
   appInfoDesc: {
-    color: Colors.textMuted,
     fontSize: 11,
     textAlign: 'center',
     lineHeight: 16,

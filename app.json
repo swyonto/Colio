@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "CampusOS",
-    "slug": "campusos",
+    "name": "Colio",
+    "slug": "colio",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,10 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.campusos.app"
+      "bundleIdentifier": "swyonto.colio"
     },
     "android": {
-      "package": "com.campusos.app",
+      "package": "swyonto.colio",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#050907",
         "foregroundImage": "./assets/android-icon-foreground.png",

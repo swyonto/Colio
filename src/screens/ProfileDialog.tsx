@@ -25,7 +25,7 @@ export const ProfileDialog: React.FC<ProfileDialogProps> = ({ visible, onClose }
 
   const handleSave = () => {
     updateProfile({
-      appNickname: nickname.trim() || 'CampusHub',
+      appNickname: nickname.trim() || 'Colio',
       name: name.trim(),
       rollNumber: roll.trim(),
       course: course.trim(),
@@ -45,7 +45,7 @@ export const ProfileDialog: React.FC<ProfileDialogProps> = ({ visible, onClose }
       {/* SECTION 2.2: App Nickname */}
       <GlassInput
         label="App Display Nickname *"
-        placeholder="e.g. CampusHub, MyCollege, AcadLog"
+        placeholder="e.g. Colio, AcadLog"
         value={nickname}
         onChangeText={setNickname}
         autoFocus
