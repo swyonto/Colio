@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../common/EmeraldGlassCard';
 import { GlassDialog } from '../common/GlassDialog';
@@ -9,6 +9,8 @@ import { Typography } from '../../theme/typography';
 import { useCampus } from '../../context/CampusContext';
 import { Task, Priority } from '../../types/campus';
 import { triggerHapticFeedback } from '../../utils/haptics';
+
+const isNative = Platform.OS !== 'web';
 
 interface TaskSummaryCardProps {
   onNavigateToTasks: () => void;
@@ -23,9 +25,9 @@ const AnimatedTaskItem: React.FC<{
 }> = ({ task, onToggle, onDelete, getPriorityTheme }) => {
   const { currentTheme } = useCampus();
   const checkScale = useRef(new Animated.Value(task.completed ? 1 : 0)).current;
-  const boxScale = useRef(new Animated.Value(1)).current;
   const lineProgress = useRef(new Animated.Value(task.completed ? 1 : 0)).current;
   const rowOpacity = useRef(new Animated.Value(task.completed ? 0.55 : 1)).current;
+  const boxScale = useRef(new Animated.Value(1)).current;
 
   const priorityTheme = getPriorityTheme(task.priority);
 
@@ -35,7 +37,7 @@ const AnimatedTaskItem: React.FC<{
         toValue: task.completed ? 1 : 0,
         friction: 6,
         tension: 110,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.timing(lineProgress, {
         toValue: task.completed ? 1 : 0,
@@ -46,7 +48,7 @@ const AnimatedTaskItem: React.FC<{
       Animated.timing(rowOpacity, {
         toValue: task.completed ? 0.55 : 1,
         duration: 200,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
     ]).start();
   }, [task.completed]);
@@ -56,8 +58,8 @@ const AnimatedTaskItem: React.FC<{
 
     // Pop bounce on the checkbox icon
     Animated.sequence([
-      Animated.timing(boxScale, { toValue: 1.3, duration: 100, useNativeDriver: true }),
-      Animated.spring(boxScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
+      Animated.timing(boxScale, { toValue: 1.3, duration: 100, useNativeDriver: isNative }),
+      Animated.spring(boxScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: isNative }),
     ]).start();
 
     onToggle(task.id);

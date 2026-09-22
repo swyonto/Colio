@@ -1,10 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { Colors } from '../../theme/colors';
 import { useCampus } from '../../context/CampusContext';
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface CircularProgressProps {
   percentage: number;
@@ -27,9 +24,6 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   const circumference = 2 * Math.PI * radius;
 
   // Determine color according to closeness to criteria (68%)
-  // Red: below criteria
-  // Yellow/Amber: boundary zone close to criteria (68% - 75%)
-  // Safe zone: uses current theme primary
   const getColor = () => {
     if (clamped < criteria) {
       return {
@@ -53,20 +47,26 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   };
 
   const colorScheme = getColor();
-  const animatedValue = useRef(new Animated.Value(0)).current;
+  const [animatedPercent, setAnimatedPercent] = useState(clamped);
+  const animatedValue = useRef(new Animated.Value(clamped)).current;
 
   useEffect(() => {
+    const listenerId = animatedValue.addListener(({ value }) => {
+      setAnimatedPercent(value);
+    });
+
     Animated.timing(animatedValue, {
       toValue: clamped,
-      duration: 700,
+      duration: 600,
       useNativeDriver: false,
     }).start();
+
+    return () => {
+      animatedValue.removeListener(listenerId);
+    };
   }, [clamped]);
 
-  const strokeDashoffset = animatedValue.interpolate({
-    inputRange: [0, 100],
-    outputRange: [circumference, 0],
-  });
+  const strokeDashoffset = circumference - (circumference * animatedPercent) / 100;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -82,7 +82,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
         />
 
         {/* Foreground Progress Ring */}
-        <AnimatedCircle
+        <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}

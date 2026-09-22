@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Pressable, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../../theme/typography';
@@ -28,60 +28,57 @@ export const GlassDialog: React.FC<GlassDialogProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={[styles.overlay, { backgroundColor: currentTheme.bgBackdrop }]}>
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-            <View
-              style={[
-                styles.dialogContainer,
-                {
-                  backgroundColor: currentTheme.bgSurface,
-                  borderColor: currentTheme.borderGlass,
-                  shadowColor: currentTheme.primary,
-                },
-              ]}
+      <Pressable style={[styles.overlay, { backgroundColor: currentTheme.bgBackdrop }]} onPress={onClose}>
+        <Pressable
+          style={[
+            styles.dialogContainer,
+            {
+              backgroundColor: currentTheme.bgSurface,
+              borderColor: currentTheme.borderGlass,
+              shadowColor: currentTheme.primary,
+            },
+          ]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          {/* Glassmorphic Gradient Base */}
+          <LinearGradient
+            colors={[currentTheme.bgSurface, currentTheme.bgCard]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Top Glass Light Reflection */}
+          <LinearGradient
+            colors={[currentTheme.glowColor, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 0.5 }}
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Header Row */}
+          <View style={[styles.headerRow, { borderBottomColor: currentTheme.borderGlass }]}>
+            <Text style={[Typography.titleLg, styles.titleText, { color: currentTheme.textPrimary }]}>
+              {title}
+            </Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeButton, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              {/* Glassmorphic Gradient Base */}
-              <LinearGradient
-                colors={[currentTheme.bgSurface, currentTheme.bgCard]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
+              <Feather name="x" size={18} color={currentTheme.textMuted} />
+            </TouchableOpacity>
+          </View>
 
-              {/* Top Glass Light Reflection */}
-              <LinearGradient
-                colors={[currentTheme.glowColor, 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 0.5 }}
-                style={StyleSheet.absoluteFill}
-              />
-
-              {/* Header Row */}
-              <View style={[styles.headerRow, { borderBottomColor: currentTheme.borderGlass }]}>
-                <Text style={[Typography.titleLg, styles.titleText, { color: currentTheme.textPrimary }]}>
-                  {title}
-                </Text>
-                <TouchableOpacity
-                  onPress={onClose}
-                  style={[styles.closeButton, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Feather name="x" size={18} color={currentTheme.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView
-                style={styles.contentScroll}
-                contentContainerStyle={styles.scrollInner}
-                showsVerticalScrollIndicator={false}
-              >
-                {children}
-              </ScrollView>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+          <ScrollView
+            style={styles.contentScroll}
+            contentContainerStyle={styles.scrollInner}
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };

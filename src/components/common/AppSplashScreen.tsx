@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Dimensions, Platform } from 'react-native';
 import { ColioLogo } from './ColioLogo';
 import { Colors } from '../../theme/colors';
 import { useCampus } from '../../context/CampusContext';
@@ -10,6 +10,7 @@ interface AppSplashScreenProps {
 }
 
 const { width } = Dimensions.get('window');
+const isNative = Platform.OS !== 'web';
 
 const LOADING_STEPS = [
   'Initializing Colio Student OS...',
@@ -23,15 +24,15 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
   const [statusIndex, setStatusIndex] = useState(0);
   const [shouldRender, setShouldRender] = useState(true);
 
-  // Animation values
+  // Animations
+  const logoScale = useRef(new Animated.Value(0.7)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
   const pulseScale = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.4)).current;
-  const logoScale = useRef(new Animated.Value(0.85)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0.08)).current;
+  const textFade = useRef(new Animated.Value(1)).current;
   const screenOpacity = useRef(new Animated.Value(1)).current;
   const screenScale = useRef(new Animated.Value(1)).current;
-  const textFade = useRef(new Animated.Value(1)).current;
 
   // 1. Initial Logo entrance & ambient halo pulse
   useEffect(() => {
@@ -41,12 +42,12 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
         toValue: 1,
         friction: 6,
         tension: 60,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.timing(logoOpacity, {
         toValue: 1,
         duration: 500,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
     ]).start();
 
@@ -58,12 +59,12 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
             toValue: 1.28,
             duration: 1400,
             easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
           Animated.timing(pulseOpacity, {
             toValue: 0.1,
             duration: 1400,
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
         ]),
         Animated.parallel([
@@ -71,12 +72,12 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
             toValue: 1,
             duration: 1400,
             easing: Easing.in(Easing.quad),
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
           Animated.timing(pulseOpacity, {
             toValue: 0.45,
             duration: 1400,
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
         ]),
       ])
@@ -104,7 +105,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
       Animated.timing(textFade, {
         toValue: 0,
         duration: 180,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }).start(() => {
         setStatusIndex((prev) => {
           const next = (prev + 1) % (LOADING_STEPS.length - 1);
@@ -114,7 +115,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
         Animated.timing(textFade, {
           toValue: 1,
           duration: 220,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }).start();
       });
     }, 700);
@@ -134,13 +135,13 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
           toValue: 0,
           duration: 380,
           easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
         Animated.timing(screenScale, {
           toValue: 1.05,
           duration: 380,
           easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
       ]).start(() => {
         setShouldRender(false);
@@ -164,9 +165,9 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({ isLoading, onF
           backgroundColor: currentTheme.bgBase,
           opacity: screenOpacity,
           transform: [{ scale: screenScale }],
+          pointerEvents: isLoading ? 'auto' : 'none',
         },
       ]}
-      pointerEvents={isLoading ? 'auto' : 'none'}
     >
       <View style={styles.centerBox}>
         {/* Pulsing Halo */}

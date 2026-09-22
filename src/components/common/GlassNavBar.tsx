@@ -34,7 +34,7 @@ export const GlassNavBar: React.FC = () => {
       toValue: activeIndex * tabWidth,
       damping: 18,
       stiffness: 140,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, [activeIndex, tabWidth]);
 

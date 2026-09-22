@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, DimensionValue, StyleProp, ViewStyle, ScrollView } from 'react-native';
+import { View, StyleSheet, Animated, DimensionValue, StyleProp, ViewStyle, ScrollView, Platform } from 'react-native';
 import { Colors } from '../../theme/colors';
+
+const isNative = Platform.OS !== 'web';
 
 // 1. Base Shimmer/Pulse Skeleton Box
 interface SkeletonBoxProps {
@@ -24,12 +26,12 @@ export const SkeletonBox: React.FC<SkeletonBoxProps> = ({
         Animated.timing(pulseAnim, {
           toValue: 0.75,
           duration: 850,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
         Animated.timing(pulseAnim, {
           toValue: 0.3,
           duration: 850,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
       ])
     );
