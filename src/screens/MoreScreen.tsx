@@ -21,7 +21,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
     const success = await syncToCloud();
     setIsSyncing(false);
     if (success) {
-      Alert.alert('Cloud Backup Successful ☁️', 'Your timetable, attendance, tasks, and expenses are now securely synced to Google Firebase Firestore.');
+      Alert.alert('Cloud Backup Successful', 'Your timetable, attendance, tasks, and expenses are now securely synced to Google Firebase Firestore.');
     } else {
       Alert.alert('Backup Notice', 'Could not sync to cloud. Please check your internet connection and try again.');
     }
@@ -40,7 +40,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
             const success = await restoreFromCloud();
             setIsRestoring(false);
             if (success) {
-              Alert.alert('Restored Successfully ✅', 'All attendance, timetable slots, tasks, and expenses were recovered from Google Firestore.');
+              Alert.alert('Restored Successfully', 'All attendance, timetable slots, tasks, and expenses were recovered from Google Firestore.');
             } else {
               Alert.alert('Restore Failed', 'No cloud backup was found or network connection failed.');
             }
@@ -52,7 +52,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
 
   const handleTestNotification = async () => {
     await sendInstantTestNotification(
-      'Colio Push Alert 🎓',
+      'Colio Push Alert',
       'Firebase Cloud Sync and Android Push Notifications are active!'
     );
   };
@@ -90,13 +90,6 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
               {profile.rollNumber} • {profile.course}
             </Text>
             <Text style={[styles.profileCollege, { color: currentTheme.textMuted }]}>{profile.college}</Text>
-          </View>
-        </View>
-
-        <View style={[styles.appNicknameBadgeRow, { borderTopColor: currentTheme.borderGlass }]}>
-          <Text style={[styles.appNicknameLabel, { color: currentTheme.textMuted }]}>App Header Display Name:</Text>
-          <View style={[styles.appNicknamePill, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}>
-            <Text style={[styles.appNicknameVal, { color: currentTheme.primary }]}>"{profile.appNickname || 'Colio'}"</Text>
           </View>
         </View>
       </EmeraldGlassCard>

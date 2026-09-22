@@ -43,6 +43,32 @@ export const TimetableScreen: React.FC = () => {
     currentTheme,
   } = useCampus();
 
+  // Real calendar dates for Monday - Saturday of current week
+  const getWeekDates = () => {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sun, 1 = Mon ...
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + distanceToMonday);
+
+    return DAYS.map((d, index) => {
+      const dayDate = new Date(monday);
+      dayDate.setDate(monday.getDate() + index);
+      const dateNum = dayDate.getDate();
+      const monthShort = dayDate.toLocaleDateString('en-US', { month: 'short' });
+      const isToday = dayDate.toDateString() === now.toDateString();
+      return {
+        ...d,
+        dateNum,
+        monthShort,
+        dateFormatted: `${monthShort} ${dateNum}`,
+        isToday,
+      };
+    });
+  };
+
+  const weekDates = getWeekDates();
+
   // Automatic Current Day Detection (Calendar-like)
   const todayDayOfWeek = new Date().getDay(); // 0 = Sun, 1 = Mon ...
   const defaultDay = todayDayOfWeek >= 1 && todayDayOfWeek <= 6 ? todayDayOfWeek : 1;
@@ -50,6 +76,7 @@ export const TimetableScreen: React.FC = () => {
 
   // Edit Timetable Entry Modal State
   const [editingSlot, setEditingSlot] = useState<{
+    dayOfWeek: number;
     period: number;
     time: string;
     startTime: string;
@@ -79,12 +106,82 @@ export const TimetableScreen: React.FC = () => {
     );
   };
 
+  const getSubjectCellTheme = (code: string) => {
+    const isDark = currentTheme.isDark;
+    switch (code) {
+      case 'PYTH':
+        return {
+          bg: isDark ? 'rgba(0, 229, 255, 0.18)' : '#E0F7FA',
+          border: isDark ? 'rgba(0, 229, 255, 0.45)' : '#80DEEA',
+          text: isDark ? '#00E5FF' : '#006064',
+          subText: isDark ? 'rgba(0, 229, 255, 0.9)' : '#00838F',
+        };
+      case 'CSA':
+        return {
+          bg: isDark ? 'rgba(0, 230, 118, 0.18)' : '#E8F5E9',
+          border: isDark ? 'rgba(0, 230, 118, 0.45)' : '#A5D6A7',
+          text: isDark ? '#00E676' : '#1B5E20',
+          subText: isDark ? 'rgba(0, 230, 118, 0.9)' : '#2E7D32',
+        };
+      case 'MC':
+        return {
+          bg: isDark ? 'rgba(255, 64, 129, 0.18)' : '#FCE4EC',
+          border: isDark ? 'rgba(255, 64, 129, 0.45)' : '#F48FB1',
+          text: isDark ? '#FF4081' : '#880E4F',
+          subText: isDark ? 'rgba(255, 64, 129, 0.9)' : '#AD1457',
+        };
+      case 'VAC1':
+        return {
+          bg: isDark ? 'rgba(255, 214, 0, 0.20)' : '#FFF9C4',
+          border: isDark ? 'rgba(255, 214, 0, 0.45)' : '#FFF176',
+          text: isDark ? '#FFD600' : '#E65100',
+          subText: isDark ? 'rgba(255, 214, 0, 0.9)' : '#F57F17',
+        };
+      case 'SEC1':
+        return {
+          bg: isDark ? 'rgba(224, 64, 251, 0.18)' : '#F3E5F5',
+          border: isDark ? 'rgba(224, 64, 251, 0.45)' : '#CE93D8',
+          text: isDark ? '#E040FB' : '#4A148C',
+          subText: isDark ? 'rgba(224, 64, 251, 0.9)' : '#6A1B9A',
+        };
+      case 'GE1':
+        return {
+          bg: isDark ? 'rgba(2, 132, 199, 0.18)' : '#E1F5FE',
+          border: isDark ? 'rgba(2, 132, 199, 0.45)' : '#81D4FA',
+          text: isDark ? '#38BDF8' : '#01579B',
+          subText: isDark ? 'rgba(56, 189, 248, 0.9)' : '#0277BD',
+        };
+      case 'LANG1':
+        return {
+          bg: isDark ? 'rgba(105, 240, 174, 0.18)' : '#DCEDC8',
+          border: isDark ? 'rgba(105, 240, 174, 0.45)' : '#AED581',
+          text: isDark ? '#69F0AE' : '#33691E',
+          subText: isDark ? 'rgba(105, 240, 174, 0.9)' : '#558B2F',
+        };
+      default:
+        return {
+          bg: isDark ? 'rgba(0, 230, 118, 0.12)' : '#F1F5F9',
+          border: isDark ? 'rgba(0, 230, 118, 0.30)' : '#CBD5E1',
+          text: isDark ? '#00E676' : '#0F172A',
+          subText: isDark ? '#B2DFDB' : '#475569',
+        };
+    }
+  };
+
   const daySlots = timetable.filter((slot) => slot.dayOfWeek === selectedDay);
 
-  const handleOpenEdit = (periodNum: number, timeStr: string, startTimeStr: string, endTimeStr: string, slot?: TimetableSlot) => {
+  const handleOpenEdit = (
+    dayNum: number,
+    periodNum: number,
+    timeStr: string,
+    startTimeStr: string,
+    endTimeStr: string,
+    slot?: TimetableSlot
+  ) => {
     triggerHapticFeedback('selection');
     const existingSubject = slot ? getSubject(slot.subjectId) : subjects[0];
     setEditingSlot({
+      dayOfWeek: dayNum,
       period: periodNum,
       time: timeStr,
       startTime: startTimeStr,
@@ -114,7 +211,7 @@ export const TimetableScreen: React.FC = () => {
     } else {
       // Create new slot
       addTimetableSlot({
-        dayOfWeek: selectedDay,
+        dayOfWeek: editingSlot.dayOfWeek,
         period: editingSlot.period,
         startTime: formStartTime.trim() || editingSlot.startTime,
         endTime: formEndTime.trim() || editingSlot.endTime,
@@ -134,7 +231,7 @@ export const TimetableScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
-      {/* Top Controls: Day Selector & Grid/List View Mode Switcher */}
+      {/* Top Controls: Day Selector & Grid/List View */}
       <View style={[styles.topControlBar, { backgroundColor: currentTheme.bgSurface, borderBottomColor: currentTheme.borderGlass }]}>
         {/* Days Scroll with Calendar-style Today Indicators */}
         <ScrollView
@@ -142,9 +239,8 @@ export const TimetableScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.daysScroll}
         >
-          {DAYS.map((d) => {
+          {weekDates.map((d) => {
             const isSelected = selectedDay === d.day;
-            const isToday = todayDayOfWeek === d.day;
 
             return (
               <TouchableOpacity
@@ -173,7 +269,15 @@ export const TimetableScreen: React.FC = () => {
                   >
                     {d.label}
                   </Text>
-                  {isToday && (
+                  <Text
+                    style={[
+                      styles.dayDateNumText,
+                      { color: isSelected ? currentTheme.primary : currentTheme.textSecondary },
+                    ]}
+                  >
+                    {d.dateNum}
+                  </Text>
+                  {d.isToday && (
                     <View style={[styles.todayIndicator, { backgroundColor: currentTheme.primary }]}>
                       <Text style={[styles.todayText, { color: currentTheme.isDark ? '#050907' : '#FFFFFF' }]}>
                         TODAY
@@ -224,14 +328,16 @@ export const TimetableScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Active Day Header Bar */}
+        {/* Active Header Bar */}
         <View style={styles.activeDayHeader}>
           <View>
             <Text style={[Typography.titleLg, { color: currentTheme.textPrimary, fontWeight: '700' }]}>
-              {DAYS.find((d) => d.day === selectedDay)?.full} Schedule
+              {timetableViewMode === 'grid' ? 'Weekly Timetable Matrix' : `${DAYS.find((d) => d.day === selectedDay)?.full} Schedule`}
             </Text>
             <Text style={[styles.periodsCountText, { color: currentTheme.textMuted }]}>
-              {daySlots.length} scheduled periods • Tap any slot to edit
+              {timetableViewMode === 'grid'
+                ? 'Section - I Official Matrix (Mon–Sat) • Tap any cell to edit'
+                : `${daySlots.length} scheduled periods • Tap any slot to edit`}
             </Text>
           </View>
           <View style={[styles.viewModeBadge, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}>
@@ -241,96 +347,232 @@ export const TimetableScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* PROPER 2-COLUMN GRID VIEW */}
+        {/* OFFICIAL WEEKLY MATRIX TIMETABLE (LOOKS EXACTLY LIKE THE CLASS TIMETABLE IMAGE) */}
         {timetableViewMode === 'grid' ? (
-          <View style={styles.gridMatrixContainer}>
-            {PERIODS.map(({ period, time, startTime, endTime, isBreak }) => {
-              const slot = daySlots.find((s) => s.period === period);
-              const subj = slot ? getSubject(slot.subjectId) : null;
+          <View style={styles.matrixContainer}>
+            {/* Header info badge */}
+            <View style={[styles.matrixHeaderCard, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
+              <View style={styles.matrixHeaderRow}>
+                <View>
+                  <Text style={[styles.matrixCollegeTitle, { color: currentTheme.textPrimary }]}>
+                    Department of Computer Science
+                  </Text>
+                  <Text style={[styles.matrixClassSubtitle, { color: currentTheme.primary }]}>
+                    First Year (Section - I) • Class Timetable (2026 – 27)
+                  </Text>
+                </View>
+                <View style={[styles.matrixWeekBadge, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}>
+                  <Text style={[styles.matrixWeekBadgeText, { color: currentTheme.primary }]}>
+                    Full Week
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.matrixHintText, { color: currentTheme.textMuted }]}>
+                Scroll horizontally to view all 9 periods • Tap any subject block to edit
+              </Text>
+            </View>
 
-              if (isBreak) {
-                return (
-                  <View
-                    key={period}
-                    style={[
-                      styles.gridBreakCard,
-                      { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
-                    ]}
-                  >
-                    <View style={styles.breakInnerRow}>
-                      <Text style={[styles.breakCardTitle, { color: currentTheme.textMuted }]}>
-                        ☕ Period {period}: Lunch & Midday Break ({time})
-                      </Text>
-                    </View>
-                  </View>
-                );
-              }
-
-              return (
-                <TouchableOpacity
-                  key={period}
-                  style={[
-                    styles.gridSlotCard,
-                    {
-                      backgroundColor: slot ? currentTheme.bgCard : currentTheme.bgCardSecondary,
-                      borderColor: slot ? (subj?.color ? `${subj.color}60` : currentTheme.borderGlass) : currentTheme.borderGlass,
-                      borderStyle: slot ? 'solid' : 'dashed',
-                    },
-                  ]}
-                  onPress={() => handleOpenEdit(period, time, startTime, endTime, slot)}
-                  activeOpacity={0.8}
-                >
-                  {/* Top Bar: Period Number + Start Time */}
-                  <View style={styles.gridCardTopRow}>
-                    <View style={[styles.periodPill, { backgroundColor: currentTheme.primary + '20' }]}>
-                      <Text style={[styles.periodPillText, { color: currentTheme.primary }]}>P{period}</Text>
-                    </View>
-                    <Text style={[styles.gridCardTime, { color: currentTheme.textMuted }]}>
-                      {slot ? `${slot.startTime}–${slot.endTime}` : startTime}
-                    </Text>
-                    <Feather name="edit-2" size={11} color={currentTheme.textDisabled} />
+            {/* Scrollable Matrix Table */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={true} contentContainerStyle={styles.matrixScrollContent}>
+              <View style={[styles.matrixTableWrapper, { borderColor: currentTheme.borderGlass }]}>
+                {/* 1. Matrix Table Header Row: Day & Periods 1 to 9 */}
+                <View style={[styles.matrixTableRow, styles.matrixTableHeaderRow, { backgroundColor: currentTheme.bgSurface, borderBottomColor: currentTheme.borderGlass }]}>
+                  {/* Fixed Day Column Header */}
+                  <View style={[styles.matrixDayColHeader, { borderRightColor: currentTheme.borderGlass }]}>
+                    <Text style={[styles.matrixDayColHeaderText, { color: currentTheme.textPrimary }]}>Day / Date</Text>
                   </View>
 
-                  {/* Middle: Subject Code & Name */}
-                  {slot && subj ? (
-                    <View style={styles.gridCardMid}>
-                      <View style={[styles.gridCodeBadge, { backgroundColor: `${subj.color}20`, borderColor: `${subj.color}50` }]}>
-                        <Text style={[styles.gridCodeText, { color: subj.color }]}>{subj.code}</Text>
-                      </View>
-                      <Text style={[styles.gridSubjTitle, { color: currentTheme.textPrimary }]} numberOfLines={2}>
-                        {subj.name}
+                  {/* 9 Period Headers */}
+                  {PERIODS.map(({ period, startTime, endTime }) => (
+                    <View
+                      key={period}
+                      style={[
+                        styles.matrixPeriodColHeader,
+                        { borderRightColor: currentTheme.borderGlass },
+                        period === 5 && { backgroundColor: currentTheme.bgElevated },
+                      ]}
+                    >
+                      <Text style={[styles.matrixPeriodNumText, { color: currentTheme.primary }]}>
+                        {period === 5 ? '5 (Break)' : period}
+                      </Text>
+                      <Text style={[styles.matrixPeriodTimeText, { color: currentTheme.textMuted }]}>
+                        {startTime}–{endTime}
                       </Text>
                     </View>
-                  ) : (
-                    <View style={styles.gridEmptyMid}>
-                      <Feather name="plus-circle" size={18} color={currentTheme.textMuted} />
-                      <Text style={[styles.gridEmptyText, { color: currentTheme.textMuted }]}>
-                        Free Slot
-                      </Text>
-                    </View>
-                  )}
+                  ))}
+                </View>
 
-                  {/* Bottom: Room & Teacher */}
-                  {slot && subj ? (
-                    <View style={styles.gridCardBottom}>
-                      <View style={styles.gridMetaItem}>
-                        <Feather name="map-pin" size={10} color={currentTheme.primary} />
-                        <Text style={[styles.gridMetaText, { color: currentTheme.textSecondary }]} numberOfLines={1}>
-                          {slot.room || subj.room}
+                {/* 2. Matrix Table Body: Rows for Monday through Saturday */}
+                {weekDates.map((dayItem) => {
+                  return (
+                    <View
+                      key={dayItem.day}
+                      style={[
+                        styles.matrixTableRow,
+                        { borderBottomColor: currentTheme.borderGlass },
+                        dayItem.isToday && { backgroundColor: currentTheme.primary + '08' },
+                      ]}
+                    >
+                      {/* Day & Real Calendar Date Cell */}
+                      <TouchableOpacity
+                        style={[
+                          styles.matrixDayCell,
+                          { borderRightColor: currentTheme.borderGlass },
+                          dayItem.isToday && { backgroundColor: currentTheme.primary + '15' },
+                        ]}
+                        onPress={() => {
+                          triggerHapticFeedback('selection');
+                          setSelectedDay(dayItem.day);
+                          setTimetableViewMode('list');
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.matrixDayNameText,
+                            { color: dayItem.isToday ? currentTheme.primary : currentTheme.textPrimary },
+                          ]}
+                        >
+                          {dayItem.full}
                         </Text>
-                      </View>
-                      <Text style={[styles.gridTeacherName, { color: currentTheme.textMuted }]} numberOfLines={1}>
-                        {slot.teacher || subj.teacher}
+                        <View
+                          style={[
+                            styles.matrixDateBadge,
+                            {
+                              backgroundColor: dayItem.isToday ? currentTheme.primary : currentTheme.bgCardSecondary,
+                              borderColor: dayItem.isToday ? currentTheme.primary : currentTheme.borderGlass,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.matrixDateBadgeText,
+                              { color: dayItem.isToday ? (currentTheme.isDark ? '#050907' : '#FFFFFF') : currentTheme.textMuted },
+                            ]}
+                          >
+                            {dayItem.dateFormatted}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* 9 Period Cells for this Day */}
+                      {PERIODS.map(({ period, time, startTime, endTime, isBreak }) => {
+                        const slot = timetable.find((s) => s.dayOfWeek === dayItem.day && s.period === period);
+                        const subj = slot ? getSubject(slot.subjectId) : null;
+                        const cellTheme = subj ? getSubjectCellTheme(subj.code) : null;
+
+                        if (isBreak && !slot) {
+                          return (
+                            <View
+                              key={period}
+                              style={[
+                                styles.matrixCell,
+                                styles.matrixBreakCell,
+                                {
+                                  backgroundColor: currentTheme.bgCardSecondary,
+                                  borderRightColor: currentTheme.borderGlass,
+                                },
+                              ]}
+                            >
+                              <Text style={[styles.matrixBreakCellText, { color: currentTheme.textDisabled }]}>
+                                Lunch
+                              </Text>
+                            </View>
+                          );
+                        }
+
+                        if (!slot) {
+                          return (
+                            <TouchableOpacity
+                              key={period}
+                              style={[
+                                styles.matrixCell,
+                                styles.matrixEmptyCell,
+                                {
+                                  backgroundColor: currentTheme.bgCardSecondary,
+                                  borderRightColor: currentTheme.borderGlass,
+                                },
+                              ]}
+                              onPress={() => handleOpenEdit(dayItem.day, period, time, startTime, endTime)}
+                              activeOpacity={0.6}
+                            >
+                              <Text style={[styles.matrixEmptyDash, { color: currentTheme.textDisabled }]}>—</Text>
+                            </TouchableOpacity>
+                          );
+                        }
+
+                        return (
+                          <TouchableOpacity
+                            key={period}
+                            style={[
+                              styles.matrixCell,
+                              styles.matrixOccupiedCell,
+                              {
+                                backgroundColor: cellTheme ? cellTheme.bg : `${subj?.color}20`,
+                                borderColor: cellTheme ? cellTheme.border : `${subj?.color}60`,
+                                borderRightColor: currentTheme.borderGlass,
+                              },
+                            ]}
+                            onPress={() => handleOpenEdit(dayItem.day, period, time, startTime, endTime, slot)}
+                            activeOpacity={0.75}
+                          >
+                            <Text
+                              style={[
+                                styles.matrixCellCode,
+                                { color: cellTheme ? cellTheme.text : subj?.color },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {subj?.code}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.matrixCellRoom,
+                                { color: cellTheme ? cellTheme.subText : currentTheme.textSecondary },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              ({slot.room || subj?.room})
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            {/* Subject Code Reference Legend (Matching the reference chart) */}
+            <View style={[styles.matrixLegendCard, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
+              <Text style={[styles.legendHeader, { color: currentTheme.textMuted }]}>
+                SUBJECT CODES (FOR REFERENCE)
+              </Text>
+              <View style={styles.legendGrid}>
+                {subjects.map((s) => {
+                  const cellTheme = getSubjectCellTheme(s.code);
+                  return (
+                    <View
+                      key={s.id}
+                      style={[
+                        styles.legendChip,
+                        {
+                          backgroundColor: cellTheme.bg,
+                          borderColor: cellTheme.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.legendCodeText, { color: cellTheme.text }]}>
+                        {s.code}
+                      </Text>
+                      <Text style={[styles.legendNameText, { color: currentTheme.textSecondary }]}>
+                        – {s.name}
                       </Text>
                     </View>
-                  ) : (
-                    <Text style={[styles.tapToAssignText, { color: currentTheme.primary }]}>
-                      + Tap to Assign
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+                  );
+                })}
+              </View>
+            </View>
           </View>
         ) : (
           /* PROPER DETAILED LIST VIEW */
@@ -364,7 +606,7 @@ export const TimetableScreen: React.FC = () => {
                       styles.listEmptyRow,
                       { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass },
                     ]}
-                    onPress={() => handleOpenEdit(period, time, startTime, endTime)}
+                    onPress={() => handleOpenEdit(selectedDay, period, time, startTime, endTime)}
                     activeOpacity={0.8}
                   >
                     <View style={styles.listEmptyLeft}>
@@ -411,7 +653,7 @@ export const TimetableScreen: React.FC = () => {
                         </View>
                         <TouchableOpacity
                           style={styles.slotEditBtn}
-                          onPress={() => handleOpenEdit(period, time, startTime, endTime, slot)}
+                          onPress={() => handleOpenEdit(selectedDay, period, time, startTime, endTime, slot)}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
                           <Feather name="edit-2" size={14} color={currentTheme.textMuted} />
@@ -472,7 +714,7 @@ export const TimetableScreen: React.FC = () => {
         title={editingSlot?.slot ? `Edit Period ${editingSlot.period} Class` : `Assign Period ${editingSlot?.period} Class`}
       >
         <Text style={[Typography.bodySm, { color: currentTheme.textMuted, marginBottom: 12 }]}>
-          {DAYS.find((d) => d.day === selectedDay)?.full} • Period {editingSlot?.period} ({editingSlot?.time})
+          {DAYS.find((d) => d.day === (editingSlot?.dayOfWeek || selectedDay))?.full} • Period {editingSlot?.period} ({editingSlot?.time})
         </Text>
 
         {/* Subject Selector */}
@@ -589,6 +831,10 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: 12,
+  },
+  dayDateNumText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   todayIndicator: {
     paddingHorizontal: 4,
@@ -925,4 +1171,191 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  // --- WEEKLY TIMETABLE MATRIX STYLES ---
+  matrixContainer: {
+    marginBottom: 24,
+  },
+  matrixHeaderCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 0.8,
+  },
+  matrixHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  matrixCollegeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  matrixClassSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  matrixWeekBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 0.8,
+  },
+  matrixWeekBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  matrixHintText: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+  matrixScrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  matrixTableWrapper: {
+    borderRadius: 10,
+    borderWidth: 0.8,
+    overflow: 'hidden',
+  },
+  matrixTableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.8,
+  },
+  matrixTableHeaderRow: {
+    minHeight: 46,
+  },
+  matrixDayColHeader: {
+    width: 90,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRightWidth: 0.8,
+  },
+  matrixDayColHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  matrixPeriodColHeader: {
+    width: 76,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRightWidth: 0.8,
+  },
+  matrixPeriodNumText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  matrixPeriodTimeText: {
+    fontSize: 8,
+    marginTop: 2,
+  },
+  matrixDayCell: {
+    width: 90,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRightWidth: 0.8,
+  },
+  matrixDayNameText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  matrixDateBadge: {
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.6,
+  },
+  matrixDateBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  matrixCell: {
+    width: 76,
+    minHeight: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4,
+    borderRightWidth: 0.8,
+  },
+  matrixBreakCell: {
+    opacity: 0.7,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  matrixBreakCellText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  matrixEmptyCell: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  matrixEmptyDash: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  matrixOccupiedCell: {
+    borderWidth: 1,
+    borderRadius: 6,
+    margin: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  matrixCellCode: {
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  matrixCellRoom: {
+    fontSize: 9,
+    fontWeight: '600',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  matrixLegendCard: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 0.8,
+  },
+  legendHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  legendGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  legendChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 0.8,
+    gap: 4,
+  },
+  legendCodeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  legendNameText: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
 });
+

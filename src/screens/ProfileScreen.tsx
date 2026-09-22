@@ -827,7 +827,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           {/* 1. Class Timetable Reminders */}
           <View style={styles.prefRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Class Reminders ⏰</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Feather name="clock" size={15} color={currentTheme.primary} />
+                <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Class Reminders</Text>
+              </View>
               <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
                 Alert before each timetable lecture begins
               </Text>
@@ -891,7 +894,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           {/* 2. Assignment & Task Deadlines */}
           <View style={styles.prefRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Task & Assignment Deadlines 📝</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Feather name="check-square" size={15} color={currentTheme.primary} />
+                <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Task & Assignment Deadlines</Text>
+              </View>
               <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
                 Alerts on the evening before & 2h before due time
               </Text>
@@ -912,7 +918,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           {/* 3. 75% Attendance Safeguard */}
           <View style={styles.prefRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>75% Attendance Safeguard ⚠️</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Feather name="shield" size={15} color="#FF9100" />
+                <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>75% Attendance Safeguard</Text>
+              </View>
               <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
                 Immediate warning alert when a subject drops into danger zone
               </Text>
@@ -933,7 +942,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           {/* 4. Daily Morning Routine Briefing */}
           <View style={styles.prefRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Morning Routine Brief 🌅</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Feather name="sun" size={15} color="#FFD600" />
+                <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Morning Routine Brief</Text>
+              </View>
               <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
                 8:00 AM daily overview of total classes and first room
               </Text>
