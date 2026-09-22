@@ -24,6 +24,21 @@ import {
 import { LayoutAnimation } from 'react-native';
 import { triggerHapticFeedback } from '../utils/haptics';
 import { AppThemeKey, Themes, ThemeColors, applyTheme } from '../theme/colors';
+import { syncUserDataToCloud, fetchUserDataFromCloud } from '../services/firebase';
+import {
+  registerForPushNotificationsAsync,
+  syncAllTimetableReminders,
+  triggerAttendanceSafeguardAlert,
+  scheduleTaskDeadlineReminder,
+} from '../services/notifications';
+
+export interface NotificationPreferences {
+  classReminders: boolean;
+  classReminderLeadMinutes: number; // 5, 10, or 15
+  taskReminders: boolean;
+  attendanceAlerts: boolean;
+  morningBriefing: boolean;
+}
 
 interface CampusContextType {
   // Tabs & Navigation
@@ -100,25 +115,35 @@ interface CampusContextType {
   setClassRemindersEnabled: (enabled: boolean) => void;
   hapticsEnabled: boolean;
   setHapticsEnabled: (enabled: boolean) => void;
+  // Notification Preferences & Smart Alarms
+  notificationPrefs: NotificationPreferences;
+  updateNotificationPrefs: (prefs: Partial<NotificationPreferences>) => void;
+  // Cloud Sync & Notifications
+  syncToCloud: () => Promise<boolean>;
+  restoreFromCloud: () => Promise<boolean>;
+  lastSyncTime: string | null;
+  isSyncing: boolean;
 }
 
 const CampusContext = createContext<CampusContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  SUBJECTS: '@campusos_subjects_v2',
-  TIMETABLE: '@campusos_timetable_v2',
-  TASKS: '@campusos_tasks_v2',
-  EXPENSES: '@campusos_expenses_v2',
-  PRESETS: '@campusos_presets_v2',
-  TIMETABLE_MODE: '@campusos_timetable_view_mode',
-  PROFILE: '@campusos_profile_v2',
-  DOCUMENTS: '@campusos_documents_v2',
-  HOLIDAYS: '@campusos_holidays_v2',
-  ATTENDANCE_CRITERIA: '@campusos_attendance_criteria_v2',
-  APP_THEME: '@campusos_app_theme_v2',
-  CLASS_REMINDERS: '@campusos_class_reminders_v2',
-  HAPTICS: '@campusos_haptics_v2',
-  SETUP_COMPLETE: '@campusos_setup_complete_v2',
+  SUBJECTS: '@colio_subjects_v2',
+  TIMETABLE: '@colio_timetable_v2',
+  TASKS: '@colio_tasks_v2',
+  EXPENSES: '@colio_expenses_v2',
+  PRESETS: '@colio_presets_v2',
+  TIMETABLE_MODE: '@colio_timetable_view_mode',
+  PROFILE: '@colio_profile_v2',
+  DOCUMENTS: '@colio_documents_v2',
+  HOLIDAYS: '@colio_holidays_v2',
+  ATTENDANCE_CRITERIA: '@colio_attendance_criteria_v2',
+  APP_THEME: '@colio_app_theme_v2',
+  CLASS_REMINDERS: '@colio_class_reminders_v2',
+  HAPTICS: '@colio_haptics_v2',
+  SETUP_COMPLETE: '@colio_setup_complete_v2',
+  NOTIFICATION_PREFS: '@colio_notification_prefs_v2',
+  LAST_SYNC: '@colio_last_sync_v2',
 };
 
 export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -137,6 +162,15 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [profile, setProfile] = useState<StudentProfile>(initialProfile);
   const [isSetupComplete, setIsSetupCompleteState] = useState<boolean>(true);
+  const [notificationPrefs, setNotificationPrefsState] = useState<NotificationPreferences>({
+    classReminders: true,
+    classReminderLeadMinutes: 10,
+    taskReminders: true,
+    attendanceAlerts: true,
+    morningBriefing: true,
+  });
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // Dynamic Preferences
   const [attendanceCriteria, setAttendanceCriteriaState] = useState<number>(68);
@@ -163,6 +197,23 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     triggerHapticFeedback('selection');
     setClassRemindersEnabledState(enabled);
     AsyncStorage.setItem(STORAGE_KEYS.CLASS_REMINDERS, String(enabled)).catch(() => {});
+    updateNotificationPrefs({ classReminders: enabled });
+  };
+
+  const updateNotificationPrefs = (prefs: Partial<NotificationPreferences>) => {
+    triggerHapticFeedback('selection');
+    setNotificationPrefsState((prev) => {
+      const merged = { ...prev, ...prefs };
+      AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_PREFS, JSON.stringify(merged)).catch(() => {});
+      syncAllTimetableReminders(
+        timetable,
+        subjects,
+        merged.classReminders,
+        merged.classReminderLeadMinutes,
+        merged.morningBriefing
+      ).catch(() => {});
+      return merged;
+    });
   };
 
   const setHapticsEnabled = (enabled: boolean) => {
@@ -190,6 +241,8 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           savedReminders,
           savedHaptics,
           savedSetupComplete,
+          savedNotificationPrefs,
+          savedLastSync,
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.SUBJECTS),
           AsyncStorage.getItem(STORAGE_KEYS.TIMETABLE),
@@ -205,6 +258,8 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           AsyncStorage.getItem(STORAGE_KEYS.CLASS_REMINDERS),
           AsyncStorage.getItem(STORAGE_KEYS.HAPTICS),
           AsyncStorage.getItem(STORAGE_KEYS.SETUP_COMPLETE),
+          AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_PREFS),
+          AsyncStorage.getItem(STORAGE_KEYS.LAST_SYNC),
         ]);
 
         if (savedSubjects) setSubjects(JSON.parse(savedSubjects));
@@ -234,6 +289,18 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (savedSetupComplete !== null) {
           setIsSetupCompleteState(savedSetupComplete === 'true');
         }
+        if (savedNotificationPrefs) {
+          try {
+            const parsedPrefs = JSON.parse(savedNotificationPrefs);
+            setNotificationPrefsState(parsedPrefs);
+          } catch {}
+        }
+        if (savedLastSync) {
+          setLastSyncTime(savedLastSync);
+        }
+
+        // Register for push notifications on app launch
+        registerForPushNotificationsAsync().catch(() => {});
       } catch (err) {
         console.warn('Error restoring storage:', err);
       } finally {
@@ -271,6 +338,15 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (subj.id !== subjectId) return subj;
         const newPresent = Math.max(0, subj.present + presentDelta);
         const newAbsent = Math.max(0, subj.absent + absentDelta);
+        const total = newPresent + newAbsent;
+        const percent = total > 0 ? Math.round((newPresent / total) * 100) : 100;
+
+        // 75% Attendance Safeguard notification trigger when entering danger zone
+        if (notificationPrefs.attendanceAlerts && percent <= attendanceCriteria && total >= 3 && absentDelta > 0) {
+          const needed = Math.max(1, Math.ceil((ATTENDANCE_CRITERIA_RATIO * total - newPresent) / (1 - ATTENDANCE_CRITERIA_RATIO)));
+          triggerAttendanceSafeguardAlert(subj.name, percent, attendanceCriteria, needed);
+        }
+
         return { ...subj, present: newPresent, absent: newAbsent };
       });
       AsyncStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(updated)).catch(() => {});
@@ -336,6 +412,12 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
+
+    // Schedule Task & Assignment Deadline reminder
+    if (notificationPrefs.taskReminders) {
+      const subjName = subjectId ? subjects.find((s) => s.id === subjectId)?.name : undefined;
+      scheduleTaskDeadlineReminder(newTask, subjName).catch(() => {});
+    }
   };
 
   const deleteTask = (taskId: string) => {
@@ -426,6 +508,73 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const prevMonthTotal = expenses
     .filter((e) => e.date.startsWith('2026-08'))
     .reduce((sum, e) => sum + e.amount, 0);
+
+  const syncToCloud = async (): Promise<boolean> => {
+    setIsSyncing(true);
+    try {
+      const studentId = profile.rollNumber || 'FirstYear_Section_I';
+      const success = await syncUserDataToCloud(studentId, {
+        profile,
+        timetable,
+        subjects,
+        tasks,
+        expenses,
+      });
+      if (success) {
+        const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        setLastSyncTime(timeStr);
+        AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC, timeStr).catch(() => {});
+        triggerHapticFeedback('success');
+      }
+      setIsSyncing(false);
+      return success;
+    } catch {
+      setIsSyncing(false);
+      return false;
+    }
+  };
+
+  const restoreFromCloud = async (): Promise<boolean> => {
+    setIsSyncing(true);
+    try {
+      const studentId = profile.rollNumber || 'FirstYear_Section_I';
+      const backup = await fetchUserDataFromCloud(studentId);
+      if (!backup) {
+        setIsSyncing(false);
+        return false;
+      }
+
+      if (backup.timetable && backup.timetable.length > 0) {
+        setTimetableState(backup.timetable);
+        AsyncStorage.setItem(STORAGE_KEYS.TIMETABLE, JSON.stringify(backup.timetable)).catch(() => {});
+      }
+      if (backup.subjects) {
+        setSubjects(backup.subjects);
+        AsyncStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(backup.subjects)).catch(() => {});
+      }
+      if (backup.tasks) {
+        setTasks(backup.tasks);
+        AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(backup.tasks)).catch(() => {});
+      }
+      if (backup.expenses) {
+        setExpenses(backup.expenses);
+        AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(backup.expenses)).catch(() => {});
+      }
+      if (backup.profile) {
+        setProfile(backup.profile);
+        AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(backup.profile)).catch(() => {});
+      }
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      setLastSyncTime(timeStr);
+      AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC, timeStr).catch(() => {});
+      triggerHapticFeedback('success');
+      setIsSyncing(false);
+      return true;
+    } catch {
+      setIsSyncing(false);
+      return false;
+    }
+  };
 
   const momChangePercent =
     prevMonthTotal > 0 ? Math.round(((currentMonthTotal - prevMonthTotal) / prevMonthTotal) * 100) : 0;
@@ -547,7 +696,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const allKeysToPurge = [
       ...Object.values(STORAGE_KEYS),
       '@colio_cancelled_attendance_subjects_v1',
-      '@campusos_avatar_size_v2',
+      '@colio_avatar_size_v2',
     ];
 
     try {
@@ -652,6 +801,12 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setClassRemindersEnabled,
         hapticsEnabled,
         setHapticsEnabled,
+        notificationPrefs,
+        updateNotificationPrefs,
+        syncToCloud,
+        restoreFromCloud,
+        lastSyncTime,
+        isSyncing,
       }}
     >
       {children}

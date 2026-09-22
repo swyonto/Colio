@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { Feather, MaterialIcons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
+import { sendInstantTestNotification } from '../services/notifications';
 
 interface MoreScreenProps {
   onOpenSection: (section: string) => void;
@@ -11,7 +12,50 @@ interface MoreScreenProps {
 }
 
 export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenProfile }) => {
-  const { profile, documents, holidays, pendingTasksCount, currentTheme } = useCampus();
+  const { profile, documents, holidays, pendingTasksCount, currentTheme, syncToCloud, restoreFromCloud, lastSyncTime } = useCampus();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleCloudBackup = async () => {
+    setIsSyncing(true);
+    const success = await syncToCloud();
+    setIsSyncing(false);
+    if (success) {
+      Alert.alert('Cloud Backup Successful ☁️', 'Your timetable, attendance, tasks, and expenses are now securely synced to Google Firebase Firestore.');
+    } else {
+      Alert.alert('Backup Notice', 'Could not sync to cloud. Please check your internet connection and try again.');
+    }
+  };
+
+  const handleCloudRestore = () => {
+    Alert.alert(
+      'Restore From Firebase Cloud?',
+      'This will replace your current local data with the latest saved backup from Firestore.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore Now',
+          onPress: async () => {
+            setIsRestoring(true);
+            const success = await restoreFromCloud();
+            setIsRestoring(false);
+            if (success) {
+              Alert.alert('Restored Successfully ✅', 'All attendance, timetable slots, tasks, and expenses were recovered from Google Firestore.');
+            } else {
+              Alert.alert('Restore Failed', 'No cloud backup was found or network connection failed.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleTestNotification = async () => {
+    await sendInstantTestNotification(
+      'Colio Push Alert 🎓',
+      'Firebase Cloud Sync and Android Push Notifications are active!'
+    );
+  };
 
   return (
     <ScrollView
@@ -142,6 +186,87 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
         </TouchableOpacity>
       </View>
 
+      {/* Cloud Sync & Firebase Notifications */}
+      <View style={styles.modulesSection}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>CLOUD BACKUP & NOTIFICATIONS</Text>
+          <View style={[styles.onlinePill, { backgroundColor: '#10B98120', borderColor: '#10B98150' }]}>
+            <View style={styles.onlineDot} />
+            <Text style={styles.onlinePillText}>{lastSyncTime ? `Synced ${lastSyncTime}` : 'Firestore Ready'}</Text>
+          </View>
+        </View>
+
+        {/* Sync to Cloud */}
+        <TouchableOpacity
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
+          onPress={handleCloudBackup}
+          disabled={isSyncing}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.tileIconBox, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '35' }]}>
+            {isSyncing ? (
+              <ActivityIndicator size="small" color={currentTheme.primary} />
+            ) : (
+              <Ionicons name="cloud-upload-outline" size={22} color={currentTheme.primary} />
+            )}
+          </View>
+          <View style={styles.tileInfo}>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>
+              {isSyncing ? 'Syncing with Firestore...' : 'Backup to Firebase Cloud'}
+            </Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>
+              Save attendance, timetable, tasks & expenses
+            </Text>
+          </View>
+          <Feather name="upload-cloud" size={18} color={currentTheme.textMuted} />
+        </TouchableOpacity>
+
+        {/* Restore from Cloud */}
+        <TouchableOpacity
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
+          onPress={handleCloudRestore}
+          disabled={isRestoring}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.tileIconBox, { backgroundColor: '#00B0FF20', borderColor: '#00B0FF40' }]}>
+            {isRestoring ? (
+              <ActivityIndicator size="small" color="#00B0FF" />
+            ) : (
+              <Ionicons name="cloud-download-outline" size={22} color="#00B0FF" />
+            )}
+          </View>
+          <View style={styles.tileInfo}>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>
+              {isRestoring ? 'Restoring records...' : 'Restore from Cloud Backup'}
+            </Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>
+              Recover all your saved college records
+            </Text>
+          </View>
+          <Feather name="download-cloud" size={18} color={currentTheme.textMuted} />
+        </TouchableOpacity>
+
+        {/* Test Notification Button */}
+        <TouchableOpacity
+          style={[styles.hubTile, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}
+          onPress={handleTestNotification}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.tileIconBox, { backgroundColor: '#FFD60020', borderColor: '#FFD60040' }]}>
+            <Ionicons name="notifications-outline" size={22} color="#FFD600" />
+          </View>
+          <View style={styles.tileInfo}>
+            <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '600' }]}>
+              Test Android Push Notification
+            </Text>
+            <Text style={[styles.tileSubtitle, { color: currentTheme.textMuted }]}>
+              Trigger instant lecture reminder alert
+            </Text>
+          </View>
+          <Feather name="send" size={18} color={currentTheme.textMuted} />
+        </TouchableOpacity>
+      </View>
+
       {/* App Version Info */}
       <View style={[styles.appInfoCard, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
         <View style={styles.appBadgeRow}>
@@ -219,6 +344,32 @@ const styles = StyleSheet.create({
   },
   modulesSection: {
     gap: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  onlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 0.8,
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  onlinePillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#10B981',
   },
   hubTile: {
     flexDirection: 'row',

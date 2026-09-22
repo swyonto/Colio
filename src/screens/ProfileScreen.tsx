@@ -61,6 +61,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
     setClassRemindersEnabled,
     hapticsEnabled,
     setHapticsEnabled,
+    notificationPrefs,
+    updateNotificationPrefs,
+    lastSyncTime,
+    isSyncing,
+    syncToCloud,
     resetAllData,
   } = useCampus();
 
@@ -439,8 +444,66 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
                 textAlign="center"
               />
             ) : (
-              <View style={[styles.rollBadgePill, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}>
-                <Text style={[styles.rollBadgeText, { color: currentTheme.primary }]}>{rollNumber}</Text>
+              <View style={styles.badgeRowContainer}>
+                <View style={[styles.rollBadgePill, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}>
+                  <Text style={[styles.rollBadgeText, { color: currentTheme.primary }]}>{rollNumber}</Text>
+                </View>
+
+                {/* Micro Non-Disturbing Sync Status Indicator */}
+                <TouchableOpacity
+                  style={[
+                    styles.syncBadgePill,
+                    {
+                      backgroundColor: isSyncing
+                        ? '#38BDF815'
+                        : lastSyncTime
+                        ? '#10B98115'
+                        : '#F59E0B15',
+                      borderColor: isSyncing
+                        ? '#38BDF840'
+                        : lastSyncTime
+                        ? '#10B98135'
+                        : '#F59E0B35',
+                    },
+                  ]}
+                  onPress={async () => {
+                    triggerHapticFeedback('light');
+                    await syncToCloud();
+                  }}
+                  disabled={isSyncing}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.syncStatusDot,
+                      {
+                        backgroundColor: isSyncing
+                          ? '#38BDF8'
+                          : lastSyncTime
+                          ? '#10B981'
+                          : '#F59E0B',
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.syncBadgeText,
+                      {
+                        color: isSyncing
+                          ? '#38BDF8'
+                          : lastSyncTime
+                          ? '#10B981'
+                          : '#F59E0B',
+                      },
+                    ]}
+                  >
+                    {isSyncing
+                      ? 'Syncing...'
+                      : lastSyncTime
+                      ? `Synced ${lastSyncTime}`
+                      : 'Offline • Local'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -752,28 +815,134 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
               thumbColor="#FFFFFF"
             />
           </View>
+        </View>
 
-          <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
+        {/* 5. Smart Notifications & Campus Alarms */}
+        <View style={[styles.sectionCard, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.borderGlass }]}>
+          <View style={[styles.sectionHeaderRow, { borderBottomColor: currentTheme.borderGlass }]}>
+            <Feather name="bell" size={15} color={currentTheme.primary} />
+            <Text style={[styles.sectionTitle, { color: currentTheme.textPrimary }]}>Smart Notifications & Alarms</Text>
+          </View>
 
-          {/* Class Reminders Toggle */}
+          {/* 1. Class Timetable Reminders */}
           <View style={styles.prefRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Class Reminders</Text>
+              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Class Reminders ⏰</Text>
               <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
-                Notify 10 mins before timetable periods begin
+                Alert before each timetable lecture begins
               </Text>
             </View>
             <Switch
-              value={classRemindersEnabled}
+              value={notificationPrefs.classReminders}
               onValueChange={(val) => {
                 triggerHapticFeedback('selection');
-                setClassRemindersEnabled(val);
-                Alert.alert(
-                  val ? 'Class Reminders Active' : 'Class Reminders Paused',
-                  val
-                    ? 'Notifications will alert you 10 minutes before every timetable class.'
-                    : 'Class reminder notifications have been paused.'
-                );
+                updateNotificationPrefs({ classReminders: val });
+              }}
+              trackColor={{ false: currentTheme.bgElevated, true: currentTheme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Lead Time Selector Chips */}
+          {notificationPrefs.classReminders && (
+            <View style={{ marginTop: 8, marginBottom: 8, paddingHorizontal: 2 }}>
+              <Text style={[styles.subHeadingLabel, { color: currentTheme.textMuted, marginBottom: 6, fontSize: 10 }]}>
+                ALERT LEAD TIME
+              </Text>
+              <View style={styles.presetChipsRow}>
+                {[5, 10, 15].map((leadVal) => {
+                  const isSelected = (notificationPrefs.classReminderLeadMinutes || 10) === leadVal;
+                  return (
+                    <TouchableOpacity
+                      key={leadVal}
+                      style={[
+                        styles.presetChip,
+                        {
+                          backgroundColor: isSelected ? currentTheme.primary + '25' : currentTheme.bgCardSecondary,
+                          borderColor: isSelected ? currentTheme.primary : currentTheme.borderGlass,
+                        },
+                      ]}
+                      onPress={() => {
+                        triggerHapticFeedback('selection');
+                        updateNotificationPrefs({ classReminderLeadMinutes: leadVal });
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text
+                        style={[
+                          styles.presetChipText,
+                          {
+                            color: isSelected ? currentTheme.primary : currentTheme.textMuted,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {leadVal}m before
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
+
+          {/* 2. Assignment & Task Deadlines */}
+          <View style={styles.prefRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Task & Assignment Deadlines 📝</Text>
+              <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
+                Alerts on the evening before & 2h before due time
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.taskReminders}
+              onValueChange={(val) => {
+                triggerHapticFeedback('selection');
+                updateNotificationPrefs({ taskReminders: val });
+              }}
+              trackColor={{ false: currentTheme.bgElevated, true: currentTheme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
+
+          {/* 3. 75% Attendance Safeguard */}
+          <View style={styles.prefRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>75% Attendance Safeguard ⚠️</Text>
+              <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
+                Immediate warning alert when a subject drops into danger zone
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.attendanceAlerts}
+              onValueChange={(val) => {
+                triggerHapticFeedback('selection');
+                updateNotificationPrefs({ attendanceAlerts: val });
+              }}
+              trackColor={{ false: currentTheme.bgElevated, true: currentTheme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={[styles.fieldDivider, { backgroundColor: currentTheme.borderGlass }]} />
+
+          {/* 4. Daily Morning Routine Briefing */}
+          <View style={styles.prefRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>Morning Routine Brief 🌅</Text>
+              <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>
+                8:00 AM daily overview of total classes and first room
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.morningBriefing}
+              onValueChange={(val) => {
+                triggerHapticFeedback('selection');
+                updateNotificationPrefs({ morningBriefing: val });
               }}
               trackColor={{ false: currentTheme.bgElevated, true: currentTheme.primary }}
               thumbColor="#FFFFFF"
@@ -1122,6 +1291,31 @@ const styles = StyleSheet.create({
   rollBadgeText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  badgeRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  syncBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 0.6,
+  },
+  syncStatusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  syncBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   heroRollInput: {
     fontSize: 13,
