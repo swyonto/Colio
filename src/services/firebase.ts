@@ -23,7 +23,7 @@ const firebaseConfig = {
 };
 
 // Warn in development if any required key is missing (never throws in prod to avoid crashes)
-if (__DEV__) {
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
   const missingKeys = Object.entries(firebaseConfig)
     .filter(([, v]) => !v)
     .map(([k]) => k);

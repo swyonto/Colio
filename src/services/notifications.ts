@@ -1,25 +1,46 @@
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsType from 'expo-notifications';
 import { Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import type { TimetableSlot, Subject, Task } from '../types/campus';
 
+// Dynamically and safely require expo-notifications to prevent runtime crashes in Expo Go
+let Notifications: typeof NotificationsType | null = null;
+try {
+  Notifications = require('expo-notifications');
+} catch (err) {
+  console.warn('[Notifications] Notice: expo-notifications module could not be loaded in this environment:', err);
+}
+
+// Helper accessors for enums/constants that safely degrade if Notifications is unavailable
+const getTriggerWeekly = () => Notifications?.SchedulableTriggerInputTypes?.WEEKLY ?? ('weekly' as any);
+const getTriggerDate = () => Notifications?.SchedulableTriggerInputTypes?.DATE ?? ('date' as any);
+const getImportanceMax = () => Notifications?.AndroidImportance?.MAX ?? 7;
+const getImportanceHigh = () => Notifications?.AndroidImportance?.HIGH ?? 6;
+const getImportanceDefault = () => Notifications?.AndroidImportance?.DEFAULT ?? 5;
+
 // Safe foreground notification presentation behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    priority: Notifications.AndroidNotificationPriority?.HIGH ?? ('high' as any),
-  }),
-});
+if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        priority: Notifications?.AndroidNotificationPriority?.HIGH ?? ('high' as any),
+      }),
+    });
+  } catch (err) {
+    console.warn('[Notifications] Failed to set notification handler:', err);
+  }
+}
 
 /**
  * Request notification permissions and register Android notification channels
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || !Notifications) {
     return null;
   }
 
@@ -40,7 +61,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('colio_lectures', {
         name: 'Lecture Reminders (10-Min Alerts)',
-        importance: Notifications.AndroidImportance.MAX,
+        importance: getImportanceMax(),
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#10B981',
         sound: 'default',
@@ -48,7 +69,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       await Notifications.setNotificationChannelAsync('colio_tasks', {
         name: 'Assignment & Task Deadlines',
-        importance: Notifications.AndroidImportance.HIGH,
+        importance: getImportanceHigh(),
         vibrationPattern: [0, 200, 200, 200],
         lightColor: '#F59E0B',
         sound: 'default',
@@ -56,7 +77,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       await Notifications.setNotificationChannelAsync('colio_attendance', {
         name: '75% Attendance Safeguard',
-        importance: Notifications.AndroidImportance.MAX,
+        importance: getImportanceMax(),
         vibrationPattern: [0, 300, 100, 300],
         lightColor: '#EF4444',
         sound: 'default',
@@ -64,14 +85,14 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       await Notifications.setNotificationChannelAsync('colio_briefing', {
         name: 'Morning Routine Schedule Brief',
-        importance: Notifications.AndroidImportance.DEFAULT,
+        importance: getImportanceDefault(),
         vibrationPattern: [0, 150, 150, 150],
         lightColor: '#38BDF8',
       });
 
       await Notifications.setNotificationChannelAsync('colio_alerts', {
         name: 'General Campus Alerts',
-        importance: Notifications.AndroidImportance.HIGH,
+        importance: getImportanceHigh(),
         vibrationPattern: [0, 200, 200, 200],
         lightColor: '#38BDF8',
       });
@@ -108,7 +129,7 @@ export async function scheduleLectureReminder(
   dayOfWeek: number, // 1 = Monday, ..., 6 = Saturday
   leadMinutes: number = 10
 ): Promise<string | null> {
-  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync) return null;
 
   try {
     const [hours, minutes] = (startTimeStr || '09:00').split(':').map((val) => parseInt(val, 10) || 0);
@@ -131,7 +152,7 @@ export async function scheduleLectureReminder(
         data: { channelId: 'colio_lectures' },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+        type: getTriggerWeekly(),
         weekday: expoWeekday,
         hour: triggerHours,
         minute: triggerMinutes,
@@ -154,7 +175,7 @@ export async function scheduleTaskDeadlineReminder(
   task: Task,
   subjectName?: string
 ): Promise<string | null> {
-  if (Platform.OS === 'web' || task.completed) return null;
+  if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync || task.completed) return null;
 
   try {
     // If dueDate is a valid YYYY-MM-DD
@@ -186,7 +207,7 @@ export async function scheduleTaskDeadlineReminder(
         data: { channelId: 'colio_tasks', taskId: task.id },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        type: getTriggerDate(),
         date: reminderTime,
       },
     });
@@ -208,7 +229,7 @@ export async function triggerAttendanceSafeguardAlert(
   targetPercent: number = 75,
   classesNeeded: number = 2
 ) {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync) {
     if (typeof alert !== 'undefined') {
       alert(`⚠️ Attendance Alert: ${subjectName} is at ${currentPercent}%. Attend next ${classesNeeded} classes to restore ${targetPercent}%.`);
     }
@@ -239,7 +260,7 @@ export async function scheduleDailyMorningBriefing(
   subjects: Subject[],
   enabled: boolean
 ): Promise<void> {
-  if (Platform.OS === 'web' || !enabled || !slots || slots.length === 0) return;
+  if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync || !enabled || !slots || slots.length === 0) return;
 
   const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
   const days = [1, 2, 3, 4, 5, 6]; // Mon to Sat
@@ -264,7 +285,7 @@ export async function scheduleDailyMorningBriefing(
           data: { channelId: 'colio_briefing' },
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          type: getTriggerWeekly(),
           weekday: expoWeekday,
           hour: 8,
           minute: 0,
@@ -287,7 +308,7 @@ export async function syncAllTimetableReminders(
   leadMinutes: number = 10,
   morningBriefingEnabled: boolean = true
 ): Promise<number> {
-  if (Platform.OS === 'web') return 0;
+  if (Platform.OS === 'web' || !Notifications?.cancelAllScheduledNotificationsAsync) return 0;
 
   try {
     // Clear previously scheduled alarms to avoid duplicates
@@ -329,7 +350,7 @@ export async function syncAllTimetableReminders(
  * Trigger an immediate test notification to verify Android delivery
  */
 export async function sendInstantTestNotification(title?: string, body?: string) {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || !Notifications?.scheduleNotificationAsync) {
     if (typeof alert !== 'undefined') {
       alert(title || 'Colio Notification: Test Alert');
     }

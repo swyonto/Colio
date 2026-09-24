@@ -211,14 +211,13 @@ export async function logoutSession(): Promise<void> {
 
 export async function signupWithEmail(
   email: string,
-  name: string,
-  password: string
+  name?: string,
+  password?: string
 ): Promise<{ success: boolean; requiresVerification?: boolean; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanName = name.trim();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanName = (name && name.trim()) ? name.trim() : ((cleanEmail.split('@')[0]) || 'Student');
 
   if (!cleanEmail || !/\S+@\S+\.\S+/.test(cleanEmail)) return { success: false, error: 'Please enter a valid email address.' };
-  if (!cleanName || cleanName.length < 2) return { success: false, error: 'Please enter your name (at least 2 characters).' };
   if (!password || password.length < 6) return { success: false, error: 'Password must be at least 6 characters long.' };
 
   const rateCheck = await checkRateLimit(cleanEmail, 'signup');
@@ -353,7 +352,7 @@ export async function loginWithEmail(
 }
 
 // ============================================================
-// 5. PASSWORD RESET (Firebase email link — no code entry)
+// 5. PASSWORD RESET (Firebase email link ï¿½ no code entry)
 // ============================================================
 
 export async function requestPasswordReset(

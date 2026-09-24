@@ -35,9 +35,10 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
 
   const [step, setStep] = useState<1 | 2>(1);
 
-  // Step 1: Student Details — pure user input without hardcoded demo values
+  // Step 1: Student Details — prefilled from Google name if Google sign-in, otherwise collected fresh here
+  const isGoogleUser = currentUser?.provider === 'google';
   const [name, setName] = useState(
-    currentUser?.name && !currentUser.name.toLowerCase().includes('student') && !currentUser.name.toLowerCase().includes('demo')
+    isGoogleUser && currentUser?.name && !currentUser.name.toLowerCase().includes('demo')
       ? currentUser.name
       : ''
   );

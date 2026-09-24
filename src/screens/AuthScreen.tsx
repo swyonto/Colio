@@ -16,6 +16,7 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import { ColioLogo } from '../components/common/ColioLogo';
 import { GoogleLogo } from '../components/common/GoogleLogo';
@@ -45,7 +46,6 @@ export const AuthScreen: React.FC = () => {
   const [mode, setMode] = useState<AuthMode>('login');
 
   // Input states
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -62,11 +62,22 @@ export const AuthScreen: React.FC = () => {
   const [successNotice, setSuccessNotice] = useState('');
 
   // Native Google Sign-In via expo-auth-session
-  const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+  const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || undefined;
+  const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || undefined;
+  // Use WEB_CLIENT_ID as fallback on Android in Expo Go or when ANDROID_CLIENT_ID is not provided
+  const effectiveClientId = ANDROID_CLIENT_ID || WEB_CLIENT_ID;
+
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: 'colio',
+  });
+
   const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: effectiveClientId,
     webClientId: WEB_CLIENT_ID,
-    androidClientId: ANDROID_CLIENT_ID,
+    androidClientId: effectiveClientId,
+    redirectUri,
+    selectAccount: true,
+    scopes: ['profile', 'email'],
   });
 
   // Handle Google native auth response
@@ -189,10 +200,6 @@ export const AuthScreen: React.FC = () => {
     setError('');
     setSuccessNotice('');
 
-    if (!name.trim() || name.trim().length < 2) {
-      setError('Please enter your full name (at least 2 characters)');
-      return;
-    }
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email.trim())) {
       setError('Please enter a valid email address');
       return;
@@ -206,11 +213,15 @@ export const AuthScreen: React.FC = () => {
       return;
     }
 
+    // Initial display name derived from email prefix (full student profile collected on Onboarding Setup page)
+    const emailPrefix = email.trim().split('@')[0] || 'Student';
+    const initialName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+
     setIsLoading(true);
     triggerHapticFeedback('light');
 
     try {
-      const res = await signup(email.trim(), password, name.trim());
+      const res = await signup(email.trim(), password, initialName);
       if (res.success) {
         setResendCountdown(30);
         setCanResend(false);
@@ -607,23 +618,23 @@ export const AuthScreen: React.FC = () => {
                   {isLoading ? (
                     <ActivityIndicator
                       size="small"
-                      color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                      color="#FFFFFF"
                     />
                   ) : (
                     <>
+                      <Feather
+                        name="user"
+                        size={18}
+                        color="#FFFFFF"
+                      />
                       <Text
                         style={[
                           styles.submitBtnText,
-                          { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
+                          { color: '#FFFFFF', fontWeight: '700' },
                         ]}
                       >
-                        Create Account & Send Verification Email
+                        Create Account
                       </Text>
-                      <Feather
-                        name="arrow-right"
-                        size={16}
-                        color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
-                      />
                     </>
                   )}
                 </TouchableOpacity>
@@ -712,22 +723,22 @@ export const AuthScreen: React.FC = () => {
                   {isLoading ? (
                     <ActivityIndicator
                       size="small"
-                      color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                      color="#FFFFFF"
                     />
                   ) : (
                     <>
                       <Text
                         style={[
                           styles.submitBtnText,
-                          { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
+                          { color: '#FFFFFF', fontWeight: '700' },
                         ]}
                       >
                         Log In
                       </Text>
                       <Feather
                         name="arrow-right"
-                        size={16}
-                        color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                        size={18}
+                        color="#FFFFFF"
                       />
                     </>
                   )}
@@ -828,14 +839,14 @@ export const AuthScreen: React.FC = () => {
                   {isLoading ? (
                     <ActivityIndicator
                       size="small"
-                      color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                      color="#FFFFFF"
                     />
                   ) : (
                     <>
                       <Text
                         style={[
                           styles.submitBtnText,
-                          { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
+                          { color: '#FFFFFF', fontWeight: '700' },
                         ]}
                       >
                         I've Clicked the Verification Link
@@ -843,7 +854,7 @@ export const AuthScreen: React.FC = () => {
                       <Feather
                         name="check-circle"
                         size={17}
-                        color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                        color="#FFFFFF"
                       />
                     </>
                   )}
@@ -920,14 +931,14 @@ export const AuthScreen: React.FC = () => {
                   {isLoading ? (
                     <ActivityIndicator
                       size="small"
-                      color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                      color="#FFFFFF"
                     />
                   ) : (
                     <>
                       <Text
                         style={[
                           styles.submitBtnText,
-                          { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
+                          { color: '#FFFFFF', fontWeight: '700' },
                         ]}
                       >
                         Send Password Reset Link
@@ -935,7 +946,7 @@ export const AuthScreen: React.FC = () => {
                       <Feather
                         name="send"
                         size={16}
-                        color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
+                        color="#FFFFFF"
                       />
                     </>
                   )}
