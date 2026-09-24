@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Subject,
@@ -34,16 +34,16 @@ import {
 
 import {
   AuthUser,
-  sendSignupOtp,
-  verifySignupOtp,
+  signupWithEmail,
+  checkEmailVerified as checkFirebaseEmailVerified,
+  resendVerificationEmail as resendFirebaseVerificationEmail,
   loginWithEmail,
   requestPasswordReset,
-  completePasswordReset,
-  authenticateWithGoogleAccount,
-  triggerGoogleSignIn,
+  triggerGoogleSignInWeb,
+  signInWithGoogleToken,
   logoutSession,
-  checkRealEmailVerified,
-  resendRealVerificationEmail,
+  getPersistedSession,
+  getUserProfile,
 } from '../services/authService';
 export type { AuthUser };
 
@@ -59,15 +59,13 @@ interface CampusContextType {
   // Authentication & Session
   currentUser: AuthUser | null;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, pass: string, name: string) => Promise<{ success: boolean; otp?: string; error?: string }>;
-  verifySignup: (email: string, otp: string) => Promise<{ success: boolean; error?: string }>;
-  checkEmailVerification: (email: string) => Promise<{ success: boolean; error?: string }>;
-  resendVerificationEmail: (email?: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithGoogle: (profile?: { email?: string; name?: string; avatarUrl?: string; googleUid?: string }) => Promise<{ success: boolean; error?: string }>;
-  loginAsGuest: () => void;
+  signup: (email: string, pass: string, name: string) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string }>;
+  checkEmailVerification: () => Promise<{ success: boolean; error?: string }>;
+  resendVerificationEmail: () => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogleToken: (idToken: string, accessToken?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<{ success: boolean; resetCode?: string; error?: string }>;
-  completePasswordReset: (email: string, code: string, newPass: string) => Promise<{ success: boolean; error?: string }>;
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string }>;
 
   // Tabs & Navigation
   activeTab: TabKey;
@@ -180,7 +178,7 @@ const STORAGE_KEYS = {
 
 export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTabState] = useState<TabKey>('home');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
@@ -240,7 +238,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // --- Real Auth methods wired to authService & Firebase ---
+  // --- Auth methods wired to Firebase-only authService ---
   const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     const res = await loginWithEmail(email, pass);
     if (res.success && res.user) {
@@ -253,110 +251,54 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     email: string,
     pass: string,
     name: string
-  ): Promise<{ success: boolean; otp?: string; error?: string }> => {
-    return await sendSignupOtp(email, name, pass);
+  ): Promise<{ success: boolean; requiresVerification?: boolean; error?: string }> => {
+    // Creates Firebase Auth account + sends verification email. No OTP involved.
+    return await signupWithEmail(email, name, pass);
   };
 
-  const verifySignup = async (
-    email: string,
-    otp: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const res = await verifySignupOtp(email, otp);
+  const checkEmailVerification = async (): Promise<{ success: boolean; error?: string }> => {
+    // Reloads Firebase Auth user and checks emailVerified flag
+    const res = await checkFirebaseEmailVerified();
     if (res.success && res.user) {
       setCurrentUser(res.user);
       setIsSetupCompleteState(false);
       await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'false').catch(() => {});
-      if (res.user.name) {
-        updateProfile({ name: res.user.name });
-      }
+      if (res.user.name) updateProfile({ name: res.user.name });
     }
     return res;
   };
 
-  const checkEmailVerification = async (
-    email: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const res = await checkRealEmailVerified(email);
-    if (res.success && res.user) {
-      setCurrentUser(res.user);
-      setIsSetupCompleteState(false);
-      await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'false').catch(() => {});
-      if (res.user.name) {
-        updateProfile({ name: res.user.name });
-      }
-    }
-    return res;
+  const resendVerificationEmailHandler = async (): Promise<{ success: boolean; error?: string }> => {
+    return await resendFirebaseVerificationEmail();
   };
 
-  const resendVerificationEmail = async (
-    email?: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const targetEmail = email?.trim() || currentUser?.email || '';
-    return await resendRealVerificationEmail(targetEmail);
-  };
-
-  const loginWithGoogle = async (
-    profile?: { email?: string; name?: string; avatarUrl?: string; googleUid?: string }
-  ): Promise<{ success: boolean; error?: string }> => {
-    let emailToUse = profile?.email;
-    let nameToUse = profile?.name || '';
-    let avatarToUse = profile?.avatarUrl;
-    let uidToUse = profile?.googleUid;
-
-    // If no email was passed, trigger real Google API (shows Google account chooser!)
-    if (!emailToUse) {
-      const googleRes = await triggerGoogleSignIn();
-      if (!googleRes.success || !googleRes.email) {
-        return { success: false, error: googleRes.error || 'Google authentication was cancelled.' };
-      }
-      emailToUse = googleRes.email;
-      nameToUse = googleRes.name || '';
-      avatarToUse = googleRes.avatarUrl;
-      uidToUse = googleRes.googleUid;
-    }
-
-    const cleanEmail = emailToUse.trim().toLowerCase();
-    const res = await authenticateWithGoogleAccount({
-      email: cleanEmail,
-      name: nameToUse.trim(),
-      avatarUrl: avatarToUse,
-      googleUid: uidToUse,
-    });
-
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    // Web: Firebase popup
+    const res = await triggerGoogleSignInWeb();
     if (res.success && res.user) {
       setCurrentUser(res.user);
       if (res.isNewUser) {
-        // Reset profile so new user enters their actual student details on the Setup page
-        setProfile((prev) => ({
-          ...prev,
-          name: '',
-          college: '',
-          rollNumber: '',
-          course: '',
-          isSetupComplete: false,
-        }));
         setIsSetupCompleteState(false);
         await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'false').catch(() => {});
-        await AsyncStorage.removeItem(STORAGE_KEYS.PROFILE).catch(() => {});
-      } else {
-        // Existing user — restore cloud backup if available
-        try {
-          const cloudBackup = await fetchUserDataFromCloud(res.user.uid || res.user.email);
-          if (cloudBackup?.profile) {
-            setProfile(cloudBackup.profile);
-            if (cloudBackup.profile.isSetupComplete) {
-              setIsSetupCompleteState(true);
-              await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'true').catch(() => {});
-            }
-          }
-        } catch {}
       }
     }
     return res;
   };
 
-  const loginAsGuest = () => {
-    // Deprecated no-op: guests are disabled for strict auth protection
+  const signInWithGoogleTokenHandler = async (
+    idToken: string,
+    accessToken?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    // Native: called from AuthScreen with token from expo-auth-session Google hook
+    const res = await signInWithGoogleToken(idToken, accessToken);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+      if (res.isNewUser) {
+        setIsSetupCompleteState(false);
+        await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'false').catch(() => {});
+      }
+    }
+    return res;
   };
 
   const logout = async () => {
@@ -366,16 +308,8 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const requestPasswordResetHandler = async (
     email: string
-  ): Promise<{ success: boolean; resetCode?: string; error?: string }> => {
-    return await requestPasswordReset(email);
-  };
-
-  const completePasswordResetHandler = async (
-    email: string,
-    code: string,
-    newPass: string
   ): Promise<{ success: boolean; error?: string }> => {
-    return await completePasswordReset(email, code, newPass);
+    return await requestPasswordReset(email);
   };
 
   // --- Daily slot attendance recording ---
@@ -517,10 +451,10 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Register for push notifications on app launch
         registerForPushNotificationsAsync().catch(() => {});
 
-        // Load auth user (strictly require authenticated session)
-        const savedAuthUser = await AsyncStorage.getItem('@colio_auth_user_v2').catch(() => null);
-        if (savedAuthUser) {
-          try { setCurrentUser(JSON.parse(savedAuthUser)); } catch {}
+        // Load auth user — uses Firebase authStateReady as source of truth, falls back to 7-day cache
+        const restoredUser = await getPersistedSession().catch(() => null);
+        if (restoredUser) {
+          setCurrentUser(restoredUser);
         }
 
         // Load daily attendance logs
@@ -535,6 +469,34 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     })();
   }, []);
+
+  // --- Auto Cloud Sync (Debounced) ---
+  // Syncs 45 seconds after the last data change, only when logged in.
+  // Timer resets on every change, so rapid edits coalesce into one network call.
+  const autoSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const AUTO_SYNC_DELAY_MS = 45_000; // 45 seconds
+
+  useEffect(() => {
+    // Only auto-sync when there's an authenticated user
+    if (!currentUser?.uid) return;
+
+    // Cancel any pending timer
+    if (autoSyncTimerRef.current) clearTimeout(autoSyncTimerRef.current);
+
+    // Schedule a new sync after the delay
+    autoSyncTimerRef.current = setTimeout(() => {
+      // Don't sync if a manual sync is already running
+      if (!isSyncing) {
+        syncToCloud().catch(() => {});
+      }
+    }, AUTO_SYNC_DELAY_MS);
+
+    // Cleanup on unmount or before next effect run
+    return () => {
+      if (autoSyncTimerRef.current) clearTimeout(autoSyncTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjects, tasks, expenses, timetable, documents, currentUser?.uid]);
 
   const setActiveTab = (tab: TabKey) => {
     triggerHapticFeedback('selection');
@@ -728,25 +690,48 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Month-over-month expenses calculation
+  // Dynamic month calculation — never hardcoded
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+
   const currentMonthTotal = expenses
-    .filter((e) => e.date.startsWith('2026-09'))
+    .filter((e) => e.date.startsWith(currentMonthStr))
     .reduce((sum, e) => sum + e.amount, 0);
 
   const prevMonthTotal = expenses
-    .filter((e) => e.date.startsWith('2026-08'))
+    .filter((e) => e.date.startsWith(prevMonthStr))
     .reduce((sum, e) => sum + e.amount, 0);
 
   const syncToCloud = async (): Promise<boolean> => {
     setIsSyncing(true);
     try {
-      const studentId = profile.rollNumber || 'FirstYear_Section_I';
+      // Use Firebase Auth UID as the primary key — never the roll number alone
+      const studentId = currentUser?.uid || 'unknown_student';
+      if (studentId === 'unknown_student') {
+        setIsSyncing(false);
+        return false;
+      }
+
+      // Strip device-local file URIs from documents before cloud sync
+      // (file:/// URIs are meaningless on another device)
+      const cloudSafeDocuments = documents.map((d) => ({
+        ...d,
+        uri: undefined,         // remove local file URI
+        localPath: undefined,   // remove any local path
+      }));
+
       const success = await syncUserDataToCloud(studentId, {
         profile,
         timetable,
         subjects,
         tasks,
         expenses,
+        documents: cloudSafeDocuments,
+        attendanceLogs: dailyAttendanceLogs,
       });
+
       if (success) {
         const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         setLastSyncTime(timeStr);
@@ -764,12 +749,11 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const restoreFromCloud = async (): Promise<boolean> => {
     setIsSyncing(true);
     try {
-      const studentId = profile.rollNumber || 'FirstYear_Section_I';
+      const studentId = currentUser?.uid || 'unknown_student';
+      if (studentId === 'unknown_student') { setIsSyncing(false); return false; }
+
       const backup = await fetchUserDataFromCloud(studentId);
-      if (!backup) {
-        setIsSyncing(false);
-        return false;
-      }
+      if (!backup) { setIsSyncing(false); return false; }
 
       if (backup.timetable && backup.timetable.length > 0) {
         setTimetableState(backup.timetable);
@@ -791,6 +775,16 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setProfile(backup.profile);
         AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(backup.profile)).catch(() => {});
       }
+      // Restore document metadata (file URIs were stripped on upload — titles/dates restored)
+      if (backup.documents && backup.documents.length > 0) {
+        setDocuments(backup.documents);
+        AsyncStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(backup.documents)).catch(() => {});
+      }
+      if (backup.attendanceLogs) {
+        setDailyAttendanceLogs(backup.attendanceLogs);
+        AsyncStorage.setItem('@colio_attendance_logs_v2', JSON.stringify(backup.attendanceLogs)).catch(() => {});
+      }
+
       const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       setLastSyncTime(timeStr);
       AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC, timeStr).catch(() => {});
@@ -924,6 +918,13 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...Object.values(STORAGE_KEYS),
       '@colio_cancelled_attendance_subjects_v1',
       '@colio_avatar_size_v2',
+      '@colio_attendance_logs_v2',  // attendance logs
+      '@colio_auth_user_v2',        // old auth session key (legacy)
+      '@colio_auth_user_v3',        // new Firebase-only session cache key
+      '@colio_rate_limit_login',    // rate limit entries
+      '@colio_rate_limit_signup',
+      '@colio_rate_limit_reset',
+      '@colio_expenses_view_mode',  // expenses view mode
     ];
 
     try {
@@ -932,6 +933,10 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn('Error clearing storage:', e);
     }
 
+    // Also sign out so the user goes back to AuthScreen after reset
+    await logoutSession().catch(() => {});
+    setCurrentUser(null);
+
     // Clean subjects with fresh 0 attendance counts
     const cleanSubjects = initialSubjects.map((s) => ({
       ...s,
@@ -939,7 +944,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       absent: 0,
     }));
 
-    // Reset state: Clean tasks & expenses, official Section-I timetable preserved
+    // Reset state: Clean all data — user is logged out, will re-onboard on next login
     setSubjects(cleanSubjects);
     setTimetableState(initialTimetable);
     setTasks([]);
@@ -948,7 +953,8 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setDocuments(initialDocuments);
     setHolidays(initialHolidays);
     setProfile(initialProfile);
-    setIsSetupCompleteState(true);
+    setDailyAttendanceLogs({});
+    setIsSetupCompleteState(false);  // re-trigger onboarding on next login
     setActiveTabState('home');
 
     // Persist the clean baseline into local database (AsyncStorage)
@@ -959,7 +965,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         [STORAGE_KEYS.SUBJECTS, JSON.stringify(cleanSubjects)],
         [STORAGE_KEYS.TASKS, JSON.stringify([])],
         [STORAGE_KEYS.EXPENSES, JSON.stringify([])],
-        [STORAGE_KEYS.SETUP_COMPLETE, 'true'],
+        [STORAGE_KEYS.SETUP_COMPLETE, 'false'],  // force re-onboarding
       ]);
     } catch (e) {
       console.warn('Error writing clean initial db state:', e);
@@ -973,14 +979,12 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         currentUser,
         login,
         signup,
-        verifySignup,
         checkEmailVerification,
-        resendVerificationEmail,
+        resendVerificationEmail: resendVerificationEmailHandler,
         loginWithGoogle,
-        loginAsGuest,
+        signInWithGoogleToken: signInWithGoogleTokenHandler,
         logout,
         requestPasswordReset: requestPasswordResetHandler,
-        completePasswordReset: completePasswordResetHandler,
         // Daily attendance logs
         dailyAttendanceLogs,
         recordSlotAttendance,

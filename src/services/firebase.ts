@@ -10,15 +10,30 @@ import {
 
 import { getAuth } from 'firebase/auth';
 
-// Firebase configuration derived from your google-services.json & Firebase project
+// Firebase configuration loaded from environment variables.
+// In development: create a .env file from .env.example and fill in real values.
+// In production EAS builds: set these in eas.json build env or the EAS Secrets dashboard.
 const firebaseConfig = {
-  apiKey: 'AIzaSyDIn6WYpNXoGI3MgqbBgUUmAToTGXvJmfo',
-  authDomain: 'calio2026.firebaseapp.com',
-  projectId: 'calio2026',
-  storageBucket: 'calio2026.firebasestorage.app',
-  messagingSenderId: '61733534967',
-  appId: '1:61733534967:android:8f2b4686c114e11f4527f2',
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
+
+// Warn in development if any required key is missing (never throws in prod to avoid crashes)
+if (__DEV__) {
+  const missingKeys = Object.entries(firebaseConfig)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+  if (missingKeys.length > 0) {
+    console.warn(
+      `[Firebase] Missing environment variables: ${missingKeys.join(', ')}.\n` +
+      'Copy .env.example to .env and fill in your Firebase project values.'
+    );
+  }
+}
 
 // Initialize Firebase once
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -35,6 +50,8 @@ export interface CloudStudentBackup {
   subjects: any[];
   tasks: any[];
   expenses: any[];
+  documents?: any[]; // document metadata (NOT file URIs — those are device-local)
+  attendanceLogs?: Record<string, 'present' | 'absent'>;
   updatedAt?: any;
 }
 

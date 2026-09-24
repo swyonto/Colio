@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ================================================================
+    // USER PROFILES — users/{uid}
+    // Only the authenticated owner can read/write their own profile.
+    // The uid in the document path MUST match the Firebase Auth UID.
+    // ================================================================
+    match /users/{userId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+
+    // ================================================================
+    // STUDENT APP DATA — students/{uid}
+    // Cloud sync backup (timetable, subjects, expenses, tasks, etc.)
+    // Only the authenticated owner can read/write their own data.
+    // ================================================================
+    match /students/{studentId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == studentId;
+    }
+
+    // ================================================================
+    // OTPs — REMOVED
+    // The app no longer uses a custom OTP system. Firebase Auth handles
+    // email verification and password reset natively.
+    // If old otps/{docId} docs exist in your DB, delete them manually.
+    // ================================================================
+
+    // ================================================================
+    // MAIL (Firebase Trigger Email extension) — write-only
+    // Authenticated users can create mail documents (to send email).
+    // No one can read or delete them (the extension handles delivery).
+    // ================================================================
+    match /mail/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+
+    // ================================================================
+    // DENY ALL OTHER PATHS
+    // Any document not explicitly allowed above is denied by default.
+    // This is belt-and-suspenders protection.
+    // ================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+  }
+}

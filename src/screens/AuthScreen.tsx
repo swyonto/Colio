@@ -11,32 +11,33 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
-  Alert,
   Linking,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { ColioLogo } from '../components/common/ColioLogo';
 import { GoogleLogo } from '../components/common/GoogleLogo';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { triggerHapticFeedback } from '../utils/haptics';
-import AsyncStorage from '../utils/storage';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-type AuthMode = 'login' | 'signup' | 'verify-otp' | 'forgot-request' | 'forgot-reset';
+type AuthMode = 'login' | 'signup' | 'verify-email' | 'forgot-request';
 
 export const AuthScreen: React.FC = () => {
   const {
     login,
     signup,
-    verifySignup,
     checkEmailVerification,
     resendVerificationEmail,
     loginWithGoogle,
+    signInWithGoogleToken,
     requestPasswordReset,
-    completePasswordReset,
     currentTheme,
   } = useCampus();
 
@@ -51,64 +52,60 @@ export const AuthScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // OTP Verification state (6 boxes)
-  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  // Resend countdown (for verify-email screen)
   const [resendCountdown, setResendCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
-  const otpInputRefs = useRef<(TextInput | null)[]>([]);
-
-  // Forgot Password state
-  const [resetCode, setResetCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-
-  // Fallback Google Sign-In state (when Firebase Google Provider is not enabled in Firebase Console)
-  const [showGoogleFallbackModal, setShowGoogleFallbackModal] = useState(false);
-  const [googleFallbackEmail, setGoogleFallbackEmail] = useState('');
-  const [googleFallbackName, setGoogleFallbackName] = useState('');
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
 
+  // Native Google Sign-In via expo-auth-session
+  const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: WEB_CLIENT_ID,
+    androidClientId: ANDROID_CLIENT_ID,
+  });
+
+  // Handle Google native auth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const auth = (response as any).authentication;
+      const idToken = auth?.idToken || (response as any).params?.id_token;
+      const accessToken = auth?.accessToken || (response as any).params?.access_token;
+      if (idToken) {
+        setIsLoading(true);
+        signInWithGoogleToken(idToken, accessToken).then((res) => {
+          setIsLoading(false);
+          if (!res.success) setError(res.error || 'Google sign-in failed.');
+          else triggerHapticFeedback('success');
+        });
+      } else {
+        setError('Google sign-in did not return a valid token. Please try again.');
+      }
+    } else if (response?.type === 'error') {
+      setError('Google sign-in was cancelled or failed.');
+    }
+  }, [response]);
+
   // Slide animation controllers
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Countdown timer for OTP resend
+  // Countdown timer for resend (on verify-email screen)
   useEffect(() => {
     let timer: any = null;
-    if ((mode === 'verify-otp' || mode === 'forgot-reset') && resendCountdown > 0) {
+    if (mode === 'verify-email' && resendCountdown > 0) {
       timer = setInterval(() => {
         setResendCountdown((prev) => {
-          if (prev <= 1) {
-            setCanResend(true);
-            return 0;
-          }
+          if (prev <= 1) { setCanResend(true); return 0; }
           return prev - 1;
         });
       }, 1000);
     }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    return () => { if (timer) clearInterval(timer); };
   }, [mode, resendCountdown]);
-
-  // Hydrate pending email from storage if available
-  useEffect(() => {
-    if (mode === 'verify-otp') {
-      AsyncStorage.getItem('@colio_pending_otp_v2').then((val) => {
-        if (val) {
-          try {
-            const parsed = JSON.parse(val);
-            if (parsed.email && !email) {
-              setEmail(parsed.email);
-            }
-          } catch {}
-        }
-      });
-    }
-  }, [mode]);
 
   const transitionToMode = (newMode: AuthMode) => {
     triggerHapticFeedback('selection');
@@ -118,9 +115,8 @@ export const AuthScreen: React.FC = () => {
 
     let targetValue = 0;
     if (newMode === 'signup') targetValue = 1;
-    else if (newMode === 'verify-otp') targetValue = 2;
+    else if (newMode === 'verify-email') targetValue = 2;
     else if (newMode === 'forgot-request') targetValue = 3;
-    else if (newMode === 'forgot-reset') targetValue = 4;
 
     Animated.spring(slideAnim, {
       toValue: targetValue,
@@ -188,11 +184,15 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
-  // Handle Signup submission -> sends 6-digit OTP
+  // Handle Signup — creates Firebase Auth account + sends verification email
   const handleSignupSubmit = async () => {
     setError('');
     setSuccessNotice('');
 
+    if (!name.trim() || name.trim().length < 2) {
+      setError('Please enter your full name (at least 2 characters)');
+      return;
+    }
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email.trim())) {
       setError('Please enter a valid email address');
       return;
@@ -210,16 +210,13 @@ export const AuthScreen: React.FC = () => {
     triggerHapticFeedback('light');
 
     try {
-      // User sets their name on the Setup page as requested
-      const signupName = name.trim() || email.trim().split('@')[0];
-      const res = await signup(email.trim(), password, signupName);
+      const res = await signup(email.trim(), password, name.trim());
       if (res.success) {
-        setOtpDigits(['', '', '', '', '', '']);
         setResendCountdown(30);
         setCanResend(false);
-        setSuccessNotice('Official verification link sent to ' + email.trim());
+        setSuccessNotice('Verification email sent to ' + email.trim());
         triggerHapticFeedback('success');
-        transitionToMode('verify-otp');
+        transitionToMode('verify-email');
       } else {
         setError(res.error || 'Could not initiate signup. Try again.');
         triggerHapticFeedback('warning');
@@ -232,95 +229,70 @@ export const AuthScreen: React.FC = () => {
   };
 
 
-  // Handle OTP digit changes with multi-character & paste support on all boxes
-  const handleOtpChange = (text: string, index: number) => {
-    const numericOnly = text.replace(/[^0-9]/g, '');
-    if (numericOnly.length >= 6) {
-      const pastedDigits = numericOnly.slice(0, 6).split('');
-      setOtpDigits(pastedDigits);
-      otpInputRefs.current[5]?.focus();
-      return;
-    }
-    if (numericOnly.length > 1) {
-      const newDigits = [...otpDigits];
-      for (let i = 0; i < numericOnly.length && index + i < 6; i++) {
-        newDigits[index + i] = numericOnly[i];
-      }
-      setOtpDigits(newDigits);
-      const nextIdx = Math.min(5, index + numericOnly.length);
-      otpInputRefs.current[nextIdx]?.focus();
-      return;
-    }
-
-    const cleanChar = numericOnly.slice(-1);
-    const newDigits = [...otpDigits];
-    newDigits[index] = cleanChar;
-    setOtpDigits(newDigits);
-
-    if (cleanChar && index < 5) {
-      otpInputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  // Verify entered 6-digit OTP
-  const handleVerifyOtpSubmit = async () => {
+  // Check if user clicked the Firebase verification link in their email
+  const handleCheckEmailLinkVerification = async () => {
     setError('');
-    const fullOtp = otpDigits.join('');
-    if (fullOtp.length !== 6) {
-      setError('Please enter all 6 digits of the verification code');
-      return;
-    }
-
+    setSuccessNotice('');
     setIsLoading(true);
     triggerHapticFeedback('light');
 
     try {
-      const res = await verifySignup(email.trim(), fullOtp);
+      const res = await checkEmailVerification();
       if (res.success) {
         triggerHapticFeedback('success');
+        setSuccessNotice('Email successfully verified! Redirecting to setup...');
       } else {
-        setError(res.error || 'Invalid or expired verification code.');
+        setError(
+          res.error ||
+            'Email not verified yet. Please click the link in your email first (check Spam folder).'
+        );
         triggerHapticFeedback('warning');
       }
-    } catch {
-      setError('Verification failed. Please try again.');
+    } catch (err: any) {
+      setError(err?.message || 'Could not verify status. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Resend official Firebase verification email
+  // Open Gmail / email client
+  const handleOpenEmailInbox = async () => {
+    triggerHapticFeedback('selection');
+    try {
+      if (Platform.OS === 'web') {
+        window.open('https://mail.google.com', '_blank');
+      } else {
+        const canOpen = await Linking.canOpenURL('googlegmail://');
+        if (canOpen) {
+          await Linking.openURL('googlegmail://');
+        } else {
+          await Linking.openURL('https://mail.google.com');
+        }
+      }
+    } catch {
+      try {
+        await Linking.openURL('mailto:');
+      } catch {}
+    }
+  };
+
+
+
+  // Resend Firebase verification email
   const handleResendOtp = async () => {
     if (!canResend) return;
     setError('');
     setIsLoading(true);
     triggerHapticFeedback('light');
-
     try {
-      const res = await resendVerificationEmail(email.trim());
+      const res = await resendVerificationEmail();
       if (res.success) {
         setResendCountdown(30);
         setCanResend(false);
-        setSuccessNotice('Official verification email resent to ' + email.trim() + '. Please check your inbox and spam folder.');
+        setSuccessNotice('Verification email resent to ' + email.trim() + '. Check inbox and spam.');
         triggerHapticFeedback('success');
       } else {
-        // Fallback: re-trigger signup email dispatch
-        const signupName = name.trim() || email.trim().split('@')[0];
-        const signupRes = await signup(email.trim(), password, signupName);
-        if (signupRes.success) {
-          setResendCountdown(30);
-          setCanResend(false);
-          setSuccessNotice('Verification email resent to ' + email.trim());
-          triggerHapticFeedback('success');
-        } else {
-          setError(signupRes.error || 'Failed to resend verification email.');
-        }
+        setError(res.error || 'Failed to resend verification email.');
       }
     } catch {
       setError('Failed to resend verification email.');
@@ -329,26 +301,20 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
-  // Request Password Reset (Step 1)
+  // Request Password Reset — Firebase sends email link (single step, no code entry in app)
   const handleForgotRequestSubmit = async () => {
     setError('');
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email.trim())) {
       setError('Please enter the email address linked to your account');
       return;
     }
-
     setIsLoading(true);
     triggerHapticFeedback('light');
-
     try {
       const res = await requestPasswordReset(email.trim());
       if (res.success) {
-        setResetCode('');
-        setResendCountdown(30);
-        setCanResend(false);
-        setSuccessNotice('Official password recovery email sent to your Gmail.');
+        setSuccessNotice('Password reset email sent to ' + email.trim() + '. Follow the link to reset your password. Check Spam if needed.');
         triggerHapticFeedback('success');
-        transitionToMode('forgot-reset');
       } else {
         setError(res.error || 'Could not find account with this email.');
         triggerHapticFeedback('warning');
@@ -360,105 +326,28 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
-  // Complete Password Reset (Step 2)
-  const handleForgotResetSubmit = async () => {
-    setError('');
-    if (!resetCode.trim()) {
-      setError('Please enter the 6-digit recovery code');
-      return;
-    }
-    if (!newPassword || newPassword.length < 6) {
-      setError('New password must be at least 6 characters long');
-      return;
-    }
-    if (newPassword !== confirmNewPassword) {
-      setError('Passwords do not match. Please verify');
-      return;
-    }
-
-    setIsLoading(true);
-    triggerHapticFeedback('light');
-
-    try {
-      const res = await completePasswordReset(email.trim(), resetCode.trim(), newPassword);
-      if (res.success) {
-        triggerHapticFeedback('success');
-        Alert.alert(
-          'Password Reset Successful',
-          'Your password has been securely updated. You can now log in with your new password.',
-          [{ text: 'Log In Now', onPress: () => transitionToMode('login') }]
-        );
-      } else {
-        setError(res.error || 'Invalid or expired recovery code.');
-        triggerHapticFeedback('warning');
-      }
-    } catch {
-      setError('Could not update password. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Real Google Sign-In — invokes Google API and opens Google account selection
+  // Google Sign-In: web = Firebase popup, native = expo-auth-session hook (response handled in useEffect)
   const handleContinueWithGoogle = async () => {
     setError('');
     setSuccessNotice('');
-    setIsLoading(true);
     triggerHapticFeedback('light');
-
-    try {
-      // Direct call to official Google API (Firebase GoogleAuthProvider popup on web)
-      const res = await loginWithGoogle();
-      if (res.success) {
-        triggerHapticFeedback('success');
-      } else {
-        setError(res.error || 'Google authentication was not completed.');
-        if (
-          res.error &&
-          (res.error.includes('Firebase Console') ||
-            res.error.includes('configuration-not-found') ||
-            res.error.includes('CONFIGURATION_NOT_FOUND'))
-        ) {
-          setShowGoogleFallbackModal(true);
-        }
-        triggerHapticFeedback('warning');
-      }
-    } catch (err: any) {
-      console.warn('Google sign-in error:', err);
-      setError(err?.message || 'Google sign in failed. Please try again.');
-      setShowGoogleFallbackModal(true);
-    } finally {
-      setIsLoading(false);
+    if (Platform.OS === 'web') {
+      setIsLoading(true);
+      try {
+        const res = await loginWithGoogle();
+        if (res.success) { triggerHapticFeedback('success'); }
+        else { setError(res.error || 'Google authentication was not completed.'); triggerHapticFeedback('warning'); }
+      } catch (err: any) {
+        setError(err?.message || 'Google sign in failed. Please try again.');
+      } finally { setIsLoading(false); }
+    } else {
+      if (request) { promptAsync(); }
+      else { setError('Google Sign-In is not configured yet. Please use Email sign-in for now.'); }
     }
   };
 
-  const handleDirectGoogleLogin = async () => {
-    if (!googleFallbackEmail.trim() || !/\S+@\S+\.\S+/.test(googleFallbackEmail.trim())) {
-      setError('Please enter a valid Google email address.');
-      return;
-    }
-    setIsLoading(true);
-    triggerHapticFeedback('light');
-    try {
-      const res = await loginWithGoogle({
-        email: googleFallbackEmail.trim(),
-        name: googleFallbackName.trim() || googleFallbackEmail.split('@')[0],
-      });
-      if (res.success) {
-        setShowGoogleFallbackModal(false);
-        triggerHapticFeedback('success');
-      } else {
-        setError(res.error || 'Could not complete Google sign-in.');
-        triggerHapticFeedback('warning');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Google sign in failed.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const strength = getPasswordStrength(mode === 'forgot-reset' ? newPassword : password);
+  const strength = getPasswordStrength(password);
 
   return (
     <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
@@ -493,10 +382,10 @@ export const AuthScreen: React.FC = () => {
               Colio <Text style={{ color: currentTheme.primary }}>CampusOS</Text>
             </Text>
             <Text style={[styles.heroSubtitle, { color: currentTheme.textSecondary }]}>
-              {mode === 'verify-otp'
-                ? 'Verify your email with the 6-digit code'
-                : mode === 'forgot-request' || mode === 'forgot-reset'
-                ? 'Account Recovery & Password Reset'
+              {mode === 'verify-email'
+                ? 'Check your email and click the verification link'
+                : mode === 'forgot-request'
+                ? 'Account Recovery'
                 : 'Your secure student operating system'}
             </Text>
           </View>
@@ -577,12 +466,10 @@ export const AuthScreen: React.FC = () => {
             )}
 
             {/* Back Header for Sub-Modes */}
-            {(mode === 'verify-otp' || mode === 'forgot-request' || mode === 'forgot-reset') && (
+            {(mode === 'verify-email' || mode === 'forgot-request') && (
               <View style={styles.subScreenHeader}>
                 <TouchableOpacity
-                  onPress={() =>
-                    transitionToMode(mode === 'verify-otp' ? 'signup' : 'login')
-                  }
+                  onPress={() => transitionToMode(mode === 'verify-email' ? 'signup' : 'login')}
                   style={[
                     styles.backIconBtn,
                     { backgroundColor: currentTheme.bgInner, borderColor: currentTheme.borderGlass },
@@ -591,11 +478,7 @@ export const AuthScreen: React.FC = () => {
                   <Feather name="arrow-left" size={16} color={currentTheme.textPrimary} />
                 </TouchableOpacity>
                 <Text style={[styles.subScreenTitle, { color: currentTheme.textPrimary }]}>
-                  {mode === 'verify-otp'
-                    ? 'Email Verification'
-                    : mode === 'forgot-request'
-                    ? 'Forgot Password'
-                    : 'Set New Password'}
+                  {mode === 'verify-email' ? 'Verify Your Email' : 'Forgot Password'}
                 </Text>
               </View>
             )}
@@ -855,12 +738,9 @@ export const AuthScreen: React.FC = () => {
 
 
             {/* ======================================================== */}
-            {/* VIEW 4: VERIFY EMAIL OTP */}
+            {/* VIEW 4: VERIFY EMAIL (Firebase link verification) */}
             {/* ======================================================== */}
-            {/* ======================================================== */}
-            {/* VIEW 4: VERIFY EMAIL (Real Firebase Verification) */}
-            {/* ======================================================== */}
-            {mode === 'verify-otp' && (
+            {mode === 'verify-email' && (
               <>
                 <View style={styles.otpHeaderInfo}>
                   <Text style={[styles.otpSubText, { color: currentTheme.textSecondary }]}>
@@ -895,14 +775,14 @@ export const AuthScreen: React.FC = () => {
                       { backgroundColor: currentTheme.primary + '20' },
                     ]}
                   >
-                    <Ionicons name="shield-checkmark-outline" size={20} color={currentTheme.primary} />
+                    <Ionicons name="mail" size={20} color={currentTheme.primary} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={[styles.gmailNoticeTitle, { color: currentTheme.primary }]}>
-                      Enter 6-Digit Verification Code
+                      Verification Email Sent
                     </Text>
                     <Text style={[styles.gmailNoticeDesc, { color: currentTheme.textSecondary }]}>
-                      Enter the 6-digit code sent to your email to verify and activate your student account.
+                      We sent a verification link to your email. Open your inbox, click the link to verify, then tap below to continue.
                     </Text>
                   </View>
                 </View>
@@ -920,37 +800,28 @@ export const AuthScreen: React.FC = () => {
                   </Text>
                 </View>
 
-                {/* 6-Digit Input Boxes */}
-                <View style={styles.otpBoxesRow}>
-                  {otpDigits.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      ref={(ref) => {
-                        otpInputRefs.current[index] = ref;
-                      }}
-                      style={[
-                        styles.otpBox,
-                        {
-                          backgroundColor: currentTheme.bgInner,
-                          borderColor: digit ? currentTheme.primary : currentTheme.borderGlass,
-                          color: currentTheme.textPrimary,
-                        },
-                      ]}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      value={digit}
-                      onChangeText={(val) => handleOtpChange(val, index)}
-                      onKeyPress={(e) => handleOtpKeyPress(e, index)}
-                      textAlign="center"
-                      selectTextOnFocus
-                    />
-                  ))}
-                </View>
+                {/* Action 1: Open Mail Inbox */}
+                <TouchableOpacity
+                  style={[
+                    styles.openGmailBtn,
+                    {
+                      backgroundColor: currentTheme.bgInner,
+                      borderColor: currentTheme.borderGlass,
+                    },
+                  ]}
+                  onPress={handleOpenEmailInbox}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="mail-open-outline" size={16} color={currentTheme.primary} />
+                  <Text style={[styles.openGmailBtnText, { color: currentTheme.textPrimary }]}>
+                    Open Email Inbox
+                  </Text>
+                </TouchableOpacity>
 
-                {/* Primary Action Button: Verify & Continue */}
+                {/* Action 2 (Primary): I've Clicked the Verification Link */}
                 <TouchableOpacity
                   style={[styles.submitBtn, { backgroundColor: currentTheme.primary }]}
-                  onPress={handleVerifyOtpSubmit}
+                  onPress={handleCheckEmailLinkVerification}
                   activeOpacity={0.85}
                   disabled={isLoading}
                 >
@@ -967,10 +838,10 @@ export const AuthScreen: React.FC = () => {
                           { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
                         ]}
                       >
-                        Verify & Continue
+                        I've Clicked the Verification Link
                       </Text>
                       <Feather
-                        name="arrow-right"
+                        name="check-circle"
                         size={17}
                         color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
                       />
@@ -981,12 +852,12 @@ export const AuthScreen: React.FC = () => {
                 {/* Resend Row */}
                 <View style={styles.resendRow}>
                   <Text style={[styles.resendHint, { color: currentTheme.textMuted }]}>
-                    Didn't receive code?{' '}
+                    Didn't receive email?{' '}
                   </Text>
                   {canResend ? (
                     <TouchableOpacity onPress={handleResendOtp}>
                       <Text style={[styles.resendBtnText, { color: currentTheme.primary }]}>
-                        Resend Code
+                        Resend Email
                       </Text>
                     </TouchableOpacity>
                   ) : (
@@ -1009,12 +880,12 @@ export const AuthScreen: React.FC = () => {
             )}
 
             {/* ======================================================== */}
-            {/* VIEW 5: FORGOT PASSWORD REQUEST (Step 1) */}
+            {/* VIEW 5: FORGOT PASSWORD REQUEST */}
             {/* ======================================================== */}
             {mode === 'forgot-request' && (
               <>
                 <Text style={[styles.forgotDesc, { color: currentTheme.textSecondary }]}>
-                  Enter the email address registered with your account. We'll send you a 6-digit recovery code to reset your password.
+                  Enter the email linked to your account. Firebase will send a secure password reset link directly to your inbox.
                 </Text>
 
                 <View style={styles.inputGroup}>
@@ -1059,7 +930,7 @@ export const AuthScreen: React.FC = () => {
                           { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
                         ]}
                       >
-                        Send Recovery Code
+                        Send Password Reset Link
                       </Text>
                       <Feather
                         name="send"
@@ -1076,186 +947,6 @@ export const AuthScreen: React.FC = () => {
                 >
                   <Text style={[styles.cancelLinkText, { color: currentTheme.textMuted }]}>
                     Back to Log In
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* ======================================================== */}
-            {/* VIEW 6: FORGOT PASSWORD RESET (Step 2) */}
-            {/* ======================================================== */}
-            {mode === 'forgot-reset' && (
-              <>
-                {/* Instructions: Recovery code sent to user Gmail */}
-                <View
-                  style={[
-                    styles.gmailNoticeCard,
-                    {
-                      backgroundColor: currentTheme.primary + '10',
-                      borderColor: currentTheme.primary + '35',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.gmailNoticeIconWrap,
-                      { backgroundColor: currentTheme.primary + '20' },
-                    ]}
-                  >
-                    <Ionicons name="mail" size={20} color={currentTheme.primary} />
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={[styles.gmailNoticeTitle, { color: currentTheme.primary }]}>
-                      Recovery Code Sent to Gmail
-                    </Text>
-                    <Text style={[styles.gmailNoticeDesc, { color: currentTheme.textSecondary }]}>
-                      A 6-digit recovery code was sent to <Text style={{ fontWeight: '700', color: currentTheme.textPrimary }}>{email}</Text>. Enter the code below to reset your password.
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: currentTheme.textMuted }]}>
-                    6-DIGIT RECOVERY CODE
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputWrap,
-                      { backgroundColor: currentTheme.bgInner, borderColor: currentTheme.borderGlass },
-                    ]}
-                  >
-                    <Feather name="key" size={16} color={currentTheme.textMuted} />
-                    <TextInput
-                      style={[styles.textInput, { color: currentTheme.textPrimary, letterSpacing: 2 }]}
-                      placeholder="123456"
-                      placeholderTextColor={currentTheme.textDisabled}
-                      value={resetCode}
-                      onChangeText={setResetCode}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: currentTheme.textMuted }]}>
-                    NEW PASSWORD
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputWrap,
-                      { backgroundColor: currentTheme.bgInner, borderColor: currentTheme.borderGlass },
-                    ]}
-                  >
-                    <Feather name="lock" size={16} color={currentTheme.textMuted} />
-                    <TextInput
-                      style={[styles.textInput, { color: currentTheme.textPrimary }]}
-                      placeholder="Min 6 characters"
-                      placeholderTextColor={currentTheme.textDisabled}
-                      value={newPassword}
-                      onChangeText={setNewPassword}
-                      secureTextEntry={!showPassword}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Feather
-                        name={showPassword ? 'eye-off' : 'eye'}
-                        size={16}
-                        color={currentTheme.textMuted}
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {newPassword.length > 0 && (
-                    <View style={styles.strengthRow}>
-                      <View style={styles.strengthTrack}>
-                        <View
-                          style={[
-                            styles.strengthBar,
-                            {
-                              width: `${(strength.score / 3) * 100}%`,
-                              backgroundColor: strength.color,
-                            },
-                          ]}
-                        />
-                      </View>
-                      <Text style={[styles.strengthLabel, { color: strength.color }]}>
-                        {strength.label}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: currentTheme.textMuted }]}>
-                    CONFIRM NEW PASSWORD
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputWrap,
-                      { backgroundColor: currentTheme.bgInner, borderColor: currentTheme.borderGlass },
-                    ]}
-                  >
-                    <Feather name="shield" size={16} color={currentTheme.textMuted} />
-                    <TextInput
-                      style={[styles.textInput, { color: currentTheme.textPrimary }]}
-                      placeholder="Re-enter new password"
-                      placeholderTextColor={currentTheme.textDisabled}
-                      value={confirmNewPassword}
-                      onChangeText={setConfirmNewPassword}
-                      secureTextEntry={!showConfirmPassword}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Feather
-                        name={showConfirmPassword ? 'eye-off' : 'eye'}
-                        size={16}
-                        color={currentTheme.textMuted}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.submitBtn, { backgroundColor: currentTheme.primary }]}
-                  onPress={handleForgotResetSubmit}
-                  activeOpacity={0.85}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
-                    />
-                  ) : (
-                    <>
-                      <Text
-                        style={[
-                          styles.submitBtnText,
-                          { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
-                        ]}
-                      >
-                        Update Password
-                      </Text>
-                      <Feather
-                        name="check-circle"
-                        size={16}
-                        color={currentTheme.isDark ? '#050907' : '#FFFFFF'}
-                      />
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.cancelLinkBtn}
-                  onPress={() => transitionToMode('login')}
-                >
-                  <Text style={[styles.cancelLinkText, { color: currentTheme.textMuted }]}>
-                    Cancel & Return to Log In
                   </Text>
                 </TouchableOpacity>
               </>
@@ -1309,101 +1000,6 @@ export const AuthScreen: React.FC = () => {
                     Continue with Google
                   </Text>
                 </TouchableOpacity>
-
-                {/* Direct Google Login fallback when Firebase Console Google provider is unconfigured */}
-                {showGoogleFallbackModal ? (
-                  <View
-                    style={[
-                      styles.googleFallbackBox,
-                      {
-                        backgroundColor: currentTheme.bgInner,
-                        borderColor: currentTheme.primary + '40',
-                      },
-                    ]}
-                  >
-                    <View style={styles.googleFallbackHeader}>
-                      <GoogleLogo size={16} />
-                      <Text
-                        style={[
-                          styles.googleFallbackTitle,
-                          { color: currentTheme.textPrimary },
-                        ]}
-                      >
-                        Quick Google Account Sign In
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.googleFallbackDesc,
-                        { color: currentTheme.textSecondary },
-                      ]}
-                    >
-                      Firebase Google Provider is not enabled in Firebase Console for 'calio2026'. Enter your Google email to sign in directly:
-                    </Text>
-                    <View
-                      style={[
-                        styles.inputWrap,
-                        {
-                          backgroundColor: currentTheme.bgCard,
-                          borderColor: currentTheme.borderGlass,
-                        },
-                      ]}
-                    >
-                      <Feather name="mail" size={16} color={currentTheme.textMuted} />
-                      <TextInput
-                        style={[styles.textInput, { color: currentTheme.textPrimary }]}
-                        placeholder="yourname@gmail.com"
-                        placeholderTextColor={currentTheme.textDisabled}
-                        value={googleFallbackEmail}
-                        onChangeText={setGoogleFallbackEmail}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                      />
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                      <TouchableOpacity
-                        style={[
-                          styles.googleFallbackSubmitBtn,
-                          { backgroundColor: currentTheme.primary, flex: 1 },
-                        ]}
-                        onPress={handleDirectGoogleLogin}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.googleFallbackSubmitText,
-                            { color: currentTheme.isDark ? '#050907' : '#FFFFFF' },
-                          ]}
-                        >
-                          Sign In with Google
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.googleFallbackCancelBtn,
-                          { borderColor: currentTheme.borderGlass },
-                        ]}
-                        onPress={() => setShowGoogleFallbackModal(false)}
-                      >
-                        <Text style={{ color: currentTheme.textMuted, fontSize: 12 }}>
-                          Dismiss
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.googleQuickLink}
-                    onPress={() => setShowGoogleFallbackModal(true)}
-                  >
-                    <Text style={[styles.googleQuickLinkText, { color: currentTheme.textMuted }]}>
-                      Trouble with Google Popup?{' '}
-                      <Text style={{ color: currentTheme.primary, fontWeight: '700' }}>
-                        Quick Google Sign In
-                      </Text>
-                    </Text>
-                  </TouchableOpacity>
-                )}
               </>
             )}
           </View>

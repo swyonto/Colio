@@ -37,7 +37,8 @@
           "color": "#00E676"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-splash-screen"
     ],
     "owner": "sharagaki",
     "extra": {

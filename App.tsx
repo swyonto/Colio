@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CampusProvider, useCampus } from './src/context/CampusContext';
 import { GlassHeader } from './src/components/common/GlassHeader';
 import { GlassNavBar } from './src/components/common/GlassNavBar';
@@ -17,11 +19,65 @@ import { HolidaysScreen } from './src/screens/HolidaysScreen';
 import { CgpaScreen } from './src/screens/CgpaScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import { ProfileDialog } from './src/screens/ProfileDialog';
-import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { OnboardingSetupScreen } from './src/screens/OnboardingSetupScreen';
-import { Colors } from './src/theme/colors';
+import { AppThemeKey, Themes, applyTheme } from './src/theme/colors';
 
+// Keep the native splash screen visible until we've loaded the theme from storage.
+// This prevents the "dark-emerald flash" when user is on a light theme.
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // preventAutoHideAsync throws if splash has already hidden (web/test env)
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ThemeBootstrap — reads saved theme from AsyncStorage BEFORE first render,
+// then hides the splash screen. This eliminates the cold-start theme flash.
+// ──────────────────────────────────────────────────────────────────────────────
+interface ThemeBootstrapProps {
+  children: React.ReactNode;
+}
+
+const ThemeBootstrap: React.FC<ThemeBootstrapProps> = ({ children }) => {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem('@colio_app_theme_v2');
+        if (savedTheme && Themes[savedTheme as AppThemeKey]) {
+          // Apply the saved theme to the shared Colors object BEFORE the first
+          // render of any screen — eliminates the green flash on light themes.
+          applyTheme(savedTheme as AppThemeKey);
+        }
+      } catch {
+        // If storage read fails, fall through with default theme
+      } finally {
+        setReady(true);
+      }
+    })();
+  }, []);
+
+  const onLayoutRootView = useCallback(async () => {
+    if (ready) {
+      // Hide splash only after we've applied the correct theme
+      await SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [ready]);
+
+  if (!ready) {
+    // Return null while reading theme — splash screen stays visible
+    return null;
+  }
+
+  return (
+    <View style={styles.rootContainer} onLayout={onLayoutRootView}>
+      {children}
+    </View>
+  );
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// MainAppContent — the 3-flow app shell
+// ──────────────────────────────────────────────────────────────────────────────
 const MainAppContent: React.FC = () => {
   const {
     activeTab,
@@ -33,93 +89,59 @@ const MainAppContent: React.FC = () => {
     logout,
   } = useCampus();
   const [activeSubScreen, setActiveSubScreen] = useState<string | null>(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [onboardingStage, setOnboardingStage] = useState<'welcome' | 'setup'>('welcome');
 
-  // Clear any open sub-screen on logout (Must be at top level before conditional returns)
+  // Clear any open sub-screen on logout
   useEffect(() => {
-    if (!currentUser) {
-      setActiveSubScreen(null);
-    }
+    if (!currentUser) setActiveSubScreen(null);
   }, [currentUser]);
 
-  // Android Hardware Back Button Handler (Must be at top level before conditional returns)
+  // Android Hardware Back Button Handler
   useEffect(() => {
     const backAction = () => {
-      // If in a sub-screen, close it
-      if (activeSubScreen) {
-        setActiveSubScreen(null);
-        return true;
-      }
-      // If on a tab other than home, go to home
-      if (activeTab !== 'home') {
-        setActiveTab('home');
-        return true;
-      }
-      // On home tab → let system handle (exit app)
+      if (activeSubScreen) { setActiveSubScreen(null); return true; }
+      if (activeTab !== 'home') { setActiveTab('home'); return true; }
       return false;
     };
-
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-    return () => backHandler.remove();
+    const handler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => handler.remove();
   }, [activeSubScreen, activeTab]);
 
   // === FLOW 1: Auth Gate ===
   if (!currentUser) {
     return (
-      <SafeAreaView style={[styles.rootContainer, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[styles.fill, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
         <StatusBar style={currentTheme.isDark ? 'light' : 'dark'} />
         <AuthScreen />
       </SafeAreaView>
     );
   }
 
-  // === FLOW 2: New User Onboarding (Straight to Setup Page) ===
+  // === FLOW 2: New User Onboarding ===
   if (!isSetupComplete) {
     return (
-      <SafeAreaView style={[styles.rootContainer, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[styles.fill, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
         <StatusBar style={currentTheme.isDark ? 'light' : 'dark'} />
         <OnboardingSetupScreen
           onBackToWelcome={() => logout()}
-          onFinishSetup={() => {
-            setIsSetupComplete(true);
-          }}
+          onFinishSetup={() => setIsSetupComplete(true)}
         />
       </SafeAreaView>
     );
   }
 
   // === FLOW 3: Main App ===
-
   const renderContent = () => {
-    // Sub-screens overlay (Back button returns to previous view)
-    if (activeSubScreen === 'profile') {
-      return <ProfileScreen onBack={() => setActiveSubScreen(null)} />;
-    }
-    if (activeSubScreen === 'books') {
-      return <BooksScreen onBack={() => setActiveSubScreen(null)} />;
-    }
-    if (activeSubScreen === 'idcard') {
-      return <IdCardScreen onBack={() => setActiveSubScreen(null)} />;
-    }
-    if (activeSubScreen === 'holidays') {
-      return <HolidaysScreen onBack={() => setActiveSubScreen(null)} />;
-    }
-    if (activeSubScreen === 'cgpa') {
-      return <CgpaScreen onBack={() => setActiveSubScreen(null)} />;
-    }
-    if (activeSubScreen === 'tasks') {
-      return <TasksScreen onBack={() => setActiveSubScreen(null)} />;
-    }
+    if (activeSubScreen === 'profile') return <ProfileScreen onBack={() => setActiveSubScreen(null)} />;
+    if (activeSubScreen === 'books') return <BooksScreen onBack={() => setActiveSubScreen(null)} />;
+    if (activeSubScreen === 'idcard') return <IdCardScreen onBack={() => setActiveSubScreen(null)} />;
+    if (activeSubScreen === 'holidays') return <HolidaysScreen onBack={() => setActiveSubScreen(null)} />;
+    if (activeSubScreen === 'cgpa') return <CgpaScreen onBack={() => setActiveSubScreen(null)} />;
+    if (activeSubScreen === 'tasks') return <TasksScreen onBack={() => setActiveSubScreen(null)} />;
 
-    // Main 5 Tabs
     switch (activeTab) {
-      case 'attend':
-        return <AttendanceScreen />;
-      case 'timetable':
-        return <TimetableScreen />;
-      case 'expenses':
-        return <ExpensesScreen />;
+      case 'attend': return <AttendanceScreen />;
+      case 'timetable': return <TimetableScreen />;
+      case 'expenses': return <ExpensesScreen />;
       case 'more':
         return (
           <MoreScreen
@@ -131,10 +153,7 @@ const MainAppContent: React.FC = () => {
       default:
         return (
           <HomeScreen
-            onNavigateTab={(tab) => {
-              setActiveSubScreen(null);
-              setActiveTab(tab);
-            }}
+            onNavigateTab={(tab) => { setActiveSubScreen(null); setActiveTab(tab); }}
             onOpenMoreSection={(sec) => setActiveSubScreen(sec)}
             onOpenProfile={() => setActiveSubScreen('profile')}
           />
@@ -143,43 +162,32 @@ const MainAppContent: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.rootContainer, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.fill, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
       <StatusBar style={currentTheme.isDark ? 'light' : 'dark'} />
-
-      {/* Header Bar (Shown when not in sub-screens with their own header) */}
-      {!activeSubScreen && (
-        <GlassHeader onPressProfile={() => setActiveSubScreen('profile')} />
-      )}
-
-      {/* Screen Body */}
-      <View style={[styles.bodyContainer, { backgroundColor: currentTheme.bgBase }]}>{renderContent()}</View>
-
-      {/* Bottom Navigation Bar (Shown on 5 primary tabs) */}
+      {!activeSubScreen && <GlassHeader onPressProfile={() => setActiveSubScreen('profile')} />}
+      <View style={[styles.body, { backgroundColor: currentTheme.bgBase }]}>{renderContent()}</View>
       {!activeSubScreen && <GlassNavBar />}
-
-      {/* Profile & Nickname Customization Dialog */}
-      <ProfileDialog visible={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </SafeAreaView>
   );
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// App Root
+// ──────────────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <SafeAreaProvider>
-      <CampusProvider>
-        <MainAppContent />
-      </CampusProvider>
+      <ThemeBootstrap>
+        <CampusProvider>
+          <MainAppContent />
+        </CampusProvider>
+      </ThemeBootstrap>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  rootContainer: {
-    flex: 1,
-    backgroundColor: Colors.bgBase,
-  },
-  bodyContainer: {
-    flex: 1,
-    position: 'relative',
-  },
+  rootContainer: { flex: 1 },
+  fill: { flex: 1 },
+  body: { flex: 1, position: 'relative' },
 });

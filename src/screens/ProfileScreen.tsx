@@ -395,38 +395,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
               </View>
             </TouchableOpacity>
 
-            {/* Profile Avatar Size Selector */}
-            <View style={styles.avatarSizePillsContainer}>
-              {(['small', 'medium', 'large'] as const).map((sz) => {
-                const isSelected = avatarSize === sz;
-                return (
-                  <TouchableOpacity
-                    key={sz}
-                    style={[
-                      styles.avatarSizeChip,
-                      {
-                        backgroundColor: isSelected ? currentTheme.primary + '22' : currentTheme.bgCardSecondary,
-                        borderColor: isSelected ? currentTheme.primary : currentTheme.borderGlass,
-                      },
-                    ]}
-                    onPress={() => handleSelectAvatarSize(sz)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.avatarSizeChipText,
-                        {
-                          color: isSelected ? currentTheme.primary : currentTheme.textMuted,
-                          fontWeight: isSelected ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      {sz === 'small' ? 'Small' : sz === 'medium' ? 'Standard' : 'Large'}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
 
             {/* Student Name */}
             {isEditing ? (
@@ -1007,7 +975,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           {currentUser && (
             <View style={{ gap: 4, marginBottom: 8 }}>
               <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>{currentUser.name}</Text>
-              <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>{currentUser.email}{currentUser.isGuest ? ' (Guest)' : ''}</Text>
+              <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>{currentUser.email}</Text>
             </View>
           )}
           <TouchableOpacity

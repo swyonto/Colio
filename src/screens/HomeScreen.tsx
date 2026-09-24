@@ -9,7 +9,7 @@ import { ExpenseSummaryCard } from '../components/cards/ExpenseSummaryCard';
 import { GlassDialog } from '../components/common/GlassDialog';
 import { GlassInput } from '../components/common/GlassInput';
 import { EmeraldButton } from '../components/common/Buttons';
-import { Colors } from '../theme/colors';
+
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { HomeSkeleton } from '../components/common/SkeletonLoader';
@@ -64,13 +64,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* If Global Search Active, show search results */}
       {isSearching ? (
         <View style={styles.searchResultsContainer}>
-          <Text style={[Typography.titleMd, styles.searchHeader]}>
+          <Text style={[Typography.titleMd, styles.searchHeader, { color: currentTheme.textPrimary }]}>
             Search Results for "{searchQuery}"
           </Text>
 
           {filteredSubjects.length > 0 && (
-            <View style={styles.searchSection}>
-              <Text style={[Typography.overline, styles.sectionTitle]}>SUBJECTS</Text>
+            <View style={[styles.searchSection, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderSubtle }]}>
+              <Text style={[Typography.overline, styles.sectionTitle, { color: currentTheme.textMuted }]}>SUBJECTS</Text>
               {filteredSubjects.map((s) => (
                 <TouchableOpacity
                   key={s.id}
@@ -78,40 +78,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   onPress={() => onNavigateTab('attend')}
                 >
                   <Text style={[Typography.titleSm, { color: s.color }]}>{s.code}</Text>
-                  <Text style={[Typography.bodyMd, styles.searchItemText]}>{s.name}</Text>
+                  <Text style={[Typography.bodyMd, styles.searchItemText, { color: currentTheme.textPrimary }]}>{s.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           )}
 
           {filteredTasks.length > 0 && (
-            <View style={styles.searchSection}>
-              <Text style={[Typography.overline, styles.sectionTitle]}>TASKS</Text>
+            <View style={[styles.searchSection, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderSubtle }]}>
+              <Text style={[Typography.overline, styles.sectionTitle, { color: currentTheme.textMuted }]}>TASKS</Text>
               {filteredTasks.map((t) => (
                 <View key={t.id} style={styles.searchItem}>
-                  <Text style={[Typography.bodyMd, styles.searchItemText]}>{t.title}</Text>
+                  <Text style={[Typography.bodyMd, styles.searchItemText, { color: currentTheme.textPrimary }]}>{t.title}</Text>
                 </View>
               ))}
             </View>
           )}
 
           {filteredDocs.length > 0 && (
-            <View style={styles.searchSection}>
-              <Text style={[Typography.overline, styles.sectionTitle]}>DOCUMENTS</Text>
+            <View style={[styles.searchSection, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderSubtle }]}>
+              <Text style={[Typography.overline, styles.sectionTitle, { color: currentTheme.textMuted }]}>DOCUMENTS</Text>
               {filteredDocs.map((d) => (
                 <TouchableOpacity
                   key={d.id}
                   style={styles.searchItem}
                   onPress={() => onOpenMoreSection('books')}
                 >
-                  <Text style={[Typography.bodyMd, styles.searchItemText]}>{d.title}</Text>
+                  <Text style={[Typography.bodyMd, styles.searchItemText, { color: currentTheme.textPrimary }]}>{d.title}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           )}
 
           {filteredSubjects.length === 0 && filteredTasks.length === 0 && filteredDocs.length === 0 && (
-            <Text style={styles.noResultsText}>No results found matching your query.</Text>
+            <Text style={[styles.noResultsText, { color: currentTheme.textMuted }]}>No results found matching your query.</Text>
           )}
         </View>
       ) : (
@@ -122,7 +122,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Card 1: Attendance */}
               <StatMiniCard
                 icon="check-circle"
-                iconColor={overallAttendance >= attendanceCriteria ? currentTheme.statusPresent : Colors.statusAbsent}
+                iconColor={overallAttendance >= attendanceCriteria ? currentTheme.statusPresent : '#FF5252'}
                 value={`${overallAttendance}%`}
                 label="ATTENDANCE"
                 badgeText={`Can miss ${classesCanMiss}`}
@@ -243,7 +243,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         onClose={() => setStatEditModal(null)}
         title={`Adjust ${statEditModal}`}
       >
-        <Text style={[Typography.bodySm, { color: Colors.textMuted, marginBottom: 12 }]}>
+        <Text style={[Typography.bodySm, { color: currentTheme.textMuted, marginBottom: 12 }]}>
           Override value for dashboard calculations and tracking.
         </Text>
         <GlassInput
@@ -263,7 +263,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgBase,
   },
   contentContainer: {
     padding: 16,
@@ -289,15 +288,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#121613',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 0.8,
-    borderColor: 'rgba(0, 230, 118, 0.25)',
   },
   quickActionText: {
-    color: Colors.textPrimary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -305,19 +301,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   searchHeader: {
-    color: Colors.textPrimary,
     marginBottom: 4,
   },
   sectionTitle: {
-    color: Colors.textMuted,
     marginBottom: 6,
   },
   searchSection: {
-    backgroundColor: '#0F1310',
     padding: 12,
     borderRadius: 12,
     borderWidth: 0.6,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 8,
   },
   searchItem: {
@@ -326,11 +318,8 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 6,
   },
-  searchItemText: {
-    color: Colors.textPrimary,
-  },
+  searchItemText: {},
   noResultsText: {
-    color: Colors.textMuted,
     textAlign: 'center',
     marginVertical: 24,
   },

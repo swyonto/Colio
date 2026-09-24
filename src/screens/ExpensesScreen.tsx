@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
@@ -6,11 +6,12 @@ import { GlassDialog } from '../components/common/GlassDialog';
 import { GlassInput } from '../components/common/GlassInput';
 import { EmeraldButton, GlassButton } from '../components/common/Buttons';
 import { ProgressBar } from '../components/common/ProgressBar';
-import { Colors } from '../theme/colors';
+
 import { Typography } from '../theme/typography';
+import { ThemeColors } from '../theme/colors';
 import { useCampus } from '../context/CampusContext';
 import { Expense, ExpenseCategory, QuickExpensePreset, TimeOfDay } from '../types/campus';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '../utils/storage';
 
 const TIME_FILTERS: { id: string; label: string }[] = [
   { id: 'all', label: 'All Day' },
@@ -38,8 +39,29 @@ export const ExpensesScreen: React.FC = () => {
     currentTheme,
   } = useCampus();
 
-  // Multi-Month Selector Carousel (Section 9.4)
-  const [selectedMonth, setSelectedMonth] = useState<'2026-09' | '2026-08'>('2026-09');
+  const styles = useMemo(() => makeStyles(currentTheme), [currentTheme]);
+
+
+  // Dynamic month management — compute available months based on current date
+  const buildMonthStr = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+  const buildMonthLabel = (monthStr: string) => {
+    const [year, month] = monthStr.split('-').map(Number);
+    const d = new Date(year, month - 1, 1);
+    return d.toLocaleString('default', { month: 'long', year: 'numeric' });
+  };
+
+  // Build last 6 months list (newest first)
+  const availableMonths: string[] = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    return buildMonthStr(d);
+  });
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(availableMonths[0]);
+  const currentMonthIndex = availableMonths.indexOf(selectedMonth);
 
   // Filters
   const [activeTimeFilter, setActiveTimeFilter] = useState('all');
@@ -109,12 +131,13 @@ export const ExpensesScreen: React.FC = () => {
   });
 
   const handleQuickLog = (preset: QuickExpensePreset) => {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     addExpense({
       title: preset.title,
       amount: preset.amount,
       category: preset.category,
       timeOfDay: 'Afternoon',
-      date: `${selectedMonth}-18`,
+      date: today,
       icon: preset.icon,
     });
   };
@@ -138,7 +161,7 @@ export const ExpensesScreen: React.FC = () => {
         amount: amt,
         category: expCategory,
         timeOfDay: expTimeOfDay,
-        date: `${selectedMonth}-18`,
+        date: new Date().toISOString().split('T')[0], // always today's real date
       });
       setIsAddExpenseOpen(false);
     }
@@ -173,27 +196,35 @@ export const ExpensesScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: currentTheme.bgBase }]}>
-      {/* Month Carousel Header (Section 9.4) */}
+      {/* Month Carousel Header — dynamic, navigates real calendar months */}
       <View style={styles.monthCarouselBar}>
         <TouchableOpacity
-          onPress={() => setSelectedMonth(selectedMonth === '2026-09' ? '2026-08' : '2026-09')}
-          style={styles.monthArrowBtn}
+          onPress={() => {
+            if (currentMonthIndex < availableMonths.length - 1) {
+              setSelectedMonth(availableMonths[currentMonthIndex + 1]);
+            }
+          }}
+          style={[styles.monthArrowBtn, currentMonthIndex >= availableMonths.length - 1 && { opacity: 0.3 }]}
         >
-          <Feather name="chevron-left" size={18} color={Colors.textPrimary} />
+          <Feather name="chevron-left" size={18} color={currentTheme.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.monthCenter}>
           <Text style={[Typography.titleMd, styles.monthText]}>
-            {selectedMonth === '2026-09' ? 'September 2026' : 'August 2026'}
+            {buildMonthLabel(selectedMonth)}
           </Text>
-          <Text style={styles.monthSublabel}>Tap arrows to toggle history</Text>
+          <Text style={styles.monthSublabel}>Tap arrows to browse history</Text>
         </View>
 
         <TouchableOpacity
-          onPress={() => setSelectedMonth(selectedMonth === '2026-09' ? '2026-08' : '2026-09')}
-          style={styles.monthArrowBtn}
+          onPress={() => {
+            if (currentMonthIndex > 0) {
+              setSelectedMonth(availableMonths[currentMonthIndex - 1]);
+            }
+          }}
+          style={[styles.monthArrowBtn, currentMonthIndex <= 0 && { opacity: 0.3 }]}
         >
-          <Feather name="chevron-right" size={18} color={Colors.textPrimary} />
+          <Feather name="chevron-right" size={18} color={currentTheme.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -206,19 +237,19 @@ export const ExpensesScreen: React.FC = () => {
         <EmeraldGlassCard>
           <View style={styles.heroRow}>
             <View>
-              <Text style={[Typography.overline, { color: Colors.textMuted }]}>TOTAL MONTHLY SPEND</Text>
+              <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>TOTAL MONTHLY SPEND</Text>
               <Text style={[Typography.displayLg, styles.heroAmount]}>
                 ₹{monthTotal.toLocaleString('en-IN')}
               </Text>
             </View>
 
-            {/* MoM Comparison Pill */}
-            {selectedMonth === '2026-09' && (
+            {/* MoM Comparison Pill — shown only on current month */}
+            {selectedMonth === availableMonths[0] && (
               <View
                 style={[
                   styles.momPill,
                   {
-                    backgroundColor: momChangePercent > 0 ? Colors.statusPendingBg : Colors.statusPresentBg,
+                    backgroundColor: momChangePercent > 0 ? 'rgba(255,171,64,0.12)' : currentTheme.statusPresentBg,
                     borderColor: momChangePercent > 0 ? 'rgba(255, 171, 64, 0.4)' : 'rgba(0, 230, 118, 0.4)',
                   },
                 ]}
@@ -226,12 +257,12 @@ export const ExpensesScreen: React.FC = () => {
                 <Feather
                   name={momChangePercent > 0 ? 'trending-up' : 'trending-down'}
                   size={13}
-                  color={momChangePercent > 0 ? Colors.statusPending : Colors.statusPresent}
+                  color={momChangePercent > 0 ? '#FFAB40' : currentTheme.statusPresent}
                 />
                 <Text
                   style={[
                     styles.momPillText,
-                    { color: momChangePercent > 0 ? Colors.statusPending : Colors.statusPresent },
+                    { color: momChangePercent > 0 ? '#FFAB40' : currentTheme.statusPresent },
                   ]}
                 >
                   {momChangePercent > 0 ? `+${momChangePercent}%` : `${momChangePercent}%`} MoM
@@ -647,7 +678,7 @@ export const ExpensesScreen: React.FC = () => {
                 deleteExpense(editingExpense.id);
                 setEditingExpense(null);
               }}
-              textStyle={{ color: Colors.statusAbsent }}
+              textStyle={{ color: '#FF5252' }}
             />
           )}
         </View>
@@ -710,7 +741,7 @@ export const ExpensesScreen: React.FC = () => {
                 deletePreset(editingPreset.id);
                 setEditingPreset(null);
               }}
-              textStyle={{ color: Colors.statusAbsent }}
+              textStyle={{ color: '#FF5252' }}
             />
           )}
         </View>
@@ -719,10 +750,10 @@ export const ExpensesScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (currentTheme: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgBase,
+    backgroundColor: currentTheme.bgBase,
   },
   monthCarouselBar: {
     flexDirection: 'row',
@@ -746,10 +777,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   monthText: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
   },
   monthSublabel: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 10,
   },
   scrollArea: {
@@ -767,7 +798,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   heroAmount: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     marginTop: 2,
   },
   momPill: {
@@ -790,7 +821,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   breakdownTitle: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     marginBottom: 2,
   },
   catProgressRow: {
@@ -801,11 +832,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   catName: {
-    color: Colors.textSecondary,
+    color: currentTheme.textSecondary,
     fontSize: 11,
   },
   catAmount: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -827,7 +858,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   addPresetBtnText: {
-    color: Colors.emeraldPrimary,
+    color: currentTheme.primary,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -851,18 +882,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   presetTileTitle: {
-    color: Colors.textSecondary,
+    color: currentTheme.textSecondary,
     fontSize: 12,
     fontWeight: '600',
     flex: 1,
   },
   presetTileAmount: {
-    color: Colors.emeraldPrimary,
+    color: currentTheme.primary,
     fontSize: 14,
     fontWeight: '700',
   },
   presetTileCategory: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 10,
   },
   filtersBlock: {
@@ -881,15 +912,15 @@ const styles = StyleSheet.create({
   },
   filterPillActive: {
     backgroundColor: 'rgba(0, 230, 118, 0.20)',
-    borderColor: Colors.emeraldPrimary,
+    borderColor: currentTheme.primary,
   },
   filterPillText: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 11,
     fontWeight: '600',
   },
   filterPillTextActive: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     fontWeight: '700',
   },
   tipCallout: {
@@ -903,12 +934,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 230, 118, 0.20)',
   },
   tipText: {
-    color: Colors.textSecondary,
+    color: currentTheme.textSecondary,
     fontSize: 11,
     flex: 1,
   },
   logCustomBtn: {
-    backgroundColor: Colors.emeraldPrimary,
+    backgroundColor: currentTheme.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -1034,7 +1065,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyExpenseText: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 12,
   },
   expenseItemRow: {
@@ -1062,10 +1093,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   expItemTitle: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
   },
   expItemMeta: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 11,
     marginTop: 2,
   },
@@ -1075,10 +1106,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   expItemAmount: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
   },
   dialogSectionLabel: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     marginTop: 10,
     marginBottom: 6,
   },
@@ -1097,14 +1128,16 @@ const styles = StyleSheet.create({
   },
   dialogSelectChipActive: {
     backgroundColor: 'rgba(0, 230, 118, 0.20)',
-    borderColor: Colors.emeraldPrimary,
+    borderColor: currentTheme.primary,
   },
   dialogSelectChipText: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   dialogSelectChipTextActive: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
   },
 });
+
+

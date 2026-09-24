@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '../utils/storage';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { GlassDialog } from '../components/common/GlassDialog';
 import { GlassInput } from '../components/common/GlassInput';
 import { EmeraldButton } from '../components/common/Buttons';
-import { Colors } from '../theme/colors';
+import { ThemeColors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { Subject } from '../types/campus';
@@ -41,6 +42,9 @@ export const AttendanceScreen: React.FC = () => {
     timetable,
     currentTheme,
   } = useCampus();
+
+  const styles = useMemo(() => makeStyles(currentTheme), [currentTheme]);
+
 
   const totalAbsent = subjects.reduce((sum, s) => sum + s.absent, 0);
 
@@ -186,10 +190,10 @@ export const AttendanceScreen: React.FC = () => {
                     size={14}
                     color={
                       overallAttendance < attendanceCriteria
-                        ? Colors.statusAbsent
+                        ? '#FF5252'
                         : overallAttendance < attendanceCriteria + 8
                         ? '#FFC107'
-                        : Colors.statusPresent
+                        : currentTheme.statusPresent
                     }
                   />
 
@@ -229,7 +233,7 @@ export const AttendanceScreen: React.FC = () => {
             {/* 2. Classes Absent */}
             <View style={styles.metricColumn}>
               <Text style={styles.metricColumnLabel}>ABSENT</Text>
-              <Text style={[styles.metricColumnValue, { color: Colors.statusAbsent }]}>
+              <Text style={[styles.metricColumnValue, { color: '#FF5252' }]}>
                 {totalAbsent}
               </Text>
             </View>
@@ -239,7 +243,7 @@ export const AttendanceScreen: React.FC = () => {
             {/* 3. Total Classes */}
             <View style={styles.metricColumn}>
               <Text style={styles.metricColumnLabel}>TOTAL</Text>
-              <Text style={[styles.metricColumnValue, { color: Colors.textPrimary }]}>
+              <Text style={[styles.metricColumnValue, { color: currentTheme.textPrimary }]}>
                 {totalClasses}
               </Text>
             </View>
@@ -254,7 +258,7 @@ export const AttendanceScreen: React.FC = () => {
               <Text
                 style={[
                   styles.metricColumnValue,
-                  { color: isCriteriaMet ? currentTheme.primary : Colors.statusAbsent },
+                  { color: isCriteriaMet ? currentTheme.primary : '#FF5252' },
                 ]}
               >
                 {isCriteriaMet ? `${classesCanMiss}` : `${classesNeeded}`}
@@ -288,7 +292,7 @@ export const AttendanceScreen: React.FC = () => {
         <View style={styles.subjectsContainer}>
           {filteredSubjects.length === 0 ? (
             <View style={styles.emptyDayBox}>
-              <Feather name="coffee" size={28} color={Colors.textDisabled} style={{ marginBottom: 8 }} />
+              <Feather name="coffee" size={28} color={currentTheme.textDisabled} style={{ marginBottom: 8 }} />
               <Text style={styles.emptyDayText}>
                 No classes scheduled for {activeDay?.fullLabel || activeDay?.label} on your timetable.
               </Text>
@@ -363,7 +367,7 @@ export const AttendanceScreen: React.FC = () => {
                             ? 'rgba(255, 255, 255, 0.06)'
                             : isSubjSafe
                             ? currentTheme.primary + '20'
-                            : Colors.statusAbsentBg,
+                            : 'rgba(255, 82, 82, 0.14)',
                           borderColor: isCancelled
                             ? 'rgba(255, 255, 255, 0.12)'
                             : isSubjSafe
@@ -377,10 +381,10 @@ export const AttendanceScreen: React.FC = () => {
                           styles.subjStatusText,
                           {
                             color: isCancelled
-                              ? Colors.textMuted
+                              ? currentTheme.textMuted
                               : isSubjSafe
                               ? currentTheme.primary
-                              : Colors.statusAbsent,
+                              : '#FF5252',
                           },
                         ]}
                       >
@@ -394,7 +398,7 @@ export const AttendanceScreen: React.FC = () => {
                   <ProgressBar
                     percentage={subjPct}
                     height={4}
-                    color={isCancelled ? Colors.textDisabled : isSubjSafe ? subj.color : Colors.statusAbsent}
+                    color={isCancelled ? currentTheme.textDisabled : isSubjSafe ? subj.color : '#FF5252'}
                     target={attendanceCriteria}
                   />
 
@@ -403,7 +407,7 @@ export const AttendanceScreen: React.FC = () => {
                     {isCancelled ? (
                       <View style={styles.cancelledStatusRow}>
                         <View style={styles.cancelledNoticePill}>
-                          <Feather name="slash" size={11} color={Colors.statusAbsent} />
+                          <Feather name="slash" size={11} color={'#FF5252'} />
                           <Text style={styles.cancelledNoticeText}>Cancelled today (No penalty)</Text>
                         </View>
                         <TouchableOpacity
@@ -411,7 +415,7 @@ export const AttendanceScreen: React.FC = () => {
                           onPress={() => toggleCancelSubject(subj.id)}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
-                          <Feather name="rotate-ccw" size={11} color={Colors.textSecondary} />
+                          <Feather name="rotate-ccw" size={11} color={currentTheme.textSecondary} />
                           <Text style={styles.restoreClassText}>Restore</Text>
                         </TouchableOpacity>
                       </View>
@@ -432,7 +436,7 @@ export const AttendanceScreen: React.FC = () => {
                           style={styles.absentActionBtn}
                           onPress={() => adjustSubjectAttendance(subj.id, 0, 1)}
                         >
-                          <MaterialIcons name="close" size={15} color={Colors.statusAbsent} />
+                          <MaterialIcons name="close" size={15} color={'#FF5252'} />
                           <Text style={styles.absentActionText}>Absent</Text>
                         </TouchableOpacity>
 
@@ -440,7 +444,7 @@ export const AttendanceScreen: React.FC = () => {
                           style={styles.cancelClassActionBtn}
                           onPress={() => toggleCancelSubject(subj.id)}
                         >
-                          <Feather name="slash" size={13} color={Colors.textMuted} />
+                          <Feather name="slash" size={13} color={currentTheme.textMuted} />
                           <Text style={styles.cancelClassActionText}>Cancel Class</Text>
                         </TouchableOpacity>
                       </>
@@ -459,7 +463,7 @@ export const AttendanceScreen: React.FC = () => {
         onClose={() => setEditingSubject(null)}
         title={editingSubject ? `Edit ${editingSubject.code} Attendance` : 'Edit Attendance'}
       >
-        <Text style={[Typography.bodySm, { color: Colors.textMuted, marginBottom: 12 }]}>
+        <Text style={[Typography.bodySm, { color: currentTheme.textMuted, marginBottom: 12 }]}>
           Update present and absent class counts for {editingSubject?.name}.
         </Text>
 
@@ -486,10 +490,10 @@ export const AttendanceScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (currentTheme: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgBase,
+    backgroundColor: currentTheme.bgBase,
   },
   tabsWrapper: {
     backgroundColor: '#0A0E0B',
@@ -511,7 +515,7 @@ const styles = StyleSheet.create({
   },
   dayTabPillActive: {
     backgroundColor: 'rgba(0, 230, 118, 0.20)',
-    borderColor: Colors.emeraldPrimary,
+    borderColor: currentTheme.primary,
   },
   dayTabPillToday: {
     borderColor: 'rgba(0, 230, 118, 0.40)',
@@ -525,18 +529,18 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: Colors.emeraldPrimary,
+    backgroundColor: currentTheme.primary,
   },
   tabTodayDotSelected: {
     backgroundColor: '#FFFFFF',
   },
   dayTabText: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   dayTabTextActive: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     fontWeight: '700',
   },
   scrollArea: {
@@ -571,7 +575,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mainCardTitle: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     fontWeight: '700',
   },
   percentageAndBadgeRow: {
@@ -581,7 +585,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   overallPercentageText: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     fontSize: 34,
   },
   goalBadge: {
@@ -598,7 +602,7 @@ const styles = StyleSheet.create({
   goalBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
   },
   linearProgressContainer: {
     marginVertical: 12,
@@ -624,7 +628,7 @@ const styles = StyleSheet.create({
   metricColumnLabel: {
     fontSize: 9,
     fontWeight: '700',
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     letterSpacing: 0.5,
     textAlign: 'center',
   },
@@ -652,12 +656,12 @@ const styles = StyleSheet.create({
     width: 3.5,
     height: 16,
     borderRadius: 2,
-    backgroundColor: Colors.emeraldPrimary,
+    backgroundColor: currentTheme.primary,
   },
   sectionTitleText: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     letterSpacing: 0.2,
   },
   subjectCountPill: {
@@ -671,13 +675,13 @@ const styles = StyleSheet.create({
   subjectCountPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.emeraldPrimary,
+    color: currentTheme.primary,
   },
   viewAllPillBtn: {
     marginTop: 10,
     backgroundColor: 'rgba(0, 230, 118, 0.15)',
     borderWidth: 0.6,
-    borderColor: Colors.emeraldPrimary,
+    borderColor: currentTheme.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -685,7 +689,7 @@ const styles = StyleSheet.create({
   viewAllPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.emeraldPrimary,
+    color: currentTheme.primary,
   },
   ruleNoticeCard: {
     flexDirection: 'row',
@@ -698,7 +702,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 230, 118, 0.18)',
   },
   ruleNoticeText: {
-    color: Colors.textSecondary,
+    color: currentTheme.textSecondary,
     fontSize: 11,
     flex: 1,
   },
@@ -739,10 +743,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   subjName: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
   },
   subjCodeTeacher: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 11,
     marginTop: 1,
   },
@@ -765,7 +769,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   fractionNote: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 12,
   },
   subjStatusBadge: {
@@ -789,14 +793,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.statusPresentBg,
+    backgroundColor: currentTheme.statusPresentBg,
     borderRadius: 8,
     borderWidth: 0.7,
     borderColor: 'rgba(0, 230, 118, 0.35)',
     paddingVertical: 7.5,
   },
   presentActionText: {
-    color: Colors.statusPresent,
+    color: currentTheme.statusPresent,
     fontWeight: '700',
     fontSize: 12,
   },
@@ -806,14 +810,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.statusAbsentBg,
+    backgroundColor: 'rgba(255, 82, 82, 0.14)',
     borderRadius: 8,
     borderWidth: 0.7,
     borderColor: 'rgba(255, 82, 82, 0.35)',
     paddingVertical: 7.5,
   },
   absentActionText: {
-    color: Colors.statusAbsent,
+    color: '#FF5252',
     fontWeight: '700',
     fontSize: 12,
   },
@@ -830,7 +834,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7.5,
   },
   cancelClassActionText: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontWeight: '600',
     fontSize: 11,
   },
@@ -841,7 +845,7 @@ const styles = StyleSheet.create({
   },
   textCancelledStriked: {
     textDecorationLine: 'line-through',
-    color: Colors.textDisabled,
+    color: currentTheme.textDisabled,
   },
   cancelledStatusRow: {
     flex: 1,
@@ -862,7 +866,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cancelledNoticeText: {
-    color: Colors.statusAbsent,
+    color: '#FF5252',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -876,7 +880,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   restoreClassText: {
-    color: Colors.textPrimary,
+    color: currentTheme.textPrimary,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -885,7 +889,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyDayText: {
-    color: Colors.textMuted,
+    color: currentTheme.textMuted,
     fontSize: 13,
   },
   subjHeaderRight: {
@@ -901,3 +905,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
