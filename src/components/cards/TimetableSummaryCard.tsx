@@ -91,13 +91,16 @@ export const TimetableSummaryCard: React.FC<TimetableSummaryCardProps> = ({ onNa
     return { status: 'COMPLETED', label: 'DONE', diffMin: -1 };
   };
 
-  // Find active slots: prioritize showing current/upcoming classes
+  // Dynamic upcoming window: find the first class that is currently active or in the future.
+  // This slides the visible window forward as time passes, so completed classes roll off the top
+  // and the student always sees: current class (if any) + next 2 upcoming classes.
   const activeIndex = todayClasses.findIndex((slot) => {
     const endM = parseTimeToMinutes(slot.endTime);
-    return currentTimeMinutes < endM;
+    return currentTimeMinutes < endM; // not yet ended
   });
 
-  const startIndex = activeIndex >= 0 ? Math.max(0, activeIndex) : 0;
+  // If all classes are done, show the last 3 (so the card is still useful)
+  const startIndex = activeIndex >= 0 ? activeIndex : Math.max(0, todayClasses.length - 3);
   const displaySlots = todayClasses.slice(startIndex, startIndex + 3);
 
   const handleMarkAttendance = (subjectId: string, type: 'present' | 'absent') => {
@@ -116,7 +119,11 @@ export const TimetableSummaryCard: React.FC<TimetableSummaryCardProps> = ({ onNa
           <Text style={[Typography.titleMd, { color: currentTheme.textPrimary }]}>Today's Schedule</Text>
           <View style={[styles.todayCountPill, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}>
             <Text style={[styles.todayCountText, { color: currentTheme.textMuted }]}>
-              {todayClasses.length} {todayClasses.length === 1 ? 'Period' : 'Periods'}
+              {activeIndex >= 0
+                ? `${todayClasses.length - startIndex} Upcoming`
+                : todayClasses.length === 0
+                ? 'No Classes'
+                : 'All Done'}
             </Text>
           </View>
         </View>

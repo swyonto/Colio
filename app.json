@@ -36,7 +36,8 @@
           "icon": "./assets/icon.png",
           "color": "#00E676"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "owner": "sharagaki",
     "extra": {

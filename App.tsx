@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { CampusProvider, useCampus } from './src/context/CampusContext';
 import { GlassHeader } from './src/components/common/GlassHeader';
 import { GlassNavBar } from './src/components/common/GlassNavBar';
+import { AuthScreen } from './src/screens/AuthScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { AttendanceScreen } from './src/screens/AttendanceScreen';
 import { TimetableScreen } from './src/screens/TimetableScreen';
@@ -22,32 +23,73 @@ import { OnboardingSetupScreen } from './src/screens/OnboardingSetupScreen';
 import { Colors } from './src/theme/colors';
 
 const MainAppContent: React.FC = () => {
-  const { activeTab, setActiveTab, currentTheme, isSetupComplete, setIsSetupComplete } = useCampus();
+  const {
+    activeTab,
+    setActiveTab,
+    currentTheme,
+    isSetupComplete,
+    setIsSetupComplete,
+    currentUser,
+    logout,
+  } = useCampus();
   const [activeSubScreen, setActiveSubScreen] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [onboardingStage, setOnboardingStage] = useState<'welcome' | 'setup'>('welcome');
 
-  // New User First-Time Setup Flow (Item 10 Requirement)
+  // Clear any open sub-screen on logout (Must be at top level before conditional returns)
+  useEffect(() => {
+    if (!currentUser) {
+      setActiveSubScreen(null);
+    }
+  }, [currentUser]);
+
+  // Android Hardware Back Button Handler (Must be at top level before conditional returns)
+  useEffect(() => {
+    const backAction = () => {
+      // If in a sub-screen, close it
+      if (activeSubScreen) {
+        setActiveSubScreen(null);
+        return true;
+      }
+      // If on a tab other than home, go to home
+      if (activeTab !== 'home') {
+        setActiveTab('home');
+        return true;
+      }
+      // On home tab → let system handle (exit app)
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [activeSubScreen, activeTab]);
+
+  // === FLOW 1: Auth Gate ===
+  if (!currentUser) {
+    return (
+      <SafeAreaView style={[styles.rootContainer, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
+        <StatusBar style={currentTheme.isDark ? 'light' : 'dark'} />
+        <AuthScreen />
+      </SafeAreaView>
+    );
+  }
+
+  // === FLOW 2: New User Onboarding (Straight to Setup Page) ===
   if (!isSetupComplete) {
     return (
       <SafeAreaView style={[styles.rootContainer, { backgroundColor: currentTheme.bgBase }]} edges={['top', 'left', 'right']}>
         <StatusBar style={currentTheme.isDark ? 'light' : 'dark'} />
-        {onboardingStage === 'welcome' ? (
-          <WelcomeScreen
-            onStartSignUp={() => setOnboardingStage('setup')}
-            onQuickLogin={() => setIsSetupComplete(true)}
-          />
-        ) : (
-          <OnboardingSetupScreen
-            onBackToWelcome={() => setOnboardingStage('welcome')}
-            onFinishSetup={() => {
-              setOnboardingStage('welcome');
-            }}
-          />
-        )}
+        <OnboardingSetupScreen
+          onBackToWelcome={() => logout()}
+          onFinishSetup={() => {
+            setIsSetupComplete(true);
+          }}
+        />
       </SafeAreaView>
     );
   }
+
+  // === FLOW 3: Main App ===
 
   const renderContent = () => {
     // Sub-screens overlay (Back button returns to previous view)

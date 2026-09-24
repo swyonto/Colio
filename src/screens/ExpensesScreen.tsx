@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
@@ -10,6 +10,7 @@ import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
 import { Expense, ExpenseCategory, QuickExpensePreset, TimeOfDay } from '../types/campus';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TIME_FILTERS: { id: string; label: string }[] = [
   { id: 'all', label: 'All Day' },
@@ -45,7 +46,7 @@ export const ExpensesScreen: React.FC = () => {
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
 
   // History View Mode (Cards vs Table) & Lazy Loading / Infinite Scroll
-  const [historyViewMode, setHistoryViewMode] = useState<'cards' | 'table'>('cards');
+  const [historyViewMode, setHistoryViewModeState] = useState<'cards' | 'table'>('cards');
   const PAGE_SIZE = 8;
   const [visibleExpenseCount, setVisibleExpenseCount] = useState<number>(PAGE_SIZE);
 
@@ -66,10 +67,23 @@ export const ExpensesScreen: React.FC = () => {
   const [preAmount, setPreAmount] = useState('');
   const [preCategory, setPreCategory] = useState<ExpenseCategory>('Food');
 
+  // Load persisted view mode on mount
+  useEffect(() => {
+    AsyncStorage.getItem('@colio_expenses_view_mode').then((saved) => {
+      if (saved === 'cards' || saved === 'table') setHistoryViewModeState(saved);
+    }).catch(() => {});
+  }, []);
+
+  const setHistoryViewMode = (mode: 'cards' | 'table') => {
+    setHistoryViewModeState(mode);
+    AsyncStorage.setItem('@colio_expenses_view_mode', mode).catch(() => {});
+  };
+
   // Reset pagination when month or filters change
-  React.useEffect(() => {
+  useEffect(() => {
     setVisibleExpenseCount(PAGE_SIZE);
   }, [selectedMonth, activeTimeFilter, activeCategoryFilter]);
+
 
   // Filtered expense entries
   const monthExpenses = expenses.filter((e) => e.date.startsWith(selectedMonth));
@@ -251,7 +265,7 @@ export const ExpensesScreen: React.FC = () => {
         <View style={styles.sectionBlock}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[Typography.overline, { color: currentTheme.textMuted }]}>
-              QUICK LOG PRESETS (LONG-PRESS TO EDIT)
+              QUICK LOG PRESETS
             </Text>
             <TouchableOpacity
               onPress={() => {

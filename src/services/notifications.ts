@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { isRunningInExpoGo } from 'expo';
 import type { TimetableSlot, Subject, Task } from '../types/campus';
 
 // Safe foreground notification presentation behavior
@@ -76,7 +77,13 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       });
     }
 
-    // Safe retrieval of device token (won't crash in Expo Go or offline)
+    // In Expo Go (SDK 53+), remote push tokens were removed.
+    // Local notifications (lecture alarms, safeguard alerts, briefings) continue to work natively!
+    if (isRunningInExpoGo()) {
+      return null;
+    }
+
+    // Safe retrieval of device token (in standalone APK or Custom Dev Build)
     try {
       const tokenData = await Notifications.getExpoPushTokenAsync({
         projectId: 'b44055ef-1089-4e40-a56e-a130791f8d4e',

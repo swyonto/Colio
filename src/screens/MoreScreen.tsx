@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { ColioLogo } from '../components/common/ColioLogo';
@@ -13,7 +13,7 @@ interface MoreScreenProps {
 }
 
 export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenProfile }) => {
-  const { profile, documents, holidays, pendingTasksCount, currentTheme, syncToCloud, restoreFromCloud, lastSyncTime } = useCampus();
+  const { profile, documents, holidays, pendingTasksCount, currentTheme, syncToCloud, restoreFromCloud, lastSyncTime, logout, currentUser } = useCampus();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -274,6 +274,43 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onOpenSection, onOpenPro
           Offline-first student academic operating system. Pure glassmorphism with dynamic theme personalization.
         </Text>
       </View>
+
+      {/* Logout Button */}
+      <TouchableOpacity
+        style={[styles.logoutBtn, { borderColor: 'rgba(255, 82, 82, 0.35)' }]}
+        onPress={() => {
+          const doLogout = async () => {
+            try {
+              await logout();
+            } catch (e) {
+              console.warn('Logout error:', e);
+            }
+          };
+
+          if (Platform.OS === 'web') {
+            if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out? Your data will remain saved locally.')) {
+              doLogout();
+            }
+            return;
+          }
+          Alert.alert(
+            'Log Out',
+            'Are you sure you want to log out? Your data will remain saved locally.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Log Out',
+                style: 'destructive',
+                onPress: doLogout,
+              },
+            ]
+          );
+        }}
+        activeOpacity={0.8}
+      >
+        <Feather name="log-out" size={16} color="#FF5252" />
+        <Text style={styles.logoutBtnText}>Log Out{currentUser?.email ? ` (${currentUser.email})` : ''}</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -417,5 +454,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 82, 82, 0.08)',
+  },
+  logoutBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF5252',
   },
 });

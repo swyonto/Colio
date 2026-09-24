@@ -93,7 +93,7 @@ export const HolidaysScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                 {/* Date Badge */}
                 <View style={[styles.dateBadge, { borderColor: `${badgeColor}40`, backgroundColor: `${badgeColor}12` }]}>
                   <Text style={[styles.dateBadgeDay, { color: badgeColor }]}>{dayNum}</Text>
-                  <Text style={styles.dateBadgeMonth}>{monthText}</Text>
+                  <Text style={[styles.dateBadgeMonth, { color: badgeColor }]}>{monthText}</Text>
                 </View>
 
                 {/* Details */}

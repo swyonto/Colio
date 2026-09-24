@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,15 +31,19 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
   onBackToWelcome,
   onFinishSetup,
 }) => {
-  const { currentTheme, updateProfile, setTimetableSlots, setIsSetupComplete, subjects } = useCampus();
+  const { currentTheme, updateProfile, setTimetableSlots, setIsSetupComplete, subjects, currentUser } = useCampus();
 
   const [step, setStep] = useState<1 | 2>(1);
 
-  // Step 1: Student Details
-  const [name, setName] = useState('Devon Lane');
-  const [college, setCollege] = useState('Department of Computer Science');
-  const [rollNumber, setRollNumber] = useState('2026CS-I-042');
-  const [course, setCourse] = useState('B.Sc Computer Science (Section - I)');
+  // Step 1: Student Details — pure user input without hardcoded demo values
+  const [name, setName] = useState(
+    currentUser?.name && !currentUser.name.toLowerCase().includes('student') && !currentUser.name.toLowerCase().includes('demo')
+      ? currentUser.name
+      : ''
+  );
+  const [college, setCollege] = useState('');
+  const [rollNumber, setRollNumber] = useState('');
+  const [course, setCourse] = useState('');
   const [semester, setSemester] = useState('1');
 
   // Step 2: Timetable Setup Mode
@@ -84,27 +89,43 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
     }
   };
 
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        window.alert(`${title}: ${message}`);
+      }
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleStep1Next = () => {
     if (!name.trim()) {
-      Alert.alert('Required', 'Please enter your student name.');
+      showAlert('Required', 'Please enter your full name.');
       return;
     }
     if (!college.trim()) {
-      Alert.alert('Required', 'Please enter your college or university.');
+      showAlert('Required', 'Please enter your college or university name.');
       return;
     }
     setStep(2);
   };
 
   const handleFinish = () => {
+    const studentName = name.trim();
+    const collegeName = college.trim();
+    const studentRoll = rollNumber.trim() || 'STU-001';
+    const studentCourse = course.trim() || 'General Academic Studies';
+    const studentSemester = semester ? `Semester ${semester}` : 'Semester 1';
+
     // Save student profile
     updateProfile({
-      name: name.trim(),
-      college: college.trim(),
-      rollNumber: rollNumber.trim() || '2024CS001',
-      course: course.trim() || 'B.Tech - Computer Science',
-      semester: semester ? `Semester ${semester}` : 'Semester 5',
-      appNickname: name.trim().split(' ')[0] || 'Colio',
+      name: studentName,
+      college: collegeName,
+      rollNumber: studentRoll,
+      course: studentCourse,
+      semester: studentSemester,
+      appNickname: studentName.split(' ')[0] || 'Colio',
       isSetupComplete: true,
     });
 
@@ -186,7 +207,7 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
             <View style={styles.formGroup}>
               <GlassInput
                 label="Full Name *"
-                placeholder="e.g. Devon Lane"
+                placeholder="Enter your full name"
                 value={name}
                 onChangeText={setName}
               />
@@ -200,14 +221,14 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
 
               <GlassInput
                 label="Roll Number / Student ID"
-                placeholder="e.g. 2024CSB1042"
+                placeholder="e.g. 2026CS-042"
                 value={rollNumber}
                 onChangeText={setRollNumber}
               />
 
               <GlassInput
                 label="Degree / Major"
-                placeholder="e.g. B.Tech Computer Science & Engineering"
+                placeholder="e.g. B.Tech Computer Science / B.Sc Physics"
                 value={course}
                 onChangeText={setCourse}
               />

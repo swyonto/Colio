@@ -8,6 +8,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { getAuth } from 'firebase/auth';
+
 // Firebase configuration derived from your google-services.json & Firebase project
 const firebaseConfig = {
   apiKey: 'AIzaSyDIn6WYpNXoGI3MgqbBgUUmAToTGXvJmfo',
@@ -19,10 +21,13 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase once
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Cloud Firestore database
 export const db = getFirestore(app);
+
+// Initialize Firebase Auth
+export const auth = getAuth(app);
 
 export interface CloudStudentBackup {
   profile: any;

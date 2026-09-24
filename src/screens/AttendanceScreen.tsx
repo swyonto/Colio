@@ -344,6 +344,16 @@ export const AttendanceScreen: React.FC = () => {
                       </View>
                     </View>
 
+                    {/* Edit Button + Status Pill */}
+                    <View style={styles.subjHeaderRight}>
+                      <TouchableOpacity
+                        style={[styles.subjEditBtn, { backgroundColor: currentTheme.bgCardSecondary }]}
+                        onPress={() => handleOpenEdit(subj)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="edit-2" size={13} color={currentTheme.textMuted} />
+                      </TouchableOpacity>
+
                     {/* Status Pill Indicator */}
                     <View
                       style={[
@@ -376,6 +386,7 @@ export const AttendanceScreen: React.FC = () => {
                       >
                         {isCancelled ? 'Cancelled' : isSubjSafe ? `Safe (+${subjCanMiss})` : 'Critical'}
                       </Text>
+                    </View>
                     </View>
                   </View>
 
@@ -876,5 +887,17 @@ const styles = StyleSheet.create({
   emptyDayText: {
     color: Colors.textMuted,
     fontSize: 13,
+  },
+  subjHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  subjEditBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

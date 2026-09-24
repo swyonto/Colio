@@ -32,6 +32,21 @@ import {
   scheduleTaskDeadlineReminder,
 } from '../services/notifications';
 
+import {
+  AuthUser,
+  sendSignupOtp,
+  verifySignupOtp,
+  loginWithEmail,
+  requestPasswordReset,
+  completePasswordReset,
+  authenticateWithGoogleAccount,
+  triggerGoogleSignIn,
+  logoutSession,
+  checkRealEmailVerified,
+  resendRealVerificationEmail,
+} from '../services/authService';
+export type { AuthUser };
+
 export interface NotificationPreferences {
   classReminders: boolean;
   classReminderLeadMinutes: number; // 5, 10, or 15
@@ -41,6 +56,19 @@ export interface NotificationPreferences {
 }
 
 interface CampusContextType {
+  // Authentication & Session
+  currentUser: AuthUser | null;
+  login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, pass: string, name: string) => Promise<{ success: boolean; otp?: string; error?: string }>;
+  verifySignup: (email: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+  checkEmailVerification: (email: string) => Promise<{ success: boolean; error?: string }>;
+  resendVerificationEmail: (email?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (profile?: { email?: string; name?: string; avatarUrl?: string; googleUid?: string }) => Promise<{ success: boolean; error?: string }>;
+  loginAsGuest: () => void;
+  logout: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; resetCode?: string; error?: string }>;
+  completePasswordReset: (email: string, code: string, newPass: string) => Promise<{ success: boolean; error?: string }>;
+
   // Tabs & Navigation
   activeTab: TabKey;
   setActiveTab: (tab: TabKey) => void;
@@ -54,6 +82,8 @@ interface CampusContextType {
   subjects: Subject[];
   adjustSubjectAttendance: (subjectId: string, presentDelta: number, absentDelta: number) => void;
   setSubjectAttendance: (subjectId: string, present: number, absent: number) => void;
+  dailyAttendanceLogs: Record<string, 'present' | 'absent'>;
+  recordSlotAttendance: (dateStr: string, slotKey: string, subjectId: string, status: 'present' | 'absent') => void;
   overallAttendance: number;
   totalPresent: number;
   totalClasses: number;
@@ -110,6 +140,8 @@ interface CampusContextType {
   resetAllData: () => Promise<void>;
   appTheme: AppThemeKey;
   setAppTheme: (theme: AppThemeKey) => void;
+  themePreference: 'system' | AppThemeKey;
+  setThemePreference: (pref: 'system' | AppThemeKey) => void;
   currentTheme: ThemeColors;
   classRemindersEnabled: boolean;
   setClassRemindersEnabled: (enabled: boolean) => void;
@@ -172,9 +204,16 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
+  // Auth state
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  // Daily Attendance Logs (slot-level, per date)
+  const [dailyAttendanceLogs, setDailyAttendanceLogs] = useState<Record<string, 'present' | 'absent'>>({});
+
   // Dynamic Preferences
   const [attendanceCriteria, setAttendanceCriteriaState] = useState<number>(68);
   const [appTheme, setAppThemeState] = useState<AppThemeKey>('dark-emerald');
+  const [themePreference, setThemePreferenceState] = useState<'system' | AppThemeKey>('dark-emerald');
   const [classRemindersEnabled, setClassRemindersEnabledState] = useState(true);
   const [hapticsEnabled, setHapticsEnabledState] = useState(true);
 
@@ -190,7 +229,183 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     triggerHapticFeedback('selection');
     applyTheme(theme);
     setAppThemeState(theme);
+    setThemePreferenceState(theme);
     AsyncStorage.setItem(STORAGE_KEYS.APP_THEME, theme).catch(() => {});
+  };
+
+  const setThemePreference = (pref: 'system' | AppThemeKey) => {
+    setThemePreferenceState(pref);
+    if (pref !== 'system') {
+      setAppTheme(pref);
+    }
+  };
+
+  // --- Real Auth methods wired to authService & Firebase ---
+  const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+    const res = await loginWithEmail(email, pass);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+    }
+    return res;
+  };
+
+  const signup = async (
+    email: string,
+    pass: string,
+    name: string
+  ): Promise<{ success: boolean; otp?: string; error?: string }> => {
+    return await sendSignupOtp(email, name, pass);
+  };
+
+  const verifySignup = async (
+    email: string,
+    otp: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const res = await verifySignupOtp(email, otp);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+      setIsSetupCompleteState(false);
+      await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'false').catch(() => {});
+      if (res.user.name) {
+        updateProfile({ name: res.user.name });
+      }
+    }
+    return res;
+  };
+
+  const checkEmailVerification = async (
+    email: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const res = await checkRealEmailVerified(email);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+      setIsSetupCompleteState(false);
+      await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'false').catch(() => {});
+      if (res.user.name) {
+        updateProfile({ name: res.user.name });
+      }
+    }
+    return res;
+  };
+
+  const resendVerificationEmail = async (
+    email?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const targetEmail = email?.trim() || currentUser?.email || '';
+    return await resendRealVerificationEmail(targetEmail);
+  };
+
+  const loginWithGoogle = async (
+    profile?: { email?: string; name?: string; avatarUrl?: string; googleUid?: string }
+  ): Promise<{ success: boolean; error?: string }> => {
+    let emailToUse = profile?.email;
+    let nameToUse = profile?.name || '';
+    let avatarToUse = profile?.avatarUrl;
+    let uidToUse = profile?.googleUid;
+
+    // If no email was passed, trigger real Google API (shows Google account chooser!)
+    if (!emailToUse) {
+      const googleRes = await triggerGoogleSignIn();
+      if (!googleRes.success || !googleRes.email) {
+        return { success: false, error: googleRes.error || 'Google authentication was cancelled.' };
+      }
+      emailToUse = googleRes.email;
+      nameToUse = googleRes.name || '';
+      avatarToUse = googleRes.avatarUrl;
+      uidToUse = googleRes.googleUid;
+    }
+
+    const cleanEmail = emailToUse.trim().toLowerCase();
+    const res = await authenticateWithGoogleAccount({
+      email: cleanEmail,
+      name: nameToUse.trim(),
+      avatarUrl: avatarToUse,
+      googleUid: uidToUse,
+    });
+
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+      if (res.isNewUser) {
+        // Reset profile so new user enters their actual student details on the Setup page
+        setProfile((prev) => ({
+          ...prev,
+          name: '',
+          college: '',
+          rollNumber: '',
+          course: '',
+          isSetupComplete: false,
+        }));
+        setIsSetupCompleteState(false);
+        await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'false').catch(() => {});
+        await AsyncStorage.removeItem(STORAGE_KEYS.PROFILE).catch(() => {});
+      } else {
+        // Existing user — restore cloud backup if available
+        try {
+          const cloudBackup = await fetchUserDataFromCloud(res.user.uid || res.user.email);
+          if (cloudBackup?.profile) {
+            setProfile(cloudBackup.profile);
+            if (cloudBackup.profile.isSetupComplete) {
+              setIsSetupCompleteState(true);
+              await AsyncStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'true').catch(() => {});
+            }
+          }
+        } catch {}
+      }
+    }
+    return res;
+  };
+
+  const loginAsGuest = () => {
+    // Deprecated no-op: guests are disabled for strict auth protection
+  };
+
+  const logout = async () => {
+    await logoutSession();
+    setCurrentUser(null);
+  };
+
+  const requestPasswordResetHandler = async (
+    email: string
+  ): Promise<{ success: boolean; resetCode?: string; error?: string }> => {
+    return await requestPasswordReset(email);
+  };
+
+  const completePasswordResetHandler = async (
+    email: string,
+    code: string,
+    newPass: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    return await completePasswordReset(email, code, newPass);
+  };
+
+  // --- Daily slot attendance recording ---
+  const recordSlotAttendance = (dateStr: string, slotKey: string, subjectId: string, status: 'present' | 'absent') => {
+    const key = `${dateStr}_${slotKey}`;
+    setDailyAttendanceLogs((prev) => {
+      const existing = prev[key];
+      const updated = { ...prev };
+
+      if (existing === status) {
+        // Same tap: unmark (decrement count, remove log)
+        delete updated[key];
+        adjustSubjectAttendance(subjectId, status === 'present' ? -1 : 0, status === 'absent' ? -1 : 0);
+      } else if (existing) {
+        // Different status: switch (un-mark old, mark new)
+        updated[key] = status;
+        adjustSubjectAttendance(
+          subjectId,
+          status === 'present' ? 1 : -1,  // +1 present or -1 present
+          status === 'absent' ? 1 : -1     // +1 absent or -1 absent
+        );
+      } else {
+        // First mark
+        updated[key] = status;
+        adjustSubjectAttendance(subjectId, status === 'present' ? 1 : 0, status === 'absent' ? 1 : 0);
+      }
+
+      AsyncStorage.setItem('@colio_attendance_logs_v2', JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
   };
 
   const setClassRemindersEnabled = (enabled: boolean) => {
@@ -301,6 +516,18 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         // Register for push notifications on app launch
         registerForPushNotificationsAsync().catch(() => {});
+
+        // Load auth user (strictly require authenticated session)
+        const savedAuthUser = await AsyncStorage.getItem('@colio_auth_user_v2').catch(() => null);
+        if (savedAuthUser) {
+          try { setCurrentUser(JSON.parse(savedAuthUser)); } catch {}
+        }
+
+        // Load daily attendance logs
+        const savedAttLogs = await AsyncStorage.getItem('@colio_attendance_logs_v2').catch(() => null);
+        if (savedAttLogs) {
+          try { setDailyAttendanceLogs(JSON.parse(savedAttLogs)); } catch {}
+        }
       } catch (err) {
         console.warn('Error restoring storage:', err);
       } finally {
@@ -742,6 +969,24 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <CampusContext.Provider
       value={{
+        // Auth
+        currentUser,
+        login,
+        signup,
+        verifySignup,
+        checkEmailVerification,
+        resendVerificationEmail,
+        loginWithGoogle,
+        loginAsGuest,
+        logout,
+        requestPasswordReset: requestPasswordResetHandler,
+        completePasswordReset: completePasswordResetHandler,
+        // Daily attendance logs
+        dailyAttendanceLogs,
+        recordSlotAttendance,
+        // Theme preference
+        themePreference,
+        setThemePreference,
         activeTab,
         setActiveTab,
         isLoading,

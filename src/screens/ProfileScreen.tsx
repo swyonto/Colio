@@ -10,6 +10,7 @@ import {
   Modal,
   Switch,
   Alert,
+  Platform,
 } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -67,6 +68,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
     isSyncing,
     syncToCloud,
     resetAllData,
+    logout,
+    currentUser,
   } = useCampus();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -992,6 +995,53 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           >
             <Feather name="refresh-cw" size={14} color="#FF5252" />
             <Text style={styles.resetAllBtnText}>Reset All Data & Restart Setup</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 6. Account & Logout */}
+        <View style={[styles.sectionCard, { backgroundColor: currentTheme.bgSurface, borderColor: currentTheme.borderGlass }]}>
+          <View style={[styles.sectionHeaderRow, { borderBottomColor: currentTheme.borderGlass }]}>
+            <Feather name="user" size={15} color={currentTheme.primary} />
+            <Text style={[styles.sectionTitle, { color: currentTheme.primary }]}>Account</Text>
+          </View>
+          {currentUser && (
+            <View style={{ gap: 4, marginBottom: 8 }}>
+              <Text style={[styles.fieldLabel, { color: currentTheme.textPrimary }]}>{currentUser.name}</Text>
+              <Text style={[styles.fieldHint, { color: currentTheme.textMuted }]}>{currentUser.email}{currentUser.isGuest ? ' (Guest)' : ''}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.resetAllBtn, { backgroundColor: 'rgba(255, 82, 82, 0.12)', borderColor: 'rgba(255, 82, 82, 0.35)' }]}
+            onPress={async () => {
+              const doLogout = async () => {
+                try {
+                  onBack();
+                  await logout();
+                } catch (e) {
+                  console.warn('Logout error:', e);
+                }
+              };
+
+              if (Platform.OS === 'web') {
+                if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out? Your data will remain saved.')) {
+                  await doLogout();
+                }
+                return;
+              }
+
+              Alert.alert(
+                'Log Out',
+                'Are you sure you want to log out? Your data will remain saved locally.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Log Out', style: 'destructive', onPress: doLogout },
+                ]
+              );
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="log-out" size={14} color="#FF5252" />
+            <Text style={styles.resetAllBtnText}>Log Out</Text>
           </TouchableOpacity>
         </View>
 

@@ -40,8 +40,13 @@ export const TimetableScreen: React.FC = () => {
     updateTimetableSlot,
     addTimetableSlot,
     deleteTimetableSlot,
+    dailyAttendanceLogs,
+    recordSlotAttendance,
     currentTheme,
   } = useCampus();
+
+  // Today's date key for attendance log lookup
+  const todayDateStr = new Date().toISOString().slice(0, 10); // e.g. "2026-09-24"
 
   // Real calendar dates for Monday - Saturday of current week
   const getWeekDates = () => {
@@ -238,6 +243,7 @@ export const TimetableScreen: React.FC = () => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.daysScroll}
+          style={styles.daysScrollView}
         >
           {weekDates.map((d) => {
             const isSelected = selectedDay === d.day;
@@ -353,11 +359,11 @@ export const TimetableScreen: React.FC = () => {
             {/* Header info badge */}
             <View style={[styles.matrixHeaderCard, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
               <View style={styles.matrixHeaderRow}>
-                <View>
-                  <Text style={[styles.matrixCollegeTitle, { color: currentTheme.textPrimary }]}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={[styles.matrixCollegeTitle, { color: currentTheme.textPrimary }]} numberOfLines={1}>
                     Department of Computer Science
                   </Text>
-                  <Text style={[styles.matrixClassSubtitle, { color: currentTheme.primary }]}>
+                  <Text style={[styles.matrixClassSubtitle, { color: currentTheme.primary }]} numberOfLines={1}>
                     First Year (Section - I) • Class Timetable (2026 – 27)
                   </Text>
                 </View>
@@ -613,13 +619,13 @@ export const TimetableScreen: React.FC = () => {
                       <View style={[styles.periodPill, { backgroundColor: currentTheme.bgElevated }]}>
                         <Text style={[styles.periodPillText, { color: currentTheme.textMuted }]}>P{period}</Text>
                       </View>
-                      <Text style={[styles.listEmptyPeriodText, { color: currentTheme.textMuted }]}>
-                        Period {period} ({time}) — Free Slot
+                      <Text style={[styles.listEmptyPeriodText, { color: currentTheme.textMuted }]} numberOfLines={1}>
+                        P{period} ({time}) — Free
                       </Text>
                     </View>
                     <View style={[styles.addSlotBtn, { borderColor: currentTheme.primary + '50' }]}>
                       <Feather name="plus" size={13} color={currentTheme.primary} />
-                      <Text style={[styles.addSlotBtnText, { color: currentTheme.primary }]}>Assign Class</Text>
+                      <Text style={[styles.addSlotBtnText, { color: currentTheme.primary }]}>Assign</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -630,11 +636,28 @@ export const TimetableScreen: React.FC = () => {
                   key={period}
                   style={[
                     styles.listItemCard,
-                    { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass },
+                    {
+                      backgroundColor: currentTheme.bgCard,
+                      borderColor:
+                        dailyAttendanceLogs[`${todayDateStr}_${slot.id}`] === 'present'
+                          ? currentTheme.statusPresent + '60'
+                          : dailyAttendanceLogs[`${todayDateStr}_${slot.id}`] === 'absent'
+                          ? '#FF5252' + '60'
+                          : currentTheme.borderGlass,
+                      borderWidth:
+                        dailyAttendanceLogs[`${todayDateStr}_${slot.id}`] ? 1.5 : 0.8,
+                    },
                   ]}
                 >
                   {/* Left Colored Accent Stripe */}
-                  <View style={[styles.coloredStripe, { backgroundColor: subj!.color }]} />
+                  <View style={[styles.coloredStripe, {
+                    backgroundColor:
+                      dailyAttendanceLogs[`${todayDateStr}_${slot.id}`] === 'present'
+                        ? currentTheme.statusPresent
+                        : dailyAttendanceLogs[`${todayDateStr}_${slot.id}`] === 'absent'
+                        ? '#FF5252'
+                        : subj!.color
+                  }]} />
 
                   <View style={styles.listItemContent}>
                     {/* Period Header Row */}
@@ -679,26 +702,67 @@ export const TimetableScreen: React.FC = () => {
                       </Text>
                     </View>
 
-                    {/* Mark Attendance Row */}
-                    <View style={[styles.attendanceActionRow, { borderTopColor: currentTheme.borderGlass }]}>
-                      <TouchableOpacity
-                        style={[styles.markPresentBtn, { backgroundColor: currentTheme.statusPresentBg, borderColor: currentTheme.statusPresent + '40' }]}
-                        onPress={() => adjustSubjectAttendance(slot.subjectId, 1, 0)}
-                      >
-                        <MaterialIcons name="check" size={15} color={currentTheme.statusPresent} />
-                        <Text style={[styles.markPresentText, { color: currentTheme.statusPresent }]}>
-                          Mark Present
-                        </Text>
-                      </TouchableOpacity>
+                    {/* Mark Attendance Row — Smart Toggle with visual state */}
+                    {(() => {
+                      const logKey = `${todayDateStr}_${slot.id}`;
+                      const markedStatus = dailyAttendanceLogs[logKey];
+                      const isPresent = markedStatus === 'present';
+                      const isAbsent = markedStatus === 'absent';
 
-                      <TouchableOpacity
-                        style={[styles.markAbsentBtn, { backgroundColor: 'rgba(255, 82, 82, 0.12)', borderColor: 'rgba(255, 82, 82, 0.35)' }]}
-                        onPress={() => adjustSubjectAttendance(slot.subjectId, 0, 1)}
-                      >
-                        <MaterialIcons name="close" size={15} color="#FF5252" />
-                        <Text style={styles.markAbsentText}>Mark Absent</Text>
-                      </TouchableOpacity>
-                    </View>
+                      return (
+                        <View style={[styles.attendanceActionRow, { borderTopColor: currentTheme.borderGlass }]}>
+                          {/* PRESENT button */}
+                          <TouchableOpacity
+                            style={[
+                              styles.markPresentBtn,
+                              {
+                                backgroundColor: isPresent ? currentTheme.statusPresent + '28' : currentTheme.statusPresentBg,
+                                borderColor: isPresent ? currentTheme.statusPresent : currentTheme.statusPresent + '40',
+                                borderWidth: isPresent ? 1.5 : 0.8,
+                              },
+                            ]}
+                            onPress={() => {
+                              triggerHapticFeedback('light');
+                              recordSlotAttendance(todayDateStr, slot.id, slot.subjectId, 'present');
+                            }}
+                          >
+                            <MaterialIcons
+                              name={isPresent ? 'check-circle' : 'check'}
+                              size={15}
+                              color={currentTheme.statusPresent}
+                            />
+                            <Text style={[styles.markPresentText, { color: currentTheme.statusPresent, fontWeight: isPresent ? '700' : '600' }]}>
+                              {isPresent ? '✓ Attended' : 'Mark Present'}
+                            </Text>
+                          </TouchableOpacity>
+
+                          {/* ABSENT button */}
+                          <TouchableOpacity
+                            style={[
+                              styles.markAbsentBtn,
+                              {
+                                backgroundColor: isAbsent ? 'rgba(255, 82, 82, 0.22)' : 'rgba(255, 82, 82, 0.12)',
+                                borderColor: isAbsent ? 'rgba(255, 82, 82, 0.8)' : 'rgba(255, 82, 82, 0.35)',
+                                borderWidth: isAbsent ? 1.5 : 0.8,
+                              },
+                            ]}
+                            onPress={() => {
+                              triggerHapticFeedback('medium');
+                              recordSlotAttendance(todayDateStr, slot.id, slot.subjectId, 'absent');
+                            }}
+                          >
+                            <MaterialIcons
+                              name={isAbsent ? 'cancel' : 'close'}
+                              size={15}
+                              color="#FF5252"
+                            />
+                            <Text style={[styles.markAbsentText, { fontWeight: isAbsent ? '700' : '600' }]}>
+                              {isAbsent ? '✕ Absent' : 'Mark Absent'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })()}
                   </View>
                 </View>
               );
@@ -813,6 +877,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
+  },
+  daysScrollView: {
+    flex: 1,
   },
   daysScroll: {
     gap: 6,
@@ -1011,12 +1078,16 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   listEmptyLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginRight: 8,
+    overflow: 'hidden',
   },
   listEmptyPeriodText: {
     fontSize: 12,
+    flex: 1,
   },
   addSlotBtn: {
     flexDirection: 'row',
@@ -1310,17 +1381,21 @@ const styles = StyleSheet.create({
     margin: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+    maxWidth: 72,
   },
   matrixCellCode: {
     fontSize: 11,
     fontWeight: '800',
     textAlign: 'center',
+    width: 68,
   },
   matrixCellRoom: {
     fontSize: 9,
     fontWeight: '600',
     marginTop: 2,
     textAlign: 'center',
+    width: 68,
   },
   matrixLegendCard: {
     marginHorizontal: 16,
