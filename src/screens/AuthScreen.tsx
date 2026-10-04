@@ -67,14 +67,13 @@ export const AuthScreen: React.FC = () => {
   const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || undefined;
   const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || undefined;
 
-  // Configure Google Auth Request without forcing a custom scheme that violates Google's Web OAuth policy
+  // Configure Google Auth Request (uses Authorization Code flow with PKCE on Android, avoiding unsupported_response_type)
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: WEB_CLIENT_ID,
     webClientId: WEB_CLIENT_ID,
     androidClientId: ANDROID_CLIENT_ID,
-    responseType: 'id_token',
     selectAccount: true,
-    scopes: ['profile', 'email'],
+    scopes: ['openid', 'profile', 'email'],
   });
 
   // Handle Google native auth response
@@ -90,7 +89,7 @@ export const AuthScreen: React.FC = () => {
           if (!res.success) setError(res.error || 'Google sign-in failed.');
           else triggerHapticFeedback('success');
         });
-      } else {
+      } else if (!(response as any).params?.code) {
         setError('Google sign-in did not return a valid token. Please try again.');
       }
     } else if (response?.type === 'error') {
