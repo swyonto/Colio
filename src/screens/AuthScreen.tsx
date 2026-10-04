@@ -72,6 +72,7 @@ export const AuthScreen: React.FC = () => {
     clientId: WEB_CLIENT_ID,
     webClientId: WEB_CLIENT_ID,
     androidClientId: ANDROID_CLIENT_ID,
+    responseType: 'id_token',
     selectAccount: true,
     scopes: ['profile', 'email'],
   });

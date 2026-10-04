@@ -2,7 +2,7 @@
   "expo": {
     "name": "Colio",
     "slug": "campusos",
-    "scheme": "colio",
+    "scheme": ["colio", "swyonto.colio"],
     "version": "2.10.26",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,6 +24,16 @@
         "backgroundColor": "#050907",
         "foregroundImage": "./assets/icon.png"
       },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            { "scheme": "colio" },
+            { "scheme": "swyonto.colio" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
