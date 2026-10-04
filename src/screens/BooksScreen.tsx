@@ -9,6 +9,8 @@ import {
   Modal,
   Platform,
   Alert,
+  Linking,
+  Share,
 } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -41,6 +43,60 @@ export const BooksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [userNotes, setUserNotes] = useState<{ [docId: string]: string }>({});
   const [currentNoteText, setCurrentNoteText] = useState('');
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
+
+  // External PDF Viewer & Sharing Handlers
+  const handleOpenExternalPdf = async (doc?: DocumentItem | null) => {
+    const target = doc || previewDoc;
+    if (!target?.uri) {
+      Alert.alert('Offline Note', 'This item is an offline text note with no external PDF file attached.');
+      return;
+    }
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') {
+          window.open(target.uri, '_blank');
+        }
+        return;
+      }
+      const canOpen = await Linking.canOpenURL(target.uri).catch(() => false);
+      if (canOpen) {
+        await Linking.openURL(target.uri);
+      } else {
+        await Share.share({
+          url: target.uri,
+          title: target.title,
+          message: `Colio Study Document: ${target.title}`,
+        });
+      }
+    } catch {
+      try {
+        await Share.share({
+          url: target.uri,
+          title: target.title,
+          message: `Colio Study Document: ${target.title}`,
+        });
+      } catch {
+        Alert.alert('Open File', `Unable to open file: ${target.filename}`);
+      }
+    }
+  };
+
+  const handleSharePdf = async (doc?: DocumentItem | null) => {
+    const target = doc || previewDoc;
+    if (!target?.uri) {
+      Alert.alert('No File', 'No file available to share.');
+      return;
+    }
+    try {
+      await Share.share({
+        url: target.uri,
+        title: target.title,
+        message: `Study Resource: ${target.title} (${target.filename})`,
+      });
+    } catch (e) {
+      console.warn('Share error:', e);
+    }
+  };
 
   // Document Picker Handler
   const handlePickDocument = async () => {
@@ -284,15 +340,25 @@ export const BooksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
                   {/* Right Actions: Read & Delete */}
                   <View style={styles.docActions}>
+                    {doc.uri && (
+                      <TouchableOpacity
+                        style={[styles.openBtn, { backgroundColor: currentTheme.primary + '18' }]}
+                        onPress={() => handleOpenExternalPdf(doc)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="external-link" size={14} color={currentTheme.primary} />
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
-                      style={[styles.openBtn, { backgroundColor: currentTheme.primary + '18' }]}
+                      style={[styles.openBtn, { backgroundColor: currentTheme.bgCardSecondary }]}
                       onPress={() => {
                         setPreviewDoc(doc);
                         setCurrentNoteText(userNotes[doc.id] || '');
                       }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Feather name="book-open" size={15} color={currentTheme.primary} />
+                      <Feather name="book-open" size={15} color={currentTheme.textPrimary} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -447,8 +513,18 @@ export const BooksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </Text>
             </View>
 
-            {/* Reader Controls (Font Size & Theme) */}
+            {/* Reader Controls (Font Size, Theme, External PDF, Notes) */}
             <View style={styles.readerControls}>
+              {/* External PDF launcher if file attached */}
+              {previewDoc?.uri && (
+                <TouchableOpacity
+                  onPress={() => handleOpenExternalPdf(previewDoc)}
+                  style={[styles.readerControlBtn, { backgroundColor: currentTheme.primary + '18', borderColor: currentTheme.primary + '40' }]}
+                >
+                  <Feather name="external-link" size={14} color={currentTheme.primary} />
+                </TouchableOpacity>
+              )}
+
               {/* Font Size Toggle */}
               <TouchableOpacity
                 onPress={() => {
@@ -527,6 +603,44 @@ export const BooksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </View>
                 </View>
 
+                {/* Native PDF Document Action Banner if local URI is present */}
+                {previewDoc?.uri && (
+                  <View style={[styles.pdfNativeActionCard, { backgroundColor: currentTheme.primary + '12', borderColor: currentTheme.primary + '35' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={[styles.pdfNativeIconBox, { backgroundColor: currentTheme.primary + '25' }]}>
+                        <MaterialIcons name="picture-as-pdf" size={24} color={currentTheme.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.pdfNativeFileName, { color: rTheme.text }]} numberOfLines={1}>
+                          {previewDoc.filename}
+                        </Text>
+                        <Text style={[styles.pdfNativeFileSize, { color: currentTheme.primary }]}>
+                          {previewDoc.size} • Original PDF File Ready
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                      <TouchableOpacity
+                        style={[styles.pdfNativeLaunchBtn, { backgroundColor: currentTheme.primary }]}
+                        onPress={() => handleOpenExternalPdf(previewDoc)}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="external-link" size={14} color={currentTheme.isDark ? '#050907' : '#FFFFFF'} />
+                        <Text style={[styles.pdfNativeLaunchText, { color: currentTheme.isDark ? '#050907' : '#FFFFFF' }]}>
+                          Open in System PDF Viewer
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.pdfNativeShareBtn, { backgroundColor: rTheme.card, borderColor: rTheme.border }]}
+                        onPress={() => handleSharePdf(previewDoc)}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="share-2" size={14} color={rTheme.text} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
                 {/* Document Reading Body */}
                 <View style={styles.readingArticle}>
                   <Text style={[styles.readingTitleText, { color: rTheme.text }]}>
@@ -576,8 +690,7 @@ export const BooksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                 style={[
                                   styles.articleBulletText,
                                   { color: rTheme.text, fontSize: fontSizes[readerFontSize] },
-                                ]}
-                              >
+                                ]}>
                                 {line.replace('- ', '')}
                               </Text>
                             </View>
@@ -602,27 +715,18 @@ export const BooksScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       /* Default academic overview when content not provided */
                       <View style={{ gap: 14 }}>
                         <Text style={[styles.articleHeading2, { color: currentTheme.primary, fontSize: fontSizes[readerFontSize] + 3 }]}>
-                          1. Overview & Core Learning Objectives
+                          1. Attached PDF Document
                         </Text>
                         <Text style={[styles.articleParagraph, { color: rTheme.text, fontSize: fontSizes[readerFontSize] }]}>
-                          This academic document contains comprehensive reference notes, chapter questions, and revision summaries for {previewDoc?.title}. Ensure you cross-reference syllabus checkpoints prior to semester exams.
+                          This academic document has an attached file ({previewDoc?.filename}). Tap "Open in System PDF Viewer" above to view complete chapters, vector diagrams, and formulas in your phone's native PDF reader (Google Drive, Adobe Acrobat, Apple Books).
                         </Text>
 
                         <Text style={[styles.articleHeading2, { color: currentTheme.primary, fontSize: fontSizes[readerFontSize] + 3 }]}>
-                          2. Key Takeaways & Exam Tips
+                          2. Study Notes & Annotations
                         </Text>
-                        <View style={styles.articleBulletRow}>
-                          <Text style={[styles.articleBulletDot, { color: currentTheme.primary }]}>•</Text>
-                          <Text style={[styles.articleBulletText, { color: rTheme.text, fontSize: fontSizes[readerFontSize] }]}>
-                            Understand theoretical frameworks and practical case implementations.
-                          </Text>
-                        </View>
-                        <View style={styles.articleBulletRow}>
-                          <Text style={[styles.articleBulletDot, { color: currentTheme.primary }]}>•</Text>
-                          <Text style={[styles.articleBulletText, { color: rTheme.text, fontSize: fontSizes[readerFontSize] }]}>
-                            Review previous question papers and highlight key formulas in the study notes tab.
-                          </Text>
-                        </View>
+                        <Text style={[styles.articleParagraph, { color: rTheme.text, fontSize: fontSizes[readerFontSize] }]}>
+                          Tap the pencil icon in the top right to open your private study notes drawer and record important exam formulas, lecture notes, and revision checklists.
+                        </Text>
 
                         <Text style={[styles.articleHeading2, { color: currentTheme.primary, fontSize: fontSizes[readerFontSize] + 3 }]}>
                           3. Reference Metadata
@@ -1030,5 +1134,49 @@ const styles = StyleSheet.create({
     padding: 10,
     minHeight: 70,
     textAlignVertical: 'top',
+  },
+  pdfNativeActionCard: {
+    borderRadius: 12,
+    borderWidth: 0.8,
+    padding: 14,
+    marginBottom: 16,
+  },
+  pdfNativeIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pdfNativeFileName: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pdfNativeFileSize: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  pdfNativeLaunchBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  pdfNativeLaunchText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pdfNativeShareBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 0.8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

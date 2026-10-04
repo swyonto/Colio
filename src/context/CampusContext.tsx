@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Subject,
@@ -88,6 +88,8 @@ interface CampusContextType {
   overallAttendance: number;
   totalPresent: number;
   totalClasses: number;
+  dutyLeavesCount: number;
+  holidaysCount: number;
   classesCanMiss: number;
   classesNeeded: number;
   attendanceCriteria: number;
@@ -528,16 +530,20 @@ export const CampusProvider: React.FC<{ children: React.ReactNode; initialTheme?
     AsyncStorage.setItem(STORAGE_KEYS.TIMETABLE_MODE, mode).catch(() => {});
   };
 
-  // --- Dynamic Attendance Calculations (Based on current attendanceCriteria) ---
+  // --- Dynamic Attendance Calculations (Based on current attendanceCriteria & Duty Leaves) ---
   const ATTENDANCE_CRITERIA_RATIO = attendanceCriteria / 100;
+  const dutyLeavesCount = holidays.filter((h) => h.type === 'DUTY_LEAVE').length;
+  const holidaysCount = holidays.filter((h) => h.type === 'HOLIDAY').length;
   const totalPresent = subjects.reduce((sum, s) => sum + s.present, 0);
   const totalAbsent = subjects.reduce((sum, s) => sum + s.absent, 0);
   const totalClasses = totalPresent + totalAbsent;
-  const overallAttendance = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 100;
+  // Duty leave credit is factored into attendance calculations
+  const effectivePresent = totalPresent + dutyLeavesCount;
+  const overallAttendance = totalClasses > 0 ? Math.min(100, Math.round((effectivePresent / totalClasses) * 100)) : 100;
 
   // Classes can miss vs needed for attendanceCriteria
-  const classesCanMiss = Math.max(0, Math.floor((totalPresent - ATTENDANCE_CRITERIA_RATIO * totalClasses) / ATTENDANCE_CRITERIA_RATIO));
-  const classesNeeded = Math.max(0, Math.ceil((ATTENDANCE_CRITERIA_RATIO * totalClasses - totalPresent) / (1 - ATTENDANCE_CRITERIA_RATIO)));
+  const classesCanMiss = Math.max(0, Math.floor((effectivePresent - ATTENDANCE_CRITERIA_RATIO * totalClasses) / ATTENDANCE_CRITERIA_RATIO));
+  const classesNeeded = Math.max(0, Math.ceil((ATTENDANCE_CRITERIA_RATIO * totalClasses - effectivePresent) / (1 - ATTENDANCE_CRITERIA_RATIO)));
 
   const adjustSubjectAttendance = (subjectId: string, presentDelta: number, absentDelta: number) => {
     triggerHapticFeedback('light');
@@ -858,6 +864,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode; initialTheme?
         documents: cloudSafeDocuments,
         attendanceLogs: dailyAttendanceLogs,
         monthlyAttendanceHistory,
+        holidays,
       });
 
       if (success) {
@@ -915,6 +922,10 @@ export const CampusProvider: React.FC<{ children: React.ReactNode; initialTheme?
       if (backup.monthlyAttendanceHistory && backup.monthlyAttendanceHistory.length > 0) {
         setMonthlyAttendanceHistory(backup.monthlyAttendanceHistory);
         AsyncStorage.setItem(STORAGE_KEYS.MONTHLY_ATTENDANCE, JSON.stringify(backup.monthlyAttendanceHistory)).catch(() => {});
+      }
+      if (backup.holidays && backup.holidays.length > 0) {
+        setHolidays(backup.holidays);
+        AsyncStorage.setItem(STORAGE_KEYS.HOLIDAYS, JSON.stringify(backup.holidays)).catch(() => {});
       }
 
       const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -1104,98 +1115,143 @@ export const CampusProvider: React.FC<{ children: React.ReactNode; initialTheme?
     }
   };
 
+  const contextValue = useMemo<CampusContextType>(
+    () => ({
+      // Auth
+      currentUser,
+      login,
+      signup,
+      checkEmailVerification,
+      resendVerificationEmail: resendVerificationEmailHandler,
+      loginWithGoogle,
+      signInWithGoogleToken: signInWithGoogleTokenHandler,
+      logout,
+      requestPasswordReset: requestPasswordResetHandler,
+      // Daily attendance logs
+      dailyAttendanceLogs,
+      recordSlotAttendance,
+      // Theme preference
+      themePreference,
+      setThemePreference,
+      activeTab,
+      setActiveTab,
+      isLoading,
+      searchQuery,
+      setSearchQuery,
+      isSearchExpanded,
+      setIsSearchExpanded,
+      subjects,
+      addSubjects,
+      adjustSubjectAttendance,
+      setSubjectAttendance,
+      overallAttendance,
+      totalPresent,
+      totalClasses,
+      dutyLeavesCount,
+      holidaysCount,
+      classesCanMiss,
+      classesNeeded,
+      attendanceCriteria,
+      monthlyAttendanceHistory,
+      setMonthlyAttendanceRecord,
+      deleteMonthlyAttendanceRecord,
+      getMonthlyAttendanceRecord,
+      currentMonthAttendance,
+      timetable,
+      timetableViewMode,
+      setTimetableViewMode,
+      todayClasses,
+      addTimetableSlot,
+      updateTimetableSlot,
+      deleteTimetableSlot,
+      setTimetableSlots,
+      tasks,
+      toggleTask,
+      addTask,
+      deleteTask,
+      pendingTasksCount,
+      expenses,
+      presets,
+      addExpense,
+      updateExpense,
+      deleteExpense,
+      addPreset,
+      updatePreset,
+      deletePreset,
+      currentMonthTotal,
+      prevMonthTotal,
+      momChangePercent,
+      documents,
+      addDocument,
+      deleteDocument,
+      holidays,
+      addHoliday,
+      deleteHoliday,
+      profile,
+      updateProfile,
+      isSetupComplete,
+      setIsSetupComplete,
+      resetAllData,
+      setAttendanceCriteria,
+      appTheme,
+      setAppTheme,
+      currentTheme,
+      classRemindersEnabled,
+      setClassRemindersEnabled,
+      hapticsEnabled,
+      setHapticsEnabled,
+      notificationPrefs,
+      updateNotificationPrefs,
+      syncToCloud,
+      restoreFromCloud,
+      lastSyncTime,
+      isSyncing,
+    }),
+    [
+      currentUser,
+      dailyAttendanceLogs,
+      themePreference,
+      activeTab,
+      isLoading,
+      searchQuery,
+      isSearchExpanded,
+      subjects,
+      overallAttendance,
+      totalPresent,
+      totalClasses,
+      dutyLeavesCount,
+      holidaysCount,
+      classesCanMiss,
+      classesNeeded,
+      attendanceCriteria,
+      monthlyAttendanceHistory,
+      currentMonthAttendance,
+      timetable,
+      timetableViewMode,
+      todayClasses,
+      tasks,
+      pendingTasksCount,
+      expenses,
+      presets,
+      currentMonthTotal,
+      prevMonthTotal,
+      momChangePercent,
+      documents,
+      holidays,
+      profile,
+      isSetupComplete,
+      appTheme,
+      currentTheme,
+      classRemindersEnabled,
+      hapticsEnabled,
+      notificationPrefs,
+      lastSyncTime,
+      isSyncing,
+    ]
+  );
+
   return (
-    <CampusContext.Provider
-      value={{
-        // Auth
-        currentUser,
-        login,
-        signup,
-        checkEmailVerification,
-        resendVerificationEmail: resendVerificationEmailHandler,
-        loginWithGoogle,
-        signInWithGoogleToken: signInWithGoogleTokenHandler,
-        logout,
-        requestPasswordReset: requestPasswordResetHandler,
-        // Daily attendance logs
-        dailyAttendanceLogs,
-        recordSlotAttendance,
-        // Theme preference
-        themePreference,
-        setThemePreference,
-        activeTab,
-        setActiveTab,
-        isLoading,
-        searchQuery,
-        setSearchQuery,
-        isSearchExpanded,
-        setIsSearchExpanded,
-        subjects,
-        addSubjects,
-        adjustSubjectAttendance,
-        setSubjectAttendance,
-        overallAttendance,
-        totalPresent,
-        totalClasses,
-        classesCanMiss,
-        classesNeeded,
-        attendanceCriteria,
-        monthlyAttendanceHistory,
-        setMonthlyAttendanceRecord,
-        deleteMonthlyAttendanceRecord,
-        getMonthlyAttendanceRecord,
-        currentMonthAttendance,
-        timetable,
-        timetableViewMode,
-        setTimetableViewMode,
-        todayClasses,
-        addTimetableSlot,
-        updateTimetableSlot,
-        deleteTimetableSlot,
-        setTimetableSlots,
-        tasks,
-        toggleTask,
-        addTask,
-        deleteTask,
-        pendingTasksCount,
-        expenses,
-        presets,
-        addExpense,
-        updateExpense,
-        deleteExpense,
-        addPreset,
-        updatePreset,
-        deletePreset,
-        currentMonthTotal,
-        prevMonthTotal,
-        momChangePercent,
-        documents,
-        addDocument,
-        deleteDocument,
-        holidays,
-        addHoliday,
-        deleteHoliday,
-        profile,
-        updateProfile,
-        isSetupComplete,
-        setIsSetupComplete,
-        resetAllData,
-        setAttendanceCriteria,
-        appTheme,
-        setAppTheme,
-        currentTheme,
-        classRemindersEnabled,
-        setClassRemindersEnabled,
-        hapticsEnabled,
-        setHapticsEnabled,
-        notificationPrefs,
-        updateNotificationPrefs,
-        syncToCloud,
-        restoreFromCloud,
-        lastSyncTime,
-        isSyncing,
-      }}
-    >
+    <CampusContext.Provider value={contextValue}>
       {children}
     </CampusContext.Provider>
   );

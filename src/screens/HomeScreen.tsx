@@ -36,12 +36,44 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     tasks,
     expenses,
     attendanceCriteria = 68,
+    setAttendanceCriteria,
+    addExpense,
+    addTask,
     currentTheme,
   } = useCampus();
 
   // Quick edit modal for 2x2 stat cards
   const [statEditModal, setStatEditModal] = useState<string | null>(null);
   const [statInputVal, setStatInputVal] = useState('');
+
+  const handleUpdateStatValue = () => {
+    if (!statEditModal) return;
+    const num = parseFloat(statInputVal);
+    if (statEditModal === 'Attendance') {
+      if (!isNaN(num) && num > 0 && num <= 100) {
+        setAttendanceCriteria(Math.round(num));
+      }
+    } else if (statEditModal === 'Expenses') {
+      if (!isNaN(num) && num > 0) {
+        const hour = new Date().getHours();
+        const timeOfDay = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 21 ? 'Evening' : 'Night';
+        addExpense({
+          title: 'Quick Expense',
+          amount: Math.round(num),
+          category: 'Food',
+          timeOfDay,
+          date: new Date().toISOString().split('T')[0],
+        });
+      }
+    } else if (statEditModal === 'Tasks') {
+      if (statInputVal.trim()) {
+        addTask(statInputVal.trim());
+      }
+    } else if (statEditModal === 'Docs') {
+      onOpenMoreSection('books');
+    }
+    setStatEditModal(null);
+  };
 
   // Filtered search results if search query is active
   const isSearching = searchQuery.trim().length > 0;
@@ -159,10 +191,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 label="TASKS"
                 badgeText={pendingTasksCount === 0 ? 'Clear ✓' : `${pendingTasksCount} Due`}
                 badgeVariant={pendingTasksCount === 0 ? 'emerald' : 'muted'}
-                onPress={() => onNavigateTab('home')}
+                onPress={() => onOpenMoreSection('tasks')}
                 onLongPress={() => {
                   setStatEditModal('Tasks');
-                  setStatInputVal(pendingTasksCount.toString());
+                  setStatInputVal('');
                 }}
               />
 
@@ -230,7 +262,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <TimetableSummaryCard onNavigateToTimetable={() => onNavigateTab('timetable')} />
 
           {/* Section 6: Tasks Card */}
-          <TaskSummaryCard onNavigateToTasks={() => onNavigateTab('home')} />
+          <TaskSummaryCard onNavigateToTasks={() => onOpenMoreSection('tasks')} />
 
           {/* Section 9: Monthly Expenses Card */}
           <ExpenseSummaryCard onNavigateToExpenses={() => onNavigateTab('expenses')} />
@@ -241,19 +273,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <GlassDialog
         visible={Boolean(statEditModal)}
         onClose={() => setStatEditModal(null)}
-        title={`Adjust ${statEditModal}`}
+        title={
+          statEditModal === 'Attendance'
+            ? 'Attendance Target Criteria'
+            : statEditModal === 'Expenses'
+            ? 'Quick Log Expense'
+            : statEditModal === 'Tasks'
+            ? 'Quick Add Task'
+            : 'Document Library'
+        }
       >
         <Text style={[Typography.bodySm, { color: currentTheme.textMuted, marginBottom: 12 }]}>
-          Override value for dashboard calculations and tracking.
+          {statEditModal === 'Attendance'
+            ? `Set target criteria percentage (current: ${attendanceCriteria}%).`
+            : statEditModal === 'Expenses'
+            ? 'Enter amount in ₹ to instantly record an expense.'
+            : statEditModal === 'Tasks'
+            ? 'Enter a task title to create a new assignment/task.'
+            : 'Jump to your textbook and document study library.'}
         </Text>
-        <GlassInput
-          label="Value"
-          value={statInputVal}
-          onChangeText={setStatInputVal}
-          keyboardType="numeric"
-        />
+        {statEditModal !== 'Docs' && (
+          <GlassInput
+            label={
+              statEditModal === 'Attendance'
+                ? 'Target Percentage (%)'
+                : statEditModal === 'Expenses'
+                ? 'Amount (₹)'
+                : 'Task Title'
+            }
+            value={statInputVal}
+            onChangeText={setStatInputVal}
+            keyboardType={statEditModal === 'Tasks' ? 'default' : 'numeric'}
+            placeholder={
+              statEditModal === 'Attendance'
+                ? '75'
+                : statEditModal === 'Expenses'
+                ? '120'
+                : 'Math Assignment 3'
+            }
+          />
+        )}
         <View style={{ marginTop: 14 }}>
-          <EmeraldButton label="Update Value" onPress={() => setStatEditModal(null)} />
+          <EmeraldButton
+            label={statEditModal === 'Docs' ? 'Open Library' : 'Save & Update'}
+            onPress={handleUpdateStatValue}
+          />
         </View>
       </GlassDialog>
     </ScrollView>

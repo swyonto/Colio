@@ -58,6 +58,7 @@ export const AttendanceScreen: React.FC = () => {
     overallAttendance,
     totalPresent,
     totalClasses,
+    dutyLeavesCount = 0,
     classesCanMiss,
     classesNeeded,
     attendanceCriteria = 68,
@@ -578,6 +579,26 @@ export const AttendanceScreen: React.FC = () => {
                         showLabel={false}
                       />
                     </View>
+                    {dutyLeavesCount > 0 && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          marginLeft: 6,
+                          backgroundColor: '#00B0FF15',
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 12,
+                          borderWidth: 0.8,
+                          borderColor: '#00B0FF40',
+                        }}
+                      >
+                        <MaterialIcons name="verified-user" size={12} color="#00B0FF" />
+                        <Text style={{ fontSize: 10, color: '#00B0FF', fontWeight: '700', marginLeft: 3 }}>
+                          +{dutyLeavesCount} Duty Leave{dutyLeavesCount > 1 ? 's' : ''} Active
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </View>

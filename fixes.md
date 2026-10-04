@@ -19,3 +19,27 @@
 - **Exporting from Excel**: `File -> Save As -> CSV (Comma delimited) (*.csv)`.
 - **Exporting from Google Sheets**: `File -> Download -> Comma-separated values (.csv)`.
 - **In-App Integration**: Integrated on `OnboardingSetupScreen.tsx` with in-app Excel Format Guide, 1-tap template test loader, and direct text paste. Newly detected subjects are automatically registered into the attendance tracker with unique palette colors.
+
+5. Senior QA & Deep Audit Master Fixes (Applied):
+- **Home Navigation Loop & Quick-Edit Dialog**:
+  - Tapping the Tasks card on `HomeScreen` now routes directly to `TasksScreen` instead of triggering a loop back to `'home'`.
+  - Quick-edit long-press dialog on `HomeScreen` stat cards now dispatches real updates to attendance criteria, expenses, tasks, and library documents.
+- **In-App PDF Reader & Native Sharing**:
+  - Fixed `BooksScreen.tsx` ignoring native PDF files on mobile. Integrated system PDF launch via `Linking.openURL` and native sharing via `Share.share` with in-card quick actions and action banner in the reader.
+- **CGPA Calculator Persistence & Mathematical Degree Target Simulator**:
+  - Rewrote `CgpaScreen.tsx` with `@colio_cgpa_semesters_v2` and `@colio_cgpa_target_v2` AsyncStorage persistence.
+  - Added "+ Add Semester" and delete semester capabilities with customizable credits and SGPA.
+  - Built real mathematical Degree Target Simulator computing required SGPA: `Required SGPA = (Target * TotalPlanned - CurrentSum) / RemainingCredits` with color-coded feasibility feedback.
+- **Holidays & Duty Leaves Integration**:
+  - Added `holidays` to `CloudStudentBackup` and Firebase sync/restore in `firebase.ts` and `CampusContext.tsx`.
+  - Factored approved `DUTY_LEAVE` credits directly into attendance formulas (`effectivePresent`, `overallAttendance`, `classesCanMiss`, `classesNeeded`).
+  - Added active Duty Leave protection badge in `AttendanceScreen.tsx`.
+- **Responsive Navigation Bar**:
+  - Migrated `GlassNavBar.tsx` from static `Dimensions.get('window')` to `useWindowDimensions()` to prevent tab misalignment on device rotation, foldables, and tablets.
+- **Performance & Context Optimization**:
+  - Memoized `CampusContext` provider value with `useMemo`, eliminating full-app re-renders across all tabs during search keystrokes and frequent status updates.
+- **Dynamic Matrix Theming**:
+  - Replaced hardcoded subject color switch-cases in `TimetableScreen.tsx` with dynamic subject palette extraction.
+- **Storage Wrapper Expansion**:
+  - Added `multiGet`, `multiSet`, `multiRemove`, and `clear` to `src/utils/storage.ts` for uniform storage across web and native.
+*(Note: Per explicit user directive, security and credential configuration files were preserved without modification).*

@@ -111,66 +111,19 @@ export const TimetableScreen: React.FC = () => {
     );
   };
 
-  const getSubjectCellTheme = (code: string) => {
+  const getSubjectCellTheme = (code: string, color?: string) => {
     const isDark = currentTheme.isDark;
-    switch (code) {
-      case 'PYTH':
-        return {
-          bg: isDark ? 'rgba(0, 229, 255, 0.18)' : '#E0F7FA',
-          border: isDark ? 'rgba(0, 229, 255, 0.45)' : '#80DEEA',
-          text: isDark ? '#00E5FF' : '#006064',
-          subText: isDark ? 'rgba(0, 229, 255, 0.9)' : '#00838F',
-        };
-      case 'CSA':
-        return {
-          bg: isDark ? 'rgba(0, 230, 118, 0.18)' : '#E8F5E9',
-          border: isDark ? 'rgba(0, 230, 118, 0.45)' : '#A5D6A7',
-          text: isDark ? '#00E676' : '#1B5E20',
-          subText: isDark ? 'rgba(0, 230, 118, 0.9)' : '#2E7D32',
-        };
-      case 'MC':
-        return {
-          bg: isDark ? 'rgba(255, 64, 129, 0.18)' : '#FCE4EC',
-          border: isDark ? 'rgba(255, 64, 129, 0.45)' : '#F48FB1',
-          text: isDark ? '#FF4081' : '#880E4F',
-          subText: isDark ? 'rgba(255, 64, 129, 0.9)' : '#AD1457',
-        };
-      case 'VAC1':
-        return {
-          bg: isDark ? 'rgba(255, 214, 0, 0.20)' : '#FFF9C4',
-          border: isDark ? 'rgba(255, 214, 0, 0.45)' : '#FFF176',
-          text: isDark ? '#FFD600' : '#E65100',
-          subText: isDark ? 'rgba(255, 214, 0, 0.9)' : '#F57F17',
-        };
-      case 'SEC1':
-        return {
-          bg: isDark ? 'rgba(224, 64, 251, 0.18)' : '#F3E5F5',
-          border: isDark ? 'rgba(224, 64, 251, 0.45)' : '#CE93D8',
-          text: isDark ? '#E040FB' : '#4A148C',
-          subText: isDark ? 'rgba(224, 64, 251, 0.9)' : '#6A1B9A',
-        };
-      case 'GE1':
-        return {
-          bg: isDark ? 'rgba(2, 132, 199, 0.18)' : '#E1F5FE',
-          border: isDark ? 'rgba(2, 132, 199, 0.45)' : '#81D4FA',
-          text: isDark ? '#38BDF8' : '#01579B',
-          subText: isDark ? 'rgba(56, 189, 248, 0.9)' : '#0277BD',
-        };
-      case 'LANG1':
-        return {
-          bg: isDark ? 'rgba(105, 240, 174, 0.18)' : '#DCEDC8',
-          border: isDark ? 'rgba(105, 240, 174, 0.45)' : '#AED581',
-          text: isDark ? '#69F0AE' : '#33691E',
-          subText: isDark ? 'rgba(105, 240, 174, 0.9)' : '#558B2F',
-        };
-      default:
-        return {
-          bg: isDark ? 'rgba(0, 230, 118, 0.12)' : '#F1F5F9',
-          border: isDark ? 'rgba(0, 230, 118, 0.30)' : '#CBD5E1',
-          text: isDark ? '#00E676' : '#0F172A',
-          subText: isDark ? '#B2DFDB' : '#475569',
-        };
-    }
+    const baseColor =
+      color ||
+      subjects.find((s) => s.code.toUpperCase() === code.toUpperCase())?.color ||
+      currentTheme.primary;
+
+    return {
+      bg: isDark ? `${baseColor}22` : `${baseColor}15`,
+      border: isDark ? `${baseColor}55` : `${baseColor}40`,
+      text: baseColor,
+      subText: isDark ? `${baseColor}CC` : `${baseColor}BB`,
+    };
   };
 
   const daySlots = timetable.filter((slot) => slot.dayOfWeek === selectedDay);
@@ -465,7 +418,7 @@ export const TimetableScreen: React.FC = () => {
                       {PERIODS.map(({ period, time, startTime, endTime, isBreak }) => {
                         const slot = timetable.find((s) => s.dayOfWeek === dayItem.day && s.period === period);
                         const subj = slot ? getSubject(slot.subjectId) : null;
-                        const cellTheme = subj ? getSubjectCellTheme(subj.code) : null;
+                        const cellTheme = subj ? getSubjectCellTheme(subj.code, subj.color) : null;
 
                         if (isBreak && !slot) {
                           return (
@@ -556,7 +509,7 @@ export const TimetableScreen: React.FC = () => {
               </Text>
               <View style={styles.legendGrid}>
                 {subjects.map((s) => {
-                  const cellTheme = getSubjectCellTheme(s.code);
+                  const cellTheme = getSubjectCellTheme(s.code, s.color);
                   return (
                     <View
                       key={s.id}

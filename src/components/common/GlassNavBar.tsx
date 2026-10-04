@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, useWindowDimensions, Platform } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabKey } from '../../types/campus';
@@ -23,7 +23,7 @@ const TABS: TabConfig[] = [
 export const GlassNavBar: React.FC = () => {
   const { activeTab, setActiveTab, currentTheme } = useCampus();
   const insets = useSafeAreaInsets();
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth } = useWindowDimensions();
   const tabWidth = screenWidth / TABS.length;
 
   const activeIndex = TABS.findIndex((t) => t.key === activeTab);
