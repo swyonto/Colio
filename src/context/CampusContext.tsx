@@ -80,6 +80,7 @@ interface CampusContextType {
 
   // Subjects & Attendance
   subjects: Subject[];
+  addSubjects: (newSubjects: Subject[]) => void;
   adjustSubjectAttendance: (subjectId: string, presentDelta: number, absentDelta: number) => void;
   setSubjectAttendance: (subjectId: string, present: number, absent: number) => void;
   dailyAttendanceLogs: Record<string, 'present' | 'absent'>;
@@ -567,6 +568,18 @@ export const CampusProvider: React.FC<{ children: React.ReactNode; initialTheme?
       const updated = prev.map((subj) =>
         subj.id === subjectId ? { ...subj, present: Math.max(0, present), absent: Math.max(0, absent) } : subj
       );
+      AsyncStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  const addSubjects = (newSubs: Subject[]) => {
+    if (!newSubs || newSubs.length === 0) return;
+    setSubjects((prev) => {
+      const existingCodes = new Set(prev.map((s) => s.code.toUpperCase()));
+      const filtered = newSubs.filter((s) => !existingCodes.has(s.code.toUpperCase()));
+      if (filtered.length === 0) return prev;
+      const updated = [...prev, ...filtered];
       AsyncStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
@@ -1118,6 +1131,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode; initialTheme?
         isSearchExpanded,
         setIsSearchExpanded,
         subjects,
+        addSubjects,
         adjustSubjectAttendance,
         setSubjectAttendance,
         overallAttendance,

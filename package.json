@@ -7,7 +7,7 @@
     "android": "expo start --android -c",
     "ios": "expo start --ios -c",
     "web": "expo start --web",
-    "test": "npx tsx --env-file=.env --test tests/colio.test.ts tests/qa.test.ts tests/auth.test.ts",
+    "test": "npx tsx --env-file=.env --test tests/colio.test.ts tests/qa.test.ts tests/auth.test.ts tests/csvParser.test.ts",
     "build:apk": "eas build -p android --profile preview",
     "build:apk:prod": "eas build -p android --profile production",
     "build:status": "eas build:list",

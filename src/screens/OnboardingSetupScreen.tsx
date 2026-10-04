@@ -5,20 +5,22 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   ActivityIndicator,
   Platform,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { EmeraldGlassCard } from '../components/common/EmeraldGlassCard';
 import { GlassInput } from '../components/common/GlassInput';
 import { EmeraldButton, GlassButton } from '../components/common/Buttons';
 import { Typography } from '../theme/typography';
 import { useCampus } from '../context/CampusContext';
-import { TimetableSlot } from '../types/campus';
+import { TimetableSlot, Subject } from '../types/campus';
 import { initialTimetable } from '../data/initialData';
+import { parseTimetableCsv, SAMPLE_TIMETABLE_CSV } from '../utils/csvTimetableParser';
 
 interface OnboardingSetupScreenProps {
   onBackToWelcome: () => void;
@@ -31,7 +33,7 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
   onBackToWelcome,
   onFinishSetup,
 }) => {
-  const { currentTheme, updateProfile, setTimetableSlots, setIsSetupComplete, subjects, currentUser } = useCampus();
+  const { currentTheme, updateProfile, setTimetableSlots, setIsSetupComplete, subjects, addSubjects, currentUser } = useCampus();
 
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -48,47 +50,16 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
   const [semester, setSemester] = useState('1');
 
   // Step 2: Timetable Setup Mode
-  const [timetableMode, setTimetableMode] = useState<'template' | 'screenshot'>('template');
-  const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanStatus, setScanStatus] = useState('');
+  const [timetableMode, setTimetableMode] = useState<'template' | 'csv'>('csv');
+  const [csvFileName, setCsvFileName] = useState<string | null>(null);
+  const [isParsingCsv, setIsParsingCsv] = useState(false);
+  const [csvStatus, setCsvStatus] = useState('');
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [pendingSubjects, setPendingSubjects] = useState<Subject[]>([]);
+  const [showStructureModal, setShowStructureModal] = useState(false);
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pastedCsvText, setPastedCsvText] = useState('');
   const [parsedSlots, setParsedSlots] = useState<TimetableSlot[]>(initialTimetable);
-
-  // Handle Image Upload & OCR Parsing
-  const handlePickTimetableScreenshot = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.85,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const picked = result.assets[0];
-        setScreenshotUri(picked.uri);
-        setIsScanning(true);
-        setScanStatus('Analyzing First Year Section-I timetable matrix layout...');
-
-        setTimeout(() => {
-          setScanStatus('Detecting days: Mon, Tue, Wed, Thu, Fri, Sat...');
-        }, 500);
-
-        setTimeout(() => {
-          setScanStatus('Extracting lecture timings, labs & room numbers (AD1, Lab 3, PRK1)...');
-        }, 1100);
-
-        setTimeout(() => {
-          setParsedSlots(initialTimetable);
-          setIsScanning(false);
-          setScanStatus(`Successfully extracted ${initialTimetable.length} class slots from timetable image!`);
-        }, 1700);
-      }
-    } catch (err) {
-      console.warn('Image picker error:', err);
-      setIsScanning(false);
-      Alert.alert('Image Scanner', 'Unable to access photos. You can continue with standard schedule.');
-    }
-  };
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -98,6 +69,108 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
     } else {
       Alert.alert(title, message);
     }
+  };
+
+  // Handle picking Excel / CSV file
+  const handlePickTimetableCsv = async () => {
+    try {
+      setIsParsingCsv(true);
+      setCsvStatus('Selecting spreadsheet file...');
+      setCsvErrors([]);
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'text/csv',
+          'text/comma-separated-values',
+          'text/plain',
+          'application/vnd.ms-excel',
+          '*/*',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setCsvFileName(file.name || 'timetable.csv');
+        setCsvStatus('Reading spreadsheet contents...');
+
+        const res = await fetch(file.uri);
+        const text = await res.text();
+
+        if (!text || text.trim().length === 0) {
+          showAlert('Empty File', 'The selected file is empty.');
+          setIsParsingCsv(false);
+          setCsvStatus('');
+          return;
+        }
+
+        const parseResult = parseTimetableCsv(text, subjects);
+
+        if (parseResult.slots.length === 0) {
+          showAlert(
+            'No Classes Found',
+            'Could not detect class rows in this CSV file. Please check the Excel/CSV column structure.'
+          );
+          if (parseResult.errors.length > 0) {
+            setCsvErrors(parseResult.errors);
+          }
+          setIsParsingCsv(false);
+          setCsvStatus('');
+          return;
+        }
+
+        setParsedSlots(parseResult.slots);
+        setPendingSubjects(parseResult.newSubjects);
+        setCsvStatus(
+          `Successfully loaded ${parseResult.slots.length} class slots${
+            parseResult.newSubjects.length > 0 ? ` (${parseResult.newSubjects.length} new subjects)` : ''
+          }!`
+        );
+        if (parseResult.errors.length > 0) {
+          setCsvErrors(parseResult.errors);
+        }
+      }
+      setIsParsingCsv(false);
+    } catch (err) {
+      console.warn('CSV Picker error:', err);
+      setIsParsingCsv(false);
+      setCsvStatus('');
+      showAlert('Import Failed', 'Unable to read CSV file. You can also paste the CSV text directly using "Paste CSV".');
+    }
+  };
+
+  const handleApplyCsvText = (rawText: string) => {
+    if (!rawText.trim()) {
+      showAlert('Empty CSV', 'Please enter or paste your CSV content.');
+      return;
+    }
+    const parseResult = parseTimetableCsv(rawText, subjects);
+    if (parseResult.slots.length === 0) {
+      showAlert(
+        'Format Error',
+        'Could not parse timetable slots from the text. Check that the columns match: Day, Period, StartTime, EndTime, Subject.'
+      );
+      if (parseResult.errors.length > 0) {
+        setCsvErrors(parseResult.errors);
+      }
+      return;
+    }
+
+    setParsedSlots(parseResult.slots);
+    setPendingSubjects(parseResult.newSubjects);
+    setCsvFileName('Pasted CSV Data');
+    setCsvStatus(`Imported ${parseResult.slots.length} class slots!`);
+    if (parseResult.errors.length > 0) {
+      setCsvErrors(parseResult.errors);
+    }
+    setShowPasteModal(false);
+  };
+
+  const handleLoadSample = () => {
+    handleApplyCsvText(SAMPLE_TIMETABLE_CSV);
+    setCsvFileName('Standard Sample (11 Classes)');
+    showAlert('Sample Loaded', 'Loaded 11 class slots from sample timetable template!');
+    setShowStructureModal(false);
   };
 
   const handleStep1Next = () => {
@@ -132,6 +205,11 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
 
     // Save timetable slots
     setTimetableSlots(parsedSlots);
+
+    // Save newly discovered subjects from CSV
+    if (pendingSubjects.length > 0) {
+      addSubjects(pendingSubjects);
+    }
 
     // Complete setup
     setIsSetupComplete(true);
@@ -288,37 +366,37 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
 
             {/* Mode Selection Cards */}
             <View style={styles.modeCardsWrap}>
-              {/* Option 1: Screenshot OCR */}
+              {/* Option 1: Excel / CSV Import */}
               <TouchableOpacity
                 style={[
                   styles.modeOptionCard,
                   { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass },
-                  timetableMode === 'screenshot' && { borderColor: currentTheme.primary, backgroundColor: currentTheme.primary + '10' },
+                  timetableMode === 'csv' && { borderColor: currentTheme.primary, backgroundColor: currentTheme.primary + '10' },
                 ]}
-                onPress={() => setTimetableMode('screenshot')}
+                onPress={() => setTimetableMode('csv')}
                 activeOpacity={0.8}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={[styles.modeIconCircle, { backgroundColor: currentTheme.primary + '20' }]}>
-                    <Feather name="camera" size={20} color={currentTheme.primary} />
+                    <Feather name="file-text" size={20} color={currentTheme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '700' }]}>
-                        Import from Screenshot
+                        Import from Excel / CSV
                       </Text>
                       <View style={[styles.aiBadge, { backgroundColor: currentTheme.primary + '25' }]}>
-                        <Text style={[styles.aiBadgeText, { color: currentTheme.primary }]}>OCR AI</Text>
+                        <Text style={[styles.aiBadgeText, { color: currentTheme.primary }]}>Spreadsheet</Text>
                       </View>
                     </View>
                     <Text style={[styles.modeDesc, { color: currentTheme.textMuted }]}>
-                      Upload a photo of your college timetable schedule. Colio parses it automatically.
+                      Pick an Excel / CSV timetable file or paste rows. Classes & subjects are loaded instantly.
                     </Text>
                   </View>
                   <Feather
-                    name={timetableMode === 'screenshot' ? 'check-circle' : 'circle'}
+                    name={timetableMode === 'csv' ? 'check-circle' : 'circle'}
                     size={20}
-                    color={timetableMode === 'screenshot' ? currentTheme.primary : currentTheme.textDisabled}
+                    color={timetableMode === 'csv' ? currentTheme.primary : currentTheme.textDisabled}
                   />
                 </View>
               </TouchableOpacity>
@@ -333,6 +411,9 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
                 onPress={() => {
                   setTimetableMode('template');
                   setParsedSlots(initialTimetable);
+                  setPendingSubjects([]);
+                  setCsvFileName(null);
+                  setCsvStatus('');
                 }}
                 activeOpacity={0.8}
               >
@@ -357,42 +438,87 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* If Screenshot Mode Selected */}
-            {timetableMode === 'screenshot' && (
+            {/* If CSV Mode Selected */}
+            {timetableMode === 'csv' && (
               <View style={[styles.screenshotActionBox, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
+                {/* Pick File Button */}
                 <TouchableOpacity
                   style={[styles.uploadScreenshotBtn, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.primary + '40' }]}
-                  onPress={handlePickTimetableScreenshot}
+                  onPress={handlePickTimetableCsv}
                   activeOpacity={0.8}
                 >
-                  <Feather name="image" size={22} color={currentTheme.primary} />
+                  <Feather name="upload-cloud" size={22} color={currentTheme.primary} />
                   <Text style={[styles.uploadScreenshotBtnText, { color: currentTheme.primary }]}>
-                    {screenshotUri ? 'Change Timetable Image' : 'Select Timetable Screenshot'}
+                    {csvFileName ? 'Change Excel / CSV File' : 'Pick Excel / CSV Timetable File'}
                   </Text>
                 </TouchableOpacity>
 
-                {screenshotUri && (
-                  <View style={styles.imagePreviewRow}>
-                    <Image source={{ uri: screenshotUri }} style={styles.previewThumbnail} resizeMode="cover" />
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text style={[styles.imageDetectedTitle, { color: currentTheme.textPrimary }]}>
-                        Image Loaded for Scanning
+                {/* Status or Active File Info */}
+                {csvFileName && (
+                  <View style={[styles.csvFileRow, { backgroundColor: currentTheme.primary + '12', borderColor: currentTheme.primary + '30' }]}>
+                    <View style={[styles.csvIconWrap, { backgroundColor: currentTheme.primary + '25' }]}>
+                      <Feather name="check" size={18} color={currentTheme.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.csvFileTitle, { color: currentTheme.textPrimary }]} numberOfLines={1}>
+                        {csvFileName}
                       </Text>
-                      {isScanning ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                          <ActivityIndicator size="small" color={currentTheme.primary} />
-                          <Text style={[styles.scanningStatusText, { color: currentTheme.primary }]}>
-                            {scanStatus}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={[styles.scanningSuccessText, { color: currentTheme.primary }]}>
-                          ✓ {scanStatus || '7 class slots parsed and ready to import.'}
-                        </Text>
-                      )}
+                      <Text style={[styles.csvFileSubtitle, { color: currentTheme.primary }]}>
+                        {csvStatus || `${parsedSlots.length} classes parsed`}
+                      </Text>
                     </View>
                   </View>
                 )}
+
+                {/* Parsing indicator */}
+                {isParsingCsv && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+                    <ActivityIndicator size="small" color={currentTheme.primary} />
+                    <Text style={{ fontSize: 12, color: currentTheme.textMuted }}>{csvStatus}</Text>
+                  </View>
+                )}
+
+                {/* Error Warnings if any */}
+                {csvErrors.length > 0 && (
+                  <View style={[styles.errorBox, { backgroundColor: '#FF525215', borderColor: '#FF525240' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Feather name="alert-triangle" size={14} color="#FF5252" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#FF5252' }}>
+                        Row Warnings ({csvErrors.length})
+                      </Text>
+                    </View>
+                    {csvErrors.slice(0, 3).map((err, idx) => (
+                      <Text key={idx} style={{ fontSize: 10, color: currentTheme.textMuted }}>
+                        • {err}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+
+                {/* Helper Action Buttons: Format Guide & Paste CSV */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <TouchableOpacity
+                    style={[styles.csvHelperBtn, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
+                    onPress={() => setShowStructureModal(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="info" size={14} color={currentTheme.primary} />
+                    <Text style={[styles.csvHelperBtnText, { color: currentTheme.textPrimary }]}>
+                      Excel Format Guide
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.csvHelperBtn, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}
+                    onPress={() => setShowPasteModal(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="edit-3" size={14} color={currentTheme.primary} />
+                    <Text style={[styles.csvHelperBtnText, { color: currentTheme.textPrimary }]}>
+                      Paste CSV Text
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -409,7 +535,8 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
 
               <View style={styles.slotsMiniList}>
                 {parsedSlots.slice(0, 4).map((slot) => {
-                  const subject = subjects.find((s) => s.id === slot.subjectId);
+                  const allSubjects = [...subjects, ...pendingSubjects];
+                  const subject = allSubjects.find((s) => s.id === slot.subjectId);
                   const subjectName = subject?.name || slot.subjectId;
                   const dayName = DAY_NAMES[slot.dayOfWeek] || 'Mon';
 
@@ -451,6 +578,160 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
           </View>
         )}
       </ScrollView>
+
+      {/* Modal 1: Structure & Rules Guide */}
+      <Modal
+        visible={showStructureModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStructureModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={[styles.modalIconCircle, { backgroundColor: currentTheme.primary + '20' }]}>
+                  <Feather name="file-text" size={18} color={currentTheme.primary} />
+                </View>
+                <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '700' }]}>
+                  Excel & CSV Format Guide
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowStructureModal(false)} style={styles.modalCloseBtn}>
+                <Feather name="x" size={20} color={currentTheme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.guideIntro, { color: currentTheme.textMuted }]}>
+                To import your weekly schedule from Microsoft Excel or Google Sheets, your file should include the following header row and columns:
+              </Text>
+
+              {/* Column Rules Table */}
+              <View style={[styles.guideTable, { borderColor: currentTheme.borderGlass }]}>
+                <View style={[styles.guideTableRow, { backgroundColor: currentTheme.bgCardSecondary }]}>
+                  <Text style={[styles.guideColHeader, { color: currentTheme.primary, flex: 1.2 }]}>Column</Text>
+                  <Text style={[styles.guideColHeader, { color: currentTheme.primary, flex: 1.2 }]}>Format</Text>
+                  <Text style={[styles.guideColHeader, { color: currentTheme.primary, flex: 2 }]}>Example</Text>
+                </View>
+
+                {[
+                  { col: 'Day', req: 'Mon-Sat or 1-6', ex: 'Monday or Mon' },
+                  { col: 'Period', req: 'Number (1-9)', ex: '1, 2, 3' },
+                  { col: 'StartTime', req: 'HH:MM / 12h', ex: '08:30 or 8:30 AM' },
+                  { col: 'EndTime', req: 'HH:MM / 12h', ex: '09:30 or 9:30 AM' },
+                  { col: 'Subject', req: 'Full Name', ex: 'Python Programming' },
+                  { col: 'Code', req: 'Optional', ex: 'PYTH, CS101' },
+                  { col: 'Room', req: 'Optional', ex: 'Lab 3, Room 201' },
+                  { col: 'Teacher', req: 'Optional', ex: 'Dr. Sharma' },
+                ].map((item, idx) => (
+                  <View key={idx} style={[styles.guideTableRow, { borderTopColor: currentTheme.borderGlass, borderTopWidth: 0.6 }]}>
+                    <Text style={[styles.guideCellBold, { color: currentTheme.textPrimary, flex: 1.2 }]}>{item.col}</Text>
+                    <Text style={[styles.guideCell, { color: currentTheme.textMuted, flex: 1.2 }]}>{item.req}</Text>
+                    <Text style={[styles.guideCell, { color: currentTheme.textPrimary, flex: 2 }]}>{item.ex}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* How to export */}
+              <Text style={[styles.guideSectionTitle, { color: currentTheme.textPrimary }]}>
+                How to Export from Excel / Google Sheets
+              </Text>
+              <View style={[styles.exportStepBox, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.borderGlass }]}>
+                <Text style={[styles.exportStepText, { color: currentTheme.textMuted }]}>
+                  1. In <Text style={{ color: currentTheme.textPrimary, fontWeight: '700' }}>Microsoft Excel</Text>: Click <Text style={{ color: currentTheme.primary }}>File → Save As → CSV (Comma delimited) (*.csv)</Text>.
+                </Text>
+                <Text style={[styles.exportStepText, { color: currentTheme.textMuted }]}>
+                  2. In <Text style={{ color: currentTheme.textPrimary, fontWeight: '700' }}>Google Sheets</Text>: Click <Text style={{ color: currentTheme.primary }}>File → Download → Comma Separated Values (.csv)</Text>.
+                </Text>
+                <Text style={[styles.exportStepText, { color: currentTheme.textMuted }]}>
+                  3. In Colio: Tap <Text style={{ color: currentTheme.primary }}>Pick Excel / CSV Timetable File</Text> and choose your file!
+                </Text>
+              </View>
+
+              {/* Sample Code Block */}
+              <Text style={[styles.guideSectionTitle, { color: currentTheme.textPrimary }]}>
+                Sample CSV Content
+              </Text>
+              <View style={[styles.codeBlock, { backgroundColor: '#111614', borderColor: currentTheme.borderGlass }]}>
+                <Text style={[styles.codeText, { color: '#A7F3D0' }]}>
+                  {SAMPLE_TIMETABLE_CSV}
+                </Text>
+              </View>
+
+              <View style={{ marginTop: 14, gap: 10 }}>
+                <EmeraldButton label="Load Sample Template (1-Tap Test)" onPress={handleLoadSample} />
+                <GlassButton label="Close Guide" onPress={() => setShowStructureModal(false)} />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal 2: Paste CSV Text */}
+      <Modal
+        visible={showPasteModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPasteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: currentTheme.bgCard, borderColor: currentTheme.borderGlass }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={[styles.modalIconCircle, { backgroundColor: currentTheme.primary + '20' }]}>
+                  <Feather name="edit-3" size={18} color={currentTheme.primary} />
+                </View>
+                <Text style={[Typography.titleSm, { color: currentTheme.textPrimary, fontWeight: '700' }]}>
+                  Paste CSV Timetable
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowPasteModal(false)} style={styles.modalCloseBtn}>
+                <Feather name="x" size={20} color={currentTheme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.guideIntro, { color: currentTheme.textMuted }]}>
+                Paste comma-separated rows directly from your spreadsheet. First row must contain column headers.
+              </Text>
+
+              <TextInput
+                style={[
+                  styles.pasteInput,
+                  {
+                    backgroundColor: currentTheme.bgCardSecondary,
+                    borderColor: currentTheme.borderGlass,
+                    color: currentTheme.textPrimary,
+                  },
+                ]}
+                multiline
+                numberOfLines={8}
+                placeholder={`Day,Period,StartTime,EndTime,Subject,Code,Room,Teacher\nMonday,1,08:30,09:30,Data Structures,DS,Room 101,Dr. Rao`}
+                placeholderTextColor={currentTheme.textDisabled}
+                value={pastedCsvText}
+                onChangeText={setPastedCsvText}
+              />
+
+              <View style={{ marginTop: 14, gap: 10 }}>
+                <EmeraldButton
+                  label="Parse & Apply Schedule"
+                  onPress={() => handleApplyCsvText(pastedCsvText)}
+                />
+                <TouchableOpacity
+                  style={[styles.sampleFillBtn, { backgroundColor: currentTheme.bgCardSecondary, borderColor: currentTheme.primary + '40' }]}
+                  onPress={() => setPastedCsvText(SAMPLE_TIMETABLE_CSV)}
+                >
+                  <Text style={[styles.sampleFillBtnText, { color: currentTheme.primary }]}>
+                    Paste Sample Template Text
+                  </Text>
+                </TouchableOpacity>
+                <GlassButton label="Cancel" onPress={() => setShowPasteModal(false)} />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -582,27 +863,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  imagePreviewRow: {
+  csvFileRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 0.8,
   },
-  previewThumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#1E2420',
+  csvIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  imageDetectedTitle: {
-    fontSize: 12,
+  csvFileTitle: {
+    fontSize: 13,
     fontWeight: '700',
   },
-  scanningStatusText: {
+  csvFileSubtitle: {
     fontSize: 11,
     fontWeight: '600',
+    marginTop: 1,
   },
-  scanningSuccessText: {
-    fontSize: 11,
+  errorBox: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 0.8,
+    gap: 4,
+  },
+  csvHelperBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 0.8,
+  },
+  csvHelperBtnText: {
+    fontSize: 12,
     fontWeight: '600',
   },
   slotsPreviewBlock: {
@@ -643,5 +946,115 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    maxHeight: '85%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 0.6,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseBtn: {
+    padding: 6,
+  },
+  modalScroll: {
+    marginTop: 12,
+  },
+  guideIntro: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  guideTable: {
+    borderRadius: 8,
+    borderWidth: 0.8,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  guideTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  guideColHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  guideCellBold: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  guideCell: {
+    fontSize: 11,
+  },
+  guideSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  exportStepBox: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 0.8,
+    gap: 6,
+    marginBottom: 12,
+  },
+  exportStepText: {
+    fontSize: 11,
+    lineHeight: 17,
+  },
+  codeBlock: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 0.8,
+    marginBottom: 12,
+  },
+  codeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 10,
+    lineHeight: 15,
+  },
+  pasteInput: {
+    borderRadius: 8,
+    borderWidth: 0.8,
+    padding: 12,
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    minHeight: 160,
+    textAlignVertical: 'top',
+  },
+  sampleFillBtn: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 0.8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sampleFillBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
