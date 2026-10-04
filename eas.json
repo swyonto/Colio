@@ -6,17 +6,47 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDIn6WYpNXoGI3MgqbBgUUmAToTGXvJmfo",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "calio2026.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "calio2026",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "calio2026.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "61733534967",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:61733534967:android:8f2b4686c114e11f4527f2",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "61733534967-gujmtaaqmn0crcainds3nob0kjbb8vs4.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "61733534967-09pbtohnhu8vanfn51q5jc9qn3ruq3nq.apps.googleusercontent.com"
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDIn6WYpNXoGI3MgqbBgUUmAToTGXvJmfo",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "calio2026.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "calio2026",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "calio2026.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "61733534967",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:61733534967:android:8f2b4686c114e11f4527f2",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "61733534967-gujmtaaqmn0crcainds3nob0kjbb8vs4.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "61733534967-09pbtohnhu8vanfn51q5jc9qn3ruq3nq.apps.googleusercontent.com"
       }
     },
     "production": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDIn6WYpNXoGI3MgqbBgUUmAToTGXvJmfo",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "calio2026.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "calio2026",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "calio2026.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "61733534967",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:61733534967:android:8f2b4686c114e11f4527f2",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "61733534967-gujmtaaqmn0crcainds3nob0kjbb8vs4.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "61733534967-09pbtohnhu8vanfn51q5jc9qn3ruq3nq.apps.googleusercontent.com"
       }
     }
   },

@@ -458,6 +458,7 @@ export const OnboardingSetupScreen: React.FC<OnboardingSetupScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
   },
   topBar: {
     flexDirection: 'row',
@@ -466,6 +467,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 0.6,
     gap: 12,
+    width: '100%',
   },
   backBtn: {
     width: 34,
@@ -487,6 +489,7 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     flex: 1,
+    width: '100%',
   },
   scrollContent: {
     padding: 16,

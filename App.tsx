@@ -20,6 +20,7 @@ import { CgpaScreen } from './src/screens/CgpaScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { OnboardingSetupScreen } from './src/screens/OnboardingSetupScreen';
+import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { AppThemeKey, Themes, applyTheme } from './src/theme/colors';
 
 // Keep the native splash screen visible until we've loaded the theme from storage.
@@ -33,11 +34,13 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 // then hides the splash screen. This eliminates the cold-start theme flash.
 // ──────────────────────────────────────────────────────────────────────────────
 interface ThemeBootstrapProps {
-  children: React.ReactNode;
+  children: (initialTheme: AppThemeKey) => React.ReactNode;
 }
 
 const ThemeBootstrap: React.FC<ThemeBootstrapProps> = ({ children }) => {
   const [ready, setReady] = useState(false);
+  // Track the loaded theme so CampusProvider can initialize with it (no flash)
+  const [initialTheme, setInitialTheme] = useState<AppThemeKey>('dark-emerald');
 
   useEffect(() => {
     (async () => {
@@ -47,6 +50,7 @@ const ThemeBootstrap: React.FC<ThemeBootstrapProps> = ({ children }) => {
           // Apply the saved theme to the shared Colors object BEFORE the first
           // render of any screen — eliminates the green flash on light themes.
           applyTheme(savedTheme as AppThemeKey);
+          setInitialTheme(savedTheme as AppThemeKey);
         }
       } catch {
         // If storage read fails, fall through with default theme
@@ -70,7 +74,7 @@ const ThemeBootstrap: React.FC<ThemeBootstrapProps> = ({ children }) => {
 
   return (
     <View style={styles.rootContainer} onLayout={onLayoutRootView}>
-      {children}
+      {children(initialTheme)}
     </View>
   );
 };
@@ -87,6 +91,7 @@ const MainAppContent: React.FC = () => {
     setIsSetupComplete,
     currentUser,
     logout,
+    isLoading,
   } = useCampus();
   const [activeSubScreen, setActiveSubScreen] = useState<string | null>(null);
 
@@ -96,15 +101,32 @@ const MainAppContent: React.FC = () => {
   }, [currentUser]);
 
   // Android Hardware Back Button Handler
+  // Priority: subscreen → non-home tab → exit app
   useEffect(() => {
     const backAction = () => {
-      if (activeSubScreen) { setActiveSubScreen(null); return true; }
-      if (activeTab !== 'home') { setActiveTab('home'); return true; }
+      if (activeSubScreen) {
+        setActiveSubScreen(null);
+        return true;
+      }
+      if (activeTab !== 'home') {
+        setActiveTab('home');
+        return true;
+      }
+      // On home with no subscreen — let system handle (shows exit dialog or exits)
       return false;
     };
     const handler = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => handler.remove();
   }, [activeSubScreen, activeTab]);
+
+  // === LOADING GATE — prevents auth flash and theme flash for returning users ===
+  // While CampusProvider is hydrating session + storage, show a blank themed screen
+  // so the splash → main app transition is seamless with no AuthScreen flicker.
+  if (isLoading) {
+    return (
+      <View style={[styles.fill, { backgroundColor: currentTheme.bgBase }]} />
+    );
+  }
 
   // === FLOW 1: Auth Gate ===
   if (!currentUser) {
@@ -178,16 +200,20 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeBootstrap>
-        <CampusProvider>
-          <MainAppContent />
-        </CampusProvider>
+        {(initialTheme) => (
+          <CampusProvider initialTheme={initialTheme}>
+            <ErrorBoundary>
+              <MainAppContent />
+            </ErrorBoundary>
+          </CampusProvider>
+        )}
       </ThemeBootstrap>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  rootContainer: { flex: 1 },
-  fill: { flex: 1 },
+  rootContainer: { flex: 1, width: '100%', height: '100%' },
+  fill: { flex: 1, width: '100%', height: '100%' },
   body: { flex: 1, position: 'relative' },
 });

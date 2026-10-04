@@ -10,6 +10,8 @@ import {
   Holiday,
   StudentProfile,
   TabKey,
+  MonthlySubjectEntry,
+  MonthlyAttendanceRecord,
 } from '../types/campus';
 import {
   initialSubjects,
@@ -89,6 +91,12 @@ interface CampusContextType {
   classesNeeded: number;
   attendanceCriteria: number;
   setAttendanceCriteria: (criteria: number) => void;
+  // Monthly Attendance History
+  monthlyAttendanceHistory: MonthlyAttendanceRecord[];
+  setMonthlyAttendanceRecord: (record: MonthlyAttendanceRecord) => void;
+  deleteMonthlyAttendanceRecord: (month: string) => void;
+  getMonthlyAttendanceRecord: (month: string) => MonthlyAttendanceRecord | undefined;
+  currentMonthAttendance: { month: string; held: number; attended: number; percent: number };
 
   // Timetable
   timetable: TimetableSlot[];
@@ -174,9 +182,10 @@ const STORAGE_KEYS = {
   SETUP_COMPLETE: '@colio_setup_complete_v2',
   NOTIFICATION_PREFS: '@colio_notification_prefs_v2',
   LAST_SYNC: '@colio_last_sync_v2',
+  MONTHLY_ATTENDANCE: '@colio_monthly_attendance_v2',
 };
 
-export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CampusProvider: React.FC<{ children: React.ReactNode; initialTheme?: AppThemeKey }> = ({ children, initialTheme = 'dark-emerald' }) => {
   const [activeTab, setActiveTabState] = useState<TabKey>('home');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,6 +201,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [profile, setProfile] = useState<StudentProfile>(initialProfile);
   const [isSetupComplete, setIsSetupCompleteState] = useState<boolean>(true);
+  const [monthlyAttendanceHistory, setMonthlyAttendanceHistory] = useState<MonthlyAttendanceRecord[]>([]);
   const [notificationPrefs, setNotificationPrefsState] = useState<NotificationPreferences>({
     classReminders: true,
     classReminderLeadMinutes: 10,
@@ -208,10 +218,11 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Daily Attendance Logs (slot-level, per date)
   const [dailyAttendanceLogs, setDailyAttendanceLogs] = useState<Record<string, 'present' | 'absent'>>({});
 
-  // Dynamic Preferences
+  // Dynamic Preferences — initialize appTheme from ThemeBootstrap's pre-loaded value
+  // to avoid the flash where state starts at 'dark-emerald' then updates to the real theme.
   const [attendanceCriteria, setAttendanceCriteriaState] = useState<number>(68);
-  const [appTheme, setAppThemeState] = useState<AppThemeKey>('dark-emerald');
-  const [themePreference, setThemePreferenceState] = useState<'system' | AppThemeKey>('dark-emerald');
+  const [appTheme, setAppThemeState] = useState<AppThemeKey>(initialTheme);
+  const [themePreference, setThemePreferenceState] = useState<'system' | AppThemeKey>(initialTheme);
   const [classRemindersEnabled, setClassRemindersEnabledState] = useState(true);
   const [hapticsEnabled, setHapticsEnabledState] = useState(true);
 
@@ -392,6 +403,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           savedSetupComplete,
           savedNotificationPrefs,
           savedLastSync,
+          savedMonthlyAttendance,
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.SUBJECTS),
           AsyncStorage.getItem(STORAGE_KEYS.TIMETABLE),
@@ -409,6 +421,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           AsyncStorage.getItem(STORAGE_KEYS.SETUP_COMPLETE),
           AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_PREFS),
           AsyncStorage.getItem(STORAGE_KEYS.LAST_SYNC),
+          AsyncStorage.getItem(STORAGE_KEYS.MONTHLY_ATTENDANCE),
         ]);
 
         if (savedSubjects) setSubjects(JSON.parse(savedSubjects));
@@ -446,6 +459,11 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         if (savedLastSync) {
           setLastSyncTime(savedLastSync);
+        }
+        if (savedMonthlyAttendance) {
+          try {
+            setMonthlyAttendanceHistory(JSON.parse(savedMonthlyAttendance));
+          } catch {}
         }
 
         // Register for push notifications on app launch
@@ -496,7 +514,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (autoSyncTimerRef.current) clearTimeout(autoSyncTimerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subjects, tasks, expenses, timetable, documents, currentUser?.uid]);
+  }, [subjects, tasks, expenses, timetable, documents, monthlyAttendanceHistory, currentUser?.uid]);
 
   const setActiveTab = (tab: TabKey) => {
     triggerHapticFeedback('selection');
@@ -550,6 +568,102 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         subj.id === subjectId ? { ...subj, present: Math.max(0, present), absent: Math.max(0, absent) } : subj
       );
       AsyncStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  };
+
+  // --- Monthly Attendance History Management ---
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  const getMonthlyAttendanceRecord = (month: string): MonthlyAttendanceRecord | undefined => {
+    return monthlyAttendanceHistory.find((r) => r.month === month);
+  };
+
+  const currentMonthRecord = monthlyAttendanceHistory.find((r) => r.month === currentMonthKey);
+  const currentMonthAttendance = currentMonthRecord && currentMonthRecord.totalHeld > 0
+    ? {
+        month: currentMonthKey,
+        held: currentMonthRecord.totalHeld,
+        attended: currentMonthRecord.totalAttended,
+        percent: Math.round((currentMonthRecord.totalAttended / currentMonthRecord.totalHeld) * 100),
+      }
+    : {
+        month: currentMonthKey,
+        held: 0,
+        attended: 0,
+        percent: 0,
+      };
+
+  const setMonthlyAttendanceRecord = (record: MonthlyAttendanceRecord) => {
+    triggerHapticFeedback('medium');
+    const existingRecord = monthlyAttendanceHistory.find((r) => r.month === record.month);
+
+    // Delta-adjusted subject attendance so totals stay perfectly in sync without double-counting
+    setSubjects((prevSubjects) => {
+      const updatedSubjects = prevSubjects.map((subj) => {
+        const newEntry = record.subjectEntries.find((e) => e.subjectId === subj.id);
+        if (!newEntry) return subj;
+
+        const oldEntry = existingRecord?.subjectEntries.find((e) => e.subjectId === subj.id);
+        const oldAttended = oldEntry ? oldEntry.attended : 0;
+        const oldAbsent = oldEntry ? Math.max(0, oldEntry.held - oldEntry.attended) : 0;
+
+        const newAttended = newEntry.attended;
+        const newAbsent = Math.max(0, newEntry.held - newEntry.attended);
+
+        const deltaPresent = newAttended - oldAttended;
+        const deltaAbsent = newAbsent - oldAbsent;
+
+        return {
+          ...subj,
+          present: Math.max(0, subj.present + deltaPresent),
+          absent: Math.max(0, subj.absent + deltaAbsent),
+        };
+      });
+
+      AsyncStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(updatedSubjects)).catch(() => {});
+      return updatedSubjects;
+    });
+
+    // Save record to monthly attendance list
+    setMonthlyAttendanceHistory((prev) => {
+      const filtered = prev.filter((r) => r.month !== record.month);
+      const updatedRecord: MonthlyAttendanceRecord = {
+        ...record,
+        updatedAt: new Date().toISOString(),
+        createdAt: existingRecord?.createdAt || new Date().toISOString(),
+      };
+      const updatedList = [...filtered, updatedRecord].sort((a, b) => b.month.localeCompare(a.month));
+      AsyncStorage.setItem(STORAGE_KEYS.MONTHLY_ATTENDANCE, JSON.stringify(updatedList)).catch(() => {});
+      return updatedList;
+    });
+  };
+
+  const deleteMonthlyAttendanceRecord = (month: string) => {
+    triggerHapticFeedback('medium');
+    const existingRecord = monthlyAttendanceHistory.find((r) => r.month === month);
+    if (!existingRecord) return;
+
+    // Rollback subject totals
+    setSubjects((prevSubjects) => {
+      const updatedSubjects = prevSubjects.map((subj) => {
+        const entry = existingRecord.subjectEntries.find((e) => e.subjectId === subj.id);
+        if (!entry) return subj;
+        const attended = entry.attended;
+        const absent = Math.max(0, entry.held - entry.attended);
+        return {
+          ...subj,
+          present: Math.max(0, subj.present - attended),
+          absent: Math.max(0, subj.absent - absent),
+        };
+      });
+      AsyncStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(updatedSubjects)).catch(() => {});
+      return updatedSubjects;
+    });
+
+    setMonthlyAttendanceHistory((prev) => {
+      const updated = prev.filter((r) => r.month !== month);
+      AsyncStorage.setItem(STORAGE_KEYS.MONTHLY_ATTENDANCE, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   };
@@ -730,6 +844,7 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         expenses,
         documents: cloudSafeDocuments,
         attendanceLogs: dailyAttendanceLogs,
+        monthlyAttendanceHistory,
       });
 
       if (success) {
@@ -783,6 +898,10 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (backup.attendanceLogs) {
         setDailyAttendanceLogs(backup.attendanceLogs);
         AsyncStorage.setItem('@colio_attendance_logs_v2', JSON.stringify(backup.attendanceLogs)).catch(() => {});
+      }
+      if (backup.monthlyAttendanceHistory && backup.monthlyAttendanceHistory.length > 0) {
+        setMonthlyAttendanceHistory(backup.monthlyAttendanceHistory);
+        AsyncStorage.setItem(STORAGE_KEYS.MONTHLY_ATTENDANCE, JSON.stringify(backup.monthlyAttendanceHistory)).catch(() => {});
       }
 
       const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -1007,6 +1126,11 @@ export const CampusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         classesCanMiss,
         classesNeeded,
         attendanceCriteria,
+        monthlyAttendanceHistory,
+        setMonthlyAttendanceRecord,
+        deleteMonthlyAttendanceRecord,
+        getMonthlyAttendanceRecord,
+        currentMonthAttendance,
         timetable,
         timetableViewMode,
         setTimetableViewMode,

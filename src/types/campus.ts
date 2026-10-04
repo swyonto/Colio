@@ -91,3 +91,20 @@ export interface StudentProfile {
 }
 
 export type TabKey = 'home' | 'attend' | 'timetable' | 'expenses' | 'more';
+
+// Monthly attendance tracking & history
+export interface MonthlySubjectEntry {
+  subjectId: string;
+  held: number;
+  attended: number;
+}
+
+export interface MonthlyAttendanceRecord {
+  month: string; // 'YYYY-MM' format, e.g. '2026-10'
+  totalHeld: number;
+  totalAttended: number;
+  subjectEntries: MonthlySubjectEntry[];
+  isDistributed?: boolean; // true if distributed evenly across subjects
+  createdAt?: string;
+  updatedAt?: string;
+}

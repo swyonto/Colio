@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Verified — Colio CampusOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    body {
+      background-color: #050907;
+      color: #F0FFF4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .card {
+      background: #0C0F0D;
+      border: 1px solid rgba(0, 230, 118, 0.25);
+      border-radius: 24px;
+      padding: 36px 28px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 230, 118, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .glow {
+      position: absolute;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(0, 230, 118, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .icon-wrap {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(0, 230, 118, 0.15);
+      border: 1.5px solid #00E676;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); }
+      50% { transform: scale(1.04); box-shadow: 0 0 20px 6px rgba(0, 230, 118, 0.25); }
+    }
+    .icon-wrap svg {
+      width: 38px;
+      height: 38px;
+      stroke: #00E676;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #00E676;
+      background: rgba(0, 230, 118, 0.12);
+      border: 1px solid rgba(0, 230, 118, 0.3);
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+      color: #FFFFFF;
+    }
+    p {
+      font-size: 14px;
+      color: #6B8F7A;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .open-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 20px;
+      background: #00E676;
+      color: #050907;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      border-radius: 14px;
+      transition: all 0.2s ease;
+      box-shadow: 0 8px 24px rgba(0, 230, 118, 0.35);
+    }
+    .open-btn:hover {
+      background: #69F0AE;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0, 230, 118, 0.5);
+    }
+    .countdown {
+      margin-top: 18px;
+      font-size: 12px;
+      color: #3D5247;
+    }
+    .countdown span {
+      color: #00E676;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="glow"></div>
+    <div class="badge">COLIO CAMPUSOS</div>
+    <div class="icon-wrap">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+      </svg>
+    </div>
+    <h1>Email Verified!</h1>
+    <p>Your student email has been authenticated successfully. Return to the Colio app to complete your academic profile setup.</p>
+    <a href="colio://verified" class="open-btn" id="openAppBtn">
+      <span>Open Colio App</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+    <div class="countdown" id="countdownNotice">
+      Redirecting to Colio in <span id="timer">3</span>s...
+    </div>
+  </div>
+
+  <script>
+    // Try deep link redirect immediately
+    setTimeout(() => {
+      window.location.href = 'colio://verified';
+    }, 500);
+
+    let timeLeft = 3;
+    const timerEl = document.getElementById('timer');
+    const interval = setInterval(() => {
+      timeLeft--;
+      if (timerEl) timerEl.textContent = timeLeft;
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        window.location.href = 'colio://verified';
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

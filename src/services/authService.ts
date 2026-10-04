@@ -241,7 +241,19 @@ export async function signupWithEmail(
     return { success: true, requiresVerification: true };
   } catch (err: any) {
     await recordFailedAttempt(cleanEmail, 'signup');
-    if (err.code === 'auth/email-already-in-use') return { success: false, error: 'An account with this email already exists. Please log in.' };
+    if (err.code === 'auth/email-already-in-use') {
+      try {
+        const { fetchSignInMethodsForEmail } = await import('firebase/auth');
+        const methods = await fetchSignInMethodsForEmail(auth, cleanEmail);
+        if (methods.includes('google.com') && !methods.includes('password')) {
+          return {
+            success: false,
+            error: 'This email is already registered via Google Sign-In. Please tap "Continue with Google" to log in.',
+          };
+        }
+      } catch {}
+      return { success: false, error: 'An account with this email already exists. Please log in.' };
+    }
     if (err.code === 'auth/weak-password') return { success: false, error: 'Password is too weak. Please use at least 6 characters.' };
     if (err.code === 'auth/invalid-email') return { success: false, error: 'Please enter a valid email address.' };
     console.error('[Auth] signupWithEmail error:', err.code, err.message);
@@ -342,8 +354,19 @@ export async function loginWithEmail(
     return { success: true, user: authUser };
   } catch (err: any) {
     await recordFailedAttempt(cleanEmail, 'login');
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential')
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      try {
+        const { fetchSignInMethodsForEmail } = await import('firebase/auth');
+        const methods = await fetchSignInMethodsForEmail(auth, cleanEmail);
+        if (methods.includes('google.com') && !methods.includes('password')) {
+          return {
+            success: false,
+            error: 'This account was created using Google. Please tap "Continue with Google" below, or use "Forgot Password" to set an email password.',
+          };
+        }
+      } catch {}
       return { success: false, error: 'Invalid email or password. Please check your credentials.' };
+    }
     if (err.code === 'auth/user-disabled') return { success: false, error: 'This account has been disabled. Please contact support.' };
     if (err.code === 'auth/too-many-requests') return { success: false, error: 'Too many failed attempts. Please try again later.' };
     console.error('[Auth] loginWithEmail error:', err.code, err.message);
@@ -412,8 +435,9 @@ export async function signInWithGoogleToken(
     const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
     const credential = GoogleAuthProvider.credential(idToken, accessToken);
     const result = await signInWithCredential(auth, credential);
-    const isNew = (result as any)._tokenResponse?.isNewUser ?? false;
-    return await _processGoogleUser(result.user, isNew);
+    // isNewUser is reliably detected by Firestore profile absence inside _processGoogleUser.
+    // Avoid relying on private _tokenResponse field which may change across Firebase SDK versions.
+    return await _processGoogleUser(result.user, false);
   } catch (err: any) {
     console.warn('[Auth] signInWithGoogleToken error:', err.code);
     return { success: false, isNewUser: false, error: err?.message || 'Google authentication failed.' };

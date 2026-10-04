@@ -85,9 +85,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       await Notifications.setNotificationChannelAsync('colio_briefing', {
         name: 'Morning Routine Schedule Brief',
-        importance: getImportanceDefault(),
+        importance: getImportanceHigh(),
         vibrationPattern: [0, 150, 150, 150],
         lightColor: '#38BDF8',
+        sound: 'default',
       });
 
       await Notifications.setNotificationChannelAsync('colio_alerts', {
@@ -95,6 +96,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
         importance: getImportanceHigh(),
         vibrationPattern: [0, 200, 200, 200],
         lightColor: '#38BDF8',
+        sound: 'default',
       });
     }
 

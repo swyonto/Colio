@@ -12,12 +12,14 @@ import {
   Animated,
   Dimensions,
   Linking,
+  AppState,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
 import { ColioLogo } from '../components/common/ColioLogo';
 import { GoogleLogo } from '../components/common/GoogleLogo';
 import { Typography } from '../theme/typography';
@@ -61,21 +63,15 @@ export const AuthScreen: React.FC = () => {
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
 
-  // Native Google Sign-In via expo-auth-session
+  // Google OAuth Client IDs (Web and Android)
   const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || undefined;
   const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || undefined;
-  // Use WEB_CLIENT_ID as fallback on Android in Expo Go or when ANDROID_CLIENT_ID is not provided
-  const effectiveClientId = ANDROID_CLIENT_ID || WEB_CLIENT_ID;
 
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: 'colio',
-  });
-
+  // Configure Google Auth Request without forcing a custom scheme that violates Google's Web OAuth policy
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: effectiveClientId,
+    clientId: WEB_CLIENT_ID,
     webClientId: WEB_CLIENT_ID,
-    androidClientId: effectiveClientId,
-    redirectUri,
+    androidClientId: ANDROID_CLIENT_ID,
     selectAccount: true,
     scopes: ['profile', 'email'],
   });
@@ -266,26 +262,59 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
-  // Open Gmail / email client
+  // Open native mail app directly (Gmail, Outlook, Apple Mail) - never opens browser on mobile
   const handleOpenEmailInbox = async () => {
     triggerHapticFeedback('selection');
     try {
       if (Platform.OS === 'web') {
         window.open('https://mail.google.com', '_blank');
       } else {
-        const canOpen = await Linking.canOpenURL('googlegmail://');
-        if (canOpen) {
-          await Linking.openURL('googlegmail://');
-        } else {
-          await Linking.openURL('https://mail.google.com');
+        // Native mobile: mailto: invokes the device's native mail app chooser directly without browser
+        try {
+          await Linking.openURL('mailto:');
+        } catch {
+          try {
+            await Linking.openURL('googlegmail://');
+          } catch {
+            await Linking.openURL('https://mail.google.com');
+          }
         }
       }
-    } catch {
-      try {
-        await Linking.openURL('mailto:');
-      } catch {}
+    } catch (e) {
+      console.warn('Could not open mail app:', e);
     }
   };
+
+  // Automatically check email verification status when student returns to app from their mail client
+  useEffect(() => {
+    if (mode !== 'verify-email') return;
+
+    const handleAppStateChange = (nextState: string) => {
+      if (nextState === 'active' && !isLoading) {
+        // App brought to foreground from email app — silently verify status
+        checkEmailVerification().then((res) => {
+          if (res.success) {
+            triggerHapticFeedback('success');
+            setSuccessNotice('Email verified! Launching student setup...');
+          }
+        }).catch(() => {});
+      }
+    };
+
+    const handleDeepLink = (event: { url: string }) => {
+      if (event.url && (event.url.includes('verified') || event.url.includes('colio'))) {
+        handleCheckEmailLinkVerification();
+      }
+    };
+
+    const appStateSub = AppState.addEventListener('change', handleAppStateChange);
+    const linkSub = Linking.addEventListener('url', handleDeepLink);
+
+    return () => {
+      appStateSub.remove();
+      linkSub.remove();
+    };
+  }, [mode, isLoading]);
 
 
 
@@ -352,8 +381,19 @@ export const AuthScreen: React.FC = () => {
         setError(err?.message || 'Google sign in failed. Please try again.');
       } finally { setIsLoading(false); }
     } else {
-      if (request) { promptAsync(); }
-      else { setError('Google Sign-In is not configured yet. Please use Email sign-in for now.'); }
+      // Google OAuth blocks exp:// redirect URIs used by Expo Go.
+      // Google Sign-In on Android only works in the standalone APK (uses colio:// scheme).
+      const inExpoGo = Constants.executionEnvironment === 'storeClient';
+      if (inExpoGo) {
+        setError('Google Sign-In is only available in the installed app. Use email & password to sign in during development.');
+        triggerHapticFeedback('warning');
+        return;
+      }
+      if (request) {
+        promptAsync();
+      } else {
+        setError('Google Sign-In is not configured. Please use email sign-in.');
+      }
     }
   };
 

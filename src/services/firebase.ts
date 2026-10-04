@@ -52,6 +52,7 @@ export interface CloudStudentBackup {
   expenses: any[];
   documents?: any[]; // document metadata (NOT file URIs — those are device-local)
   attendanceLogs?: Record<string, 'present' | 'absent'>;
+  monthlyAttendanceHistory?: any[];
   updatedAt?: any;
 }
 

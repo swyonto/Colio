@@ -18,6 +18,15 @@ const patches = [
     ],
     content: `export async function setAutoServerRegistrationEnabledAsync(enabled) {}\nexport async function __handlePersistedRegistrationInfoAsync(registrationInfo) {}\n`,
   },
+  // 3. Neutralize TopicSubscriptionModule.android.js — requireNativeModule('ExpoTopicSubscriptionModule')
+  //    throws "Cannot find native module" in Expo Go since the native side is not bundled.
+  //    Replace with a safe stub that mirrors the web/non-android fallback.
+  {
+    paths: [
+      path.join(__dirname, '..', 'node_modules', 'expo-notifications', 'build', 'TopicSubscriptionModule.android.js'),
+    ],
+    content: `const module = {\n  addListener: () => {},\n  removeListeners: () => {},\n  subscribeToTopicAsync: () => Promise.resolve(null),\n  unsubscribeFromTopicAsync: () => Promise.resolve(null),\n};\nexport default module;\n`,
+  },
 ];
 
 let patchedCount = 0;
